@@ -224,24 +224,24 @@
     </div>
 
     <div class="modal__footer">
-        <.button
-          type="button"
-          phx-click={JS.push("close_product_modal") |> hide_modal("add-product-modal")}
-        >
-          Cancel
-        </.button>
-        <.button
-          type="button"
-          variant="primary"
-          phx-click="save_products_to_session"
-          phx-disable-with="Adding..."
-          disabled={MapSet.size(@add_product_selected_ids) == 0}
-        >
-          Add {MapSet.size(@add_product_selected_ids)} Product<%= if MapSet.size(@add_product_selected_ids) != 1 do %>
-            s
-          <% end %>
-        </.button>
-      </div>
+      <.button
+        type="button"
+        phx-click={JS.push("close_product_modal") |> hide_modal("add-product-modal")}
+      >
+        Cancel
+      </.button>
+      <.button
+        type="button"
+        variant="primary"
+        phx-click="save_products_to_session"
+        phx-disable-with="Adding..."
+        disabled={MapSet.size(@add_product_selected_ids) == 0}
+      >
+        Add {MapSet.size(@add_product_selected_ids)} Product<%= if MapSet.size(@add_product_selected_ids) != 1 do %>
+          s
+        <% end %>
+      </.button>
+    </div>
   </.modal>
 <% end %>
 
@@ -285,7 +285,7 @@
           label="Notes"
           placeholder="Any additional notes about this session"
         />
-
+        
 <!-- Product Selection Section -->
         <%= if @session_form.params["brand_id"] && @session_form.params["brand_id"] != "" do %>
           <div style="margin-top: var(--space-4);">

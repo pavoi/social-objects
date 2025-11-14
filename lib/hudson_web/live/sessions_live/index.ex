@@ -67,6 +67,7 @@ defmodule HudsonWeb.SessionsLive.Index do
   alias Hudson.Sessions.{Session, SessionProduct}
 
   import HudsonWeb.ProductComponents
+  import HudsonWeb.ViewHelpers
 
   @impl true
   def mount(_params, _session, socket) do
@@ -757,6 +758,16 @@ defmodule HudsonWeb.SessionsLive.Index do
 
   # Helper functions
 
+  # Template helper to get primary image from product
+  def primary_image(product) do
+    product.product_images
+    |> Enum.find(& &1.is_primary)
+    |> case do
+      nil -> List.first(product.product_images)
+      image -> image
+    end
+  end
+
   defp move_product(socket, sp_id, direction) do
     sp_id = normalize_id(sp_id)
     session = find_session_for_product(socket.assigns.sessions, sp_id)
@@ -864,7 +875,10 @@ defmodule HudsonWeb.SessionsLive.Index do
           socket
           |> assign(:loading_products, false)
           |> assign(:new_session_products_map, products_map)
-          |> stream(:new_session_products, products_with_state, reset: !append, at: if(append, do: -1, else: 0))
+          |> stream(:new_session_products, products_with_state,
+            reset: !append,
+            at: if(append, do: -1, else: 0)
+          )
           |> assign(:product_total_count, result.total)
           |> assign(:product_page, result.page)
           |> assign(:new_session_has_more, result.has_more)
@@ -874,63 +888,6 @@ defmodule HudsonWeb.SessionsLive.Index do
             |> assign(:loading_products, false)
             |> put_flash(:error, "Failed to load products")
         end
-    end
-  end
-
-  defp add_primary_image(product) do
-    primary_image =
-      product.product_images
-      |> Enum.find(& &1.is_primary)
-      |> case do
-        nil -> List.first(product.product_images)
-        image -> image
-      end
-
-    Map.put(product, :primary_image, primary_image)
-  end
-
-  defp format_cents_to_dollars(nil), do: nil
-
-  defp format_cents_to_dollars(cents) when is_integer(cents) do
-    cents / 100
-  end
-
-  defp convert_prices_to_cents(params) do
-    params
-    |> convert_price_field("original_price_cents")
-    |> convert_price_field("sale_price_cents")
-  end
-
-  defp convert_price_field(params, field) do
-    case Map.get(params, field) do
-      nil ->
-        params
-
-      "" ->
-        Map.put(params, field, nil)
-
-      value when is_binary(value) ->
-        parse_price_value(params, field, value)
-
-      value when is_integer(value) ->
-        params
-
-      _ ->
-        params
-    end
-  end
-
-  defp parse_price_value(params, field, value) do
-    case String.contains?(value, ".") do
-      true -> convert_dollars_to_cents(params, field, value)
-      false -> params
-    end
-  end
-
-  defp convert_dollars_to_cents(params, field, value) do
-    case Float.parse(value) do
-      {dollars, _} -> Map.put(params, field, round(dollars * 100))
-      :error -> params
     end
   end
 
@@ -983,15 +940,6 @@ defmodule HudsonWeb.SessionsLive.Index do
 
     # Fallback for empty slugs
     if slug == "", do: "session-#{:os.system_time(:second)}", else: slug
-  end
-
-  defp primary_image(product) do
-    product.product_images
-    |> Enum.find(& &1.is_primary)
-    |> case do
-      nil -> List.first(product.product_images)
-      image -> image
-    end
   end
 
   defp load_products_for_add_modal(socket, opts \\ [append: false]) do
@@ -1049,7 +997,10 @@ defmodule HudsonWeb.SessionsLive.Index do
           socket
           |> assign(:loading_add_products, false)
           |> assign(:add_product_products_map, products_map)
-          |> stream(:add_product_products, products_with_state, reset: !append, at: if(append, do: -1, else: 0))
+          |> stream(:add_product_products, products_with_state,
+            reset: !append,
+            at: if(append, do: -1, else: 0)
+          )
           |> assign(:add_product_total_count, result.total)
           |> assign(:add_product_page, result.page)
           |> assign(:add_product_has_more, result.has_more)
@@ -1112,11 +1063,6 @@ defmodule HudsonWeb.SessionsLive.Index do
 
   defp find_product_in_stream(products_map, product_id) do
     Map.get(products_map, product_id)
-  end
-
-  def public_image_url(path) do
-    # Path is already a full Shopify URL
-    path
   end
 
   # Sorts sessions while preserving the display position of the expanded session.

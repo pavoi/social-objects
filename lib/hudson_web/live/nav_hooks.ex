@@ -14,7 +14,6 @@ defmodule HudsonWeb.NavHooks do
 
   defp get_current_page(HudsonWeb.SessionsLive.Index), do: :sessions
   defp get_current_page(HudsonWeb.ProductsLive.Index), do: :products
-  defp get_current_page(HudsonWeb.ProductUploadLive), do: :products
   # Producer and host views return nil so navbar doesn't show
   defp get_current_page(HudsonWeb.SessionHostLive), do: nil
   defp get_current_page(HudsonWeb.SessionProducerLive), do: nil

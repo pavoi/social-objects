@@ -65,33 +65,33 @@ defmodule Hudson.Workers.ShopifySyncWorker do
 
         result =
           Enum.reduce_while(valid_products, {:ok, counts}, fn shopify_product, {:ok, acc} ->
-            case sync_product(shopify_product) do
-              {:ok, image_count} ->
-                {:cont,
-                 {:ok, %{acc | products: acc.products + 1, images: acc.images + image_count}}}
-
-              {:error, reason} ->
-                Logger.error(
-                  "Failed to sync product #{shopify_product["id"]}: #{inspect(reason)}"
-                )
-
-                {:halt, {:error, reason}}
-            end
+            sync_and_accumulate(shopify_product, acc)
           end)
 
-        case result do
-          {:ok, final_counts} ->
-            brand_count = Catalog.list_brands() |> length()
-            {:ok, %{final_counts | brands: brand_count}}
-
-          error ->
-            error
-        end
+        finalize_sync_result(result)
 
       {:error, reason} ->
         {:error, reason}
     end
   end
+
+  defp sync_and_accumulate(shopify_product, acc) do
+    case sync_product(shopify_product) do
+      {:ok, image_count} ->
+        {:cont, {:ok, %{acc | products: acc.products + 1, images: acc.images + image_count}}}
+
+      {:error, reason} ->
+        Logger.error("Failed to sync product #{shopify_product["id"]}: #{inspect(reason)}")
+        {:halt, {:error, reason}}
+    end
+  end
+
+  defp finalize_sync_result({:ok, final_counts}) do
+    brand_count = Catalog.list_brands() |> length()
+    {:ok, %{final_counts | brands: brand_count}}
+  end
+
+  defp finalize_sync_result(error), do: error
 
   defp sync_product(shopify_product) do
     Repo.transaction(fn ->
@@ -303,7 +303,7 @@ defmodule Hudson.Workers.ShopifySyncWorker do
     ## Variants
 
     #{Enum.map_join(variants, "\n", fn variant ->
-      options = (variant["selectedOptions"] || []) |> Enum.map(&"#{&1["name"]}: #{&1["value"]}") |> Enum.join(", ")
+      options = Enum.map_join(variant["selectedOptions"] || [], ", ", &"#{&1["name"]}: #{&1["value"]}")
 
       price = "$#{variant["price"]}"
       compare_price = case variant["compareAtPrice"] do

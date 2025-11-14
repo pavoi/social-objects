@@ -112,7 +112,10 @@ defmodule HudsonWeb.ProductComponents do
 
         <div class="modal__body">
           <%= if @editing_product.product_images && length(@editing_product.product_images) > 0 do %>
-            <div class="box box--bordered" style="max-width: 500px; margin-bottom: var(--space-md); padding-bottom: var(--space-md);">
+            <div
+              class="box box--bordered"
+              style="max-width: 500px; margin-bottom: var(--space-md); padding-bottom: var(--space-md);"
+            >
               <HudsonWeb.ImageComponents.image_carousel
                 id_prefix={"edit-product-#{@editing_product.id}"}
                 images={@editing_product.product_images}
@@ -279,7 +282,9 @@ defmodule HudsonWeb.ProductComponents do
 
   attr :is_empty, :boolean, required: true, doc: "Whether the products collection is empty"
 
-  attr :viewport_bottom, :any, default: nil, doc: "phx-viewport-bottom binding for infinite scroll"
+  attr :viewport_bottom, :any,
+    default: nil,
+    doc: "phx-viewport-bottom binding for infinite scroll"
 
   def product_grid(assigns) do
     ~H"""
@@ -518,15 +523,15 @@ defmodule HudsonWeb.ProductComponents do
             <div class="product-card-browse__pricing">
               <%= if @product.sale_price_cents do %>
                 <span class="product-card-browse__price-original">
-                  ${format_price(@product.original_price_cents)}
+                  ${format_price_for_display(@product.original_price_cents)}
                 </span>
                 <span class="product-card-browse__price-sale">
-                  ${format_price(@product.sale_price_cents)}
+                  ${format_price_for_display(@product.sale_price_cents)}
                 </span>
               <% else %>
                 <span class="product-card-browse__price">
                   <%= if @product.original_price_cents do %>
-                    ${format_price(@product.original_price_cents)}
+                    ${format_price_for_display(@product.original_price_cents)}
                   <% else %>
                     Price not set
                   <% end %>
@@ -539,11 +544,12 @@ defmodule HudsonWeb.ProductComponents do
       """
     end
 
-    defp format_price(cents) when is_integer(cents) do
+    # Format price for product card display (dollar amount without $ symbol)
+    defp format_price_for_display(cents) when is_integer(cents) do
       dollars = cents / 100
       :erlang.float_to_binary(dollars, decimals: 2)
     end
 
-    defp format_price(_), do: "N/A"
+    defp format_price_for_display(_), do: "N/A"
   end
 end

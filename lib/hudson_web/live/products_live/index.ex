@@ -7,6 +7,7 @@ defmodule HudsonWeb.ProductsLive.Index do
   alias Hudson.Catalog.Product
 
   import HudsonWeb.ProductComponents
+  import HudsonWeb.ViewHelpers
 
   @impl true
   def mount(_params, _session, socket) do
@@ -177,7 +178,11 @@ defmodule HudsonWeb.ProductsLive.Index do
 
       socket
       |> assign(:loading_products, false)
-      |> stream(:products, products_with_images, reset: !append, limit: 60, at: if(append, do: -1, else: 0))
+      |> stream(:products, products_with_images,
+        reset: !append,
+        limit: 60,
+        at: if(append, do: -1, else: 0)
+      )
       |> assign(:product_total_count, result.total)
       |> assign(:product_page, result.page)
       |> assign(:products_has_more, result.has_more)
@@ -186,63 +191,6 @@ defmodule HudsonWeb.ProductsLive.Index do
         socket
         |> assign(:loading_products, false)
         |> put_flash(:error, "Failed to load products")
-    end
-  end
-
-  defp add_primary_image(product) do
-    primary_image =
-      product.product_images
-      |> Enum.find(& &1.is_primary)
-      |> case do
-        nil -> List.first(product.product_images)
-        image -> image
-      end
-
-    Map.put(product, :primary_image, primary_image)
-  end
-
-  defp format_cents_to_dollars(nil), do: nil
-
-  defp format_cents_to_dollars(cents) when is_integer(cents) do
-    cents / 100
-  end
-
-  defp convert_prices_to_cents(params) do
-    params
-    |> convert_price_field("original_price_cents")
-    |> convert_price_field("sale_price_cents")
-  end
-
-  defp convert_price_field(params, field) do
-    case Map.get(params, field) do
-      nil ->
-        params
-
-      "" ->
-        Map.put(params, field, nil)
-
-      value when is_binary(value) ->
-        parse_price_value(params, field, value)
-
-      value when is_integer(value) ->
-        params
-
-      _ ->
-        params
-    end
-  end
-
-  defp parse_price_value(params, field, value) do
-    case String.contains?(value, ".") do
-      true -> convert_dollars_to_cents(params, field, value)
-      false -> params
-    end
-  end
-
-  defp convert_dollars_to_cents(params, field, value) do
-    case Float.parse(value) do
-      {dollars, _} -> Map.put(params, field, round(dollars * 100))
-      :error -> params
     end
   end
 

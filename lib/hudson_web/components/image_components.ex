@@ -89,7 +89,10 @@ defmodule HudsonWeb.ImageComponents do
             <%= for {_img, index} <- Enum.with_index(@images) do %>
               <button
                 type="button"
-                class={["image-carousel__dot", @current_index == index && "image-carousel__dot--active"]}
+                class={[
+                  "image-carousel__dot",
+                  @current_index == index && "image-carousel__dot--active"
+                ]}
                 phx-click="goto_image"
                 phx-value-index={index}
                 phx-target={@target}

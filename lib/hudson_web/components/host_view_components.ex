@@ -9,6 +9,7 @@ defmodule HudsonWeb.HostViewComponents do
   """
   use Phoenix.Component
 
+  import HudsonWeb.ViewHelpers
 
   alias Hudson.Sessions.SessionProduct
 
@@ -227,14 +228,6 @@ defmodule HudsonWeb.HostViewComponents do
 
   ## Helper functions (shared with LiveView modules)
 
-  defp format_price(nil), do: ""
-
-  defp format_price(cents) when is_integer(cents) do
-    dollars = div(cents, 100)
-    cents_remainder = rem(cents, 100)
-    "$#{dollars}.#{String.pad_leading(Integer.to_string(cents_remainder), 2, "0")}"
-  end
-
   defp get_effective_name(session_product) do
     SessionProduct.effective_name(session_product)
   end
@@ -242,5 +235,4 @@ defmodule HudsonWeb.HostViewComponents do
   defp get_effective_prices(session_product) do
     SessionProduct.effective_prices(session_product)
   end
-
 end

@@ -172,24 +172,11 @@ defmodule HudsonWeb.SessionHostLive do
 
   ## Helper functions for template
 
-  def format_price(nil), do: ""
-
-  def format_price(cents) when is_integer(cents) do
-    dollars = div(cents, 100)
-    cents_remainder = rem(cents, 100)
-    "$#{dollars}.#{String.pad_leading(Integer.to_string(cents_remainder), 2, "0")}"
-  end
-
   def get_effective_name(session_product) do
     SessionProduct.effective_name(session_product)
   end
 
   def get_effective_prices(session_product) do
     SessionProduct.effective_prices(session_product)
-  end
-
-  def public_image_url(path) do
-    # Path is already a full Shopify URL
-    path
   end
 end
