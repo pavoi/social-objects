@@ -36,7 +36,7 @@
   padding: var(--space-2);
   border: 1px solid var(--color-border-secondary);
   border-radius: var(--radius-md);
-  background-color: var(--color-bg-secondary);
+  background-color: var(--color-surface-primary);
   /* Allow grid to grow naturally for infinite scroll */
   min-height: min-content;
 }
@@ -48,7 +48,7 @@
   align-items: center;
   gap: var(--space-2);
   padding: var(--space-3);
-  background-color: var(--color-surface-primary);
+  background-color: var(--color-bg-secondary);
   border: 2px solid var(--color-border-secondary);
   border-radius: var(--radius-md);
   cursor: pointer;

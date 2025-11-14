@@ -351,6 +351,7 @@ defmodule HudsonWeb.ProductComponents do
           <% else %>
             <.button
               type="button"
+              variant="outline"
               phx-click={@on_load_more}
               size="sm"
             >

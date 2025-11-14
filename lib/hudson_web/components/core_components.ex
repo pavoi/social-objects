@@ -340,7 +340,7 @@ defmodule HudsonWeb.CoreComponents do
         </.link>
       </div>
       <div class="navbar__end">
-        <.button :if={@current_page == :sessions} phx-click="show_new_session_modal" variant="primary">
+        <.button :if={@current_page == :sessions} phx-click="show_new_session_modal">
           New Session
         </.button>
       </div>
