@@ -74,6 +74,7 @@ defmodule HudsonWeb.SessionsLive.Index do
     socket =
       socket
       |> assign(:sessions, sessions)
+      |> assign(:previous_sessions, sessions)
       |> assign(:brands, brands)
       |> assign(:expanded_session_ids, MapSet.new())
       |> assign(:selected_session_for_product, nil)
@@ -280,11 +281,14 @@ defmodule HudsonWeb.SessionsLive.Index do
       {:ok, _session} ->
         # Preserve expanded state across reload
         expanded_ids = socket.assigns.expanded_session_ids
-        sessions = Sessions.list_sessions_with_details()
+        previous_sessions = socket.assigns.sessions
+        new_sessions = Sessions.list_sessions_with_details()
+        sorted_sessions = sort_sessions_preserving_expanded(new_sessions, expanded_ids, previous_sessions)
 
         socket =
           socket
-          |> assign(:sessions, sessions)
+          |> assign(:sessions, sorted_sessions)
+          |> assign(:previous_sessions, sorted_sessions)
           |> assign(:expanded_session_ids, expanded_ids)
           |> assign(:show_new_session_modal, false)
           |> assign(
@@ -320,11 +324,14 @@ defmodule HudsonWeb.SessionsLive.Index do
       :ok ->
         # Preserve expanded state across reload
         expanded_ids = socket.assigns.expanded_session_ids
-        sessions = Sessions.list_sessions_with_details()
+        previous_sessions = socket.assigns.sessions
+        new_sessions = Sessions.list_sessions_with_details()
+        sorted_sessions = sort_sessions_preserving_expanded(new_sessions, expanded_ids, previous_sessions)
 
         socket =
           socket
-          |> assign(:sessions, sessions)
+          |> assign(:sessions, sorted_sessions)
+          |> assign(:previous_sessions, sorted_sessions)
           |> assign(:expanded_session_ids, expanded_ids)
           |> assign(:selected_session_for_product, nil)
           |> assign(:show_modal_for_session, nil)
@@ -407,11 +414,14 @@ defmodule HudsonWeb.SessionsLive.Index do
       {:ok, _session_product} ->
         # Preserve expanded state across reload
         expanded_ids = socket.assigns.expanded_session_ids
-        sessions = Sessions.list_sessions_with_details()
+        previous_sessions = socket.assigns.sessions
+        new_sessions = Sessions.list_sessions_with_details()
+        sorted_sessions = sort_sessions_preserving_expanded(new_sessions, expanded_ids, previous_sessions)
 
         socket =
           socket
-          |> assign(:sessions, sessions)
+          |> assign(:sessions, sorted_sessions)
+          |> assign(:previous_sessions, sorted_sessions)
           |> assign(:expanded_session_ids, expanded_ids)
           |> put_flash(:info, "Product removed from session")
 
@@ -445,11 +455,14 @@ defmodule HudsonWeb.SessionsLive.Index do
       {:ok, _session} ->
         # Preserve expanded state across reload (and remove deleted session)
         expanded_ids = MapSet.delete(socket.assigns.expanded_session_ids, session_id)
-        sessions = Sessions.list_sessions_with_details()
+        previous_sessions = socket.assigns.sessions
+        new_sessions = Sessions.list_sessions_with_details()
+        sorted_sessions = sort_sessions_preserving_expanded(new_sessions, expanded_ids, previous_sessions)
 
         socket =
           socket
-          |> assign(:sessions, sessions)
+          |> assign(:sessions, sorted_sessions)
+          |> assign(:previous_sessions, sorted_sessions)
           |> assign(:expanded_session_ids, expanded_ids)
           |> put_flash(:info, "Session deleted successfully")
 
@@ -538,11 +551,14 @@ defmodule HudsonWeb.SessionsLive.Index do
       {:ok, _session} ->
         # Preserve expanded state across reload
         expanded_ids = socket.assigns.expanded_session_ids
-        sessions = Sessions.list_sessions_with_details()
+        previous_sessions = socket.assigns.sessions
+        new_sessions = Sessions.list_sessions_with_details()
+        sorted_sessions = sort_sessions_preserving_expanded(new_sessions, expanded_ids, previous_sessions)
 
         socket =
           socket
-          |> assign(:sessions, sessions)
+          |> assign(:sessions, sorted_sessions)
+          |> assign(:previous_sessions, sorted_sessions)
           |> assign(:expanded_session_ids, expanded_ids)
           |> assign(:editing_session, nil)
           |> assign(:session_edit_form, to_form(Session.changeset(%Session{}, %{})))
@@ -568,12 +584,15 @@ defmodule HudsonWeb.SessionsLive.Index do
     case Catalog.update_product(socket.assigns.editing_product, product_params) do
       {:ok, _product} ->
         # Refresh the sessions list
-        sessions = Sessions.list_sessions_with_details()
         expanded_ids = socket.assigns.expanded_session_ids
+        previous_sessions = socket.assigns.sessions
+        new_sessions = Sessions.list_sessions_with_details()
+        sorted_sessions = sort_sessions_preserving_expanded(new_sessions, expanded_ids, previous_sessions)
 
         socket =
           socket
-          |> assign(:sessions, sessions)
+          |> assign(:sessions, sorted_sessions)
+          |> assign(:previous_sessions, sorted_sessions)
           |> assign(:expanded_session_ids, expanded_ids)
           |> assign(:editing_product, nil)
           |> assign(:product_edit_form, to_form(Product.changeset(%Product{}, %{})))
@@ -675,11 +694,14 @@ defmodule HudsonWeb.SessionsLive.Index do
     case Sessions.swap_product_positions(sp_id, adjacent_sp_id) do
       {:ok, _} ->
         expanded_ids = socket.assigns.expanded_session_ids
-        sessions = Sessions.list_sessions_with_details()
+        previous_sessions = socket.assigns.sessions
+        new_sessions = Sessions.list_sessions_with_details()
+        sorted_sessions = sort_sessions_preserving_expanded(new_sessions, expanded_ids, previous_sessions)
 
         socket =
           socket
-          |> assign(:sessions, sessions)
+          |> assign(:sessions, sorted_sessions)
+          |> assign(:previous_sessions, sorted_sessions)
           |> assign(:expanded_session_ids, expanded_ids)
 
         {:noreply, socket}
@@ -954,5 +976,60 @@ defmodule HudsonWeb.SessionsLive.Index do
 
   def public_image_url(path) do
     Hudson.Media.public_image_url(path)
+  end
+
+  # Sorts sessions while preserving the display position of expanded sessions.
+  #
+  # This prevents the jarring experience of sessions jumping to the top when modified
+  # while their accordion is expanded. Expanded sessions stay in place until collapsed.
+  #
+  # Algorithm:
+  # 1. If no sessions are expanded, return the new list as-is (sorted by updated_at)
+  # 2. If sessions are expanded:
+  #    - Keep expanded sessions in their previous positions
+  #    - Fill remaining positions with new/collapsed sessions sorted by updated_at
+  #    - This maintains a stable view while editing
+  defp sort_sessions_preserving_expanded(new_sessions, expanded_ids, previous_sessions) do
+    if MapSet.size(expanded_ids) == 0 do
+      # No expanded sessions - use database sort order
+      new_sessions
+    else
+      # Build a map of session_id -> updated session data
+      new_sessions_map = Map.new(new_sessions, &{&1.id, &1})
+
+      # Build a map of position -> session_id for expanded sessions
+      expanded_at_position =
+        previous_sessions
+        |> Enum.with_index()
+        |> Enum.filter(fn {session, _idx} -> MapSet.member?(expanded_ids, session.id) end)
+        |> Map.new(fn {session, idx} -> {idx, session.id} end)
+
+      # Get non-expanded sessions sorted by updated_at (already sorted from DB)
+      non_expanded_sessions =
+        new_sessions
+        |> Enum.reject(fn session -> MapSet.member?(expanded_ids, session.id) end)
+
+      # Build result by going through each position and filling it appropriately
+      {result, _remaining} =
+        Enum.reduce(0..(length(previous_sessions) - 1), {[], non_expanded_sessions}, fn idx, {acc, remaining} ->
+          case Map.get(expanded_at_position, idx) do
+            nil ->
+              # This position should have a non-expanded session
+              case remaining do
+                [next_session | rest] -> {acc ++ [next_session], rest}
+                [] -> {acc, []}
+              end
+
+            session_id ->
+              # This position should keep its expanded session (with fresh data)
+              case Map.get(new_sessions_map, session_id) do
+                nil -> {acc, remaining}
+                session -> {acc ++ [session], remaining}
+              end
+          end
+        end)
+
+      result
+    end
   end
 end

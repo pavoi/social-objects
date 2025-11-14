@@ -651,4 +651,60 @@ defmodule HudsonWeb.CoreComponents do
 
   defp maybe_add_class(classes, true, class_name), do: classes ++ [class_name]
   defp maybe_add_class(classes, _, _), do: classes
+
+  @doc """
+  Formats a NaiveDateTime into a human-friendly relative time string.
+
+  ## Examples
+
+      iex> format_relative_time(~N[2025-01-14 12:00:00])
+      "2 hours ago"
+
+      iex> format_relative_time(~N[2025-01-13 12:00:00])
+      "Yesterday"
+
+      iex> format_relative_time(~N[2025-01-07 12:00:00])
+      "7 days ago"
+  """
+  def format_relative_time(nil), do: "Never"
+
+  def format_relative_time(%NaiveDateTime{} = datetime) do
+    now = NaiveDateTime.utc_now()
+    diff_seconds = NaiveDateTime.diff(now, datetime, :second)
+
+    cond do
+      diff_seconds < 60 ->
+        "Just now"
+
+      diff_seconds < 3600 ->
+        minutes = div(diff_seconds, 60)
+        "#{minutes} #{pluralize("minute", minutes)} ago"
+
+      diff_seconds < 86400 ->
+        hours = div(diff_seconds, 3600)
+        "#{hours} #{pluralize("hour", hours)} ago"
+
+      diff_seconds < 172800 ->
+        "Yesterday"
+
+      diff_seconds < 604_800 ->
+        days = div(diff_seconds, 86400)
+        "#{days} days ago"
+
+      diff_seconds < 2_592_000 ->
+        weeks = div(diff_seconds, 604_800)
+        "#{weeks} #{pluralize("week", weeks)} ago"
+
+      diff_seconds < 31_536_000 ->
+        months = div(diff_seconds, 2_592_000)
+        "#{months} #{pluralize("month", months)} ago"
+
+      true ->
+        years = div(diff_seconds, 31_536_000)
+        "#{years} #{pluralize("year", years)} ago"
+    end
+  end
+
+  defp pluralize(word, 1), do: word
+  defp pluralize(word, _), do: "#{word}s"
 end

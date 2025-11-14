@@ -198,30 +198,39 @@ defmodule Hudson.Sessions do
         {:error, :different_sessions}
 
       true ->
-        Repo.transaction(fn ->
-          # Use temporary position to avoid constraint violations
-          temp_pos = 999_999
+        result =
+          Repo.transaction(fn ->
+            # Use temporary position to avoid constraint violations
+            temp_pos = 999_999
 
-          # Step 1: Move sp1 to temp position
-          sp1
-          |> Ecto.Changeset.change(position: temp_pos)
-          |> Repo.update!()
+            # Step 1: Move sp1 to temp position
+            sp1
+            |> Ecto.Changeset.change(position: temp_pos)
+            |> Repo.update!()
 
-          # Step 2: Move sp2 to sp1's original position
-          sp2
-          |> Ecto.Changeset.change(position: sp1.position)
-          |> Repo.update!()
+            # Step 2: Move sp2 to sp1's original position
+            sp2
+            |> Ecto.Changeset.change(position: sp1.position)
+            |> Repo.update!()
 
-          # Step 3: Move sp1 from temp to sp2's original position
-          sp1
-          |> Ecto.Changeset.change(position: sp2.position)
-          |> Repo.update!()
+            # Step 3: Move sp1 from temp to sp2's original position
+            sp1
+            |> Ecto.Changeset.change(position: sp2.position)
+            |> Repo.update!()
 
-          # Renumber all products in the session to ensure sequential 1, 2, 3, etc.
-          renumber_session_products_in_transaction(sp1.session_id)
+            # Renumber all products in the session to ensure sequential 1, 2, 3, etc.
+            renumber_session_products_in_transaction(sp1.session_id)
 
-          {sp1, sp2}
-        end)
+            {sp1, sp2}
+          end)
+
+        # Touch the session's updated_at timestamp
+        case result do
+          {:ok, _} -> touch_session(sp1.session_id)
+          error -> error
+        end
+
+        result
     end
   end
 

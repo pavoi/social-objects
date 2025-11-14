@@ -33,6 +33,11 @@
                   <.icon name="hero-cube" class="size-4" />
                   {length(session.session_products)} products
                 </div>
+
+                <div class="session-card__meta-item">
+                  <.icon name="hero-clock" class="size-4" />
+                  Modified: {format_relative_time(session.updated_at)}
+                </div>
               </div>
 
               <%= if session.notes do %>
