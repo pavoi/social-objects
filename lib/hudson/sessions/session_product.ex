@@ -40,6 +40,7 @@ defmodule Hudson.Sessions.SessionProduct do
     |> validate_required([:session_id, :product_id, :position])
     |> validate_number(:position, greater_than: 0)
     |> unique_constraint([:session_id, :position])
+    |> unique_constraint([:session_id, :product_id])
     |> foreign_key_constraint(:session_id)
     |> foreign_key_constraint(:product_id)
   end
