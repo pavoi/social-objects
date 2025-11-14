@@ -17,14 +17,13 @@ defmodule HudsonWeb.ProductsLive.Index do
       |> assign(:brands, brands)
       |> assign(:editing_product, nil)
       |> assign(:product_edit_form, to_form(Product.changeset(%Product{}, %{})))
-      |> assign(:show_new_product_modal, false)
-      |> assign(:new_product_form, to_form(Product.changeset(%Product{}, %{})))
+      |> assign(:current_edit_image_index, 0)
       |> assign(:product_search_query, "")
       |> assign(:product_page, 1)
       |> assign(:product_total_count, 0)
       |> assign(:products_has_more, false)
       |> assign(:loading_products, false)
-      |> stream(:products, [])
+      |> stream(:products, [], limit: 60)
       |> load_products_for_browse()
 
     {:ok, socket}
@@ -51,6 +50,7 @@ defmodule HudsonWeb.ProductsLive.Index do
       socket
       |> assign(:editing_product, nil)
       |> assign(:product_edit_form, to_form(Product.changeset(%Product{}, %{})))
+      |> assign(:current_edit_image_index, 0)
       |> push_patch(to: ~p"/products")
 
     {:noreply, socket}
@@ -95,64 +95,6 @@ defmodule HudsonWeb.ProductsLive.Index do
   end
 
   @impl true
-  def handle_event("show_new_product_modal", _params, socket) do
-    socket =
-      socket
-      |> assign(:show_new_product_modal, true)
-      |> assign(:new_product_form, to_form(Product.changeset(%Product{}, %{})))
-
-    {:noreply, socket}
-  end
-
-  @impl true
-  def handle_event("close_new_product_modal", _params, socket) do
-    socket =
-      socket
-      |> assign(:show_new_product_modal, false)
-      |> assign(:new_product_form, to_form(Product.changeset(%Product{}, %{})))
-
-    {:noreply, socket}
-  end
-
-  @impl true
-  def handle_event("validate_new_product", %{"product" => product_params}, socket) do
-    changeset =
-      %Product{}
-      |> Product.changeset(product_params)
-      |> Map.put(:action, :validate)
-
-    {:noreply, assign(socket, :new_product_form, to_form(changeset))}
-  end
-
-  @impl true
-  def handle_event("save_new_product", %{"product" => product_params}, socket) do
-    # Convert price fields from dollars to cents
-    product_params = convert_prices_to_cents(product_params)
-
-    case Catalog.create_product(product_params) do
-      {:ok, _product} ->
-        socket =
-          socket
-          |> assign(:product_page, 1)
-          |> assign(:loading_products, true)
-          |> load_products_for_browse()
-          |> assign(:show_new_product_modal, false)
-          |> assign(:new_product_form, to_form(Product.changeset(%Product{}, %{})))
-          |> put_flash(:info, "Product created successfully")
-
-        {:noreply, socket}
-
-      {:error, %Ecto.Changeset{} = changeset} ->
-        socket =
-          socket
-          |> assign(:new_product_form, to_form(changeset))
-          |> put_flash(:error, "Please fix the errors below")
-
-        {:noreply, socket}
-    end
-  end
-
-  @impl true
   def handle_event("search_products", %{"value" => query}, socket) do
     socket =
       socket
@@ -172,6 +114,47 @@ defmodule HudsonWeb.ProductsLive.Index do
       |> load_products_for_browse(append: true)
 
     {:noreply, socket}
+  end
+
+  # Carousel navigation handlers for product edit modal
+  @impl true
+  def handle_event("goto_image", %{"index" => index_value}, socket) do
+    # Only handle if editing a product (modal context)
+    if socket.assigns.editing_product do
+      # Handle both string and integer index values
+      index = if is_binary(index_value), do: String.to_integer(index_value), else: index_value
+      max_index = length(socket.assigns.editing_product.product_images) - 1
+      safe_index = max(0, min(index, max_index))
+
+      {:noreply, assign(socket, current_edit_image_index: safe_index)}
+    else
+      {:noreply, socket}
+    end
+  end
+
+  @impl true
+  def handle_event("next_image", _params, socket) do
+    # Only handle if editing a product (modal context)
+    if socket.assigns.editing_product do
+      max_index = length(socket.assigns.editing_product.product_images) - 1
+      new_index = min(socket.assigns.current_edit_image_index + 1, max_index)
+
+      {:noreply, assign(socket, current_edit_image_index: new_index)}
+    else
+      {:noreply, socket}
+    end
+  end
+
+  @impl true
+  def handle_event("previous_image", _params, socket) do
+    # Only handle if editing a product (modal context)
+    if socket.assigns.editing_product do
+      new_index = max(socket.assigns.current_edit_image_index - 1, 0)
+
+      {:noreply, assign(socket, current_edit_image_index: new_index)}
+    else
+      {:noreply, socket}
+    end
   end
 
   # Helper functions
@@ -194,7 +177,7 @@ defmodule HudsonWeb.ProductsLive.Index do
 
       socket
       |> assign(:loading_products, false)
-      |> stream(:products, products_with_images, reset: !append)
+      |> stream(:products, products_with_images, reset: !append, limit: 60, at: if(append, do: -1, else: 0))
       |> assign(:product_total_count, result.total)
       |> assign(:product_page, result.page)
       |> assign(:products_has_more, result.has_more)
@@ -289,6 +272,7 @@ defmodule HudsonWeb.ProductsLive.Index do
           socket
           |> assign(:editing_product, product)
           |> assign(:product_edit_form, to_form(changeset))
+          |> assign(:current_edit_image_index, 0)
         rescue
           Ecto.NoResultsError ->
             # Product not found, clear param by redirecting

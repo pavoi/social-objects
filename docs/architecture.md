@@ -77,16 +77,16 @@
 │  │    - session:#{session_id}:meta                     │  │
 │  └─────────────────────────────────────────────────────┘  │
 │                                                             │
-│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐    │
-│  │   Catalog    │  │   Sessions   │  │    Import    │    │
-│  │   Context    │  │   Context    │  │   Context    │    │
-│  │              │  │              │  │              │    │
-│  │ - Brand      │  │ - Session    │  │ - CSV Parse  │    │
-│  │ - Product    │  │ - Session    │  │ - Validate   │    │
-│  │ - Product    │  │   Product    │  │ - Upsert     │    │
-│  │   Image      │  │ - Session    │  │              │    │
-│  │              │  │   State      │  │              │    │
-│  └──────┬───────┘  └──────┬───────┘  └──────────────┘    │
+│  ┌──────────────┐  ┌──────────────┐                        │
+│  │   Catalog    │  │   Sessions   │                        │
+│  │   Context    │  │   Context    │                        │
+│  │              │  │              │                        │
+│  │ - Brand      │  │ - Session    │                        │
+│  │ - Product    │  │ - Session    │                        │
+│  │ - Product    │  │   Product    │                        │
+│  │   Image      │  │ - Session    │                        │
+│  │              │  │   State      │                        │
+│  └──────┬───────┘  └──────┬───────┘                        │
 │         │                  │                               │
 │         └──────────────────┘                               │
 │                    │                                        │
@@ -199,22 +199,6 @@ _See [Implementation Guide](implementation_guide.md) for code examples._
 - State changes broadcast via PubSub automatically
 
 _See [Implementation Guide](implementation_guide.md) for code examples._
-
-### 3.3 Import Context
-
-**Module:** `Hudson.Import`
-
-**Responsibilities:**
-- Parse CSV files (Google Sheets exports)
-- Validate and normalize product data
-- Bulk upsert products and session products
-
-**Design Principles:**
-- Idempotent: re-running import with same data is safe
-- Dry-run mode for preview before commit
-- Transactional: all-or-nothing for data integrity
-
-_See [Implementation Guide](implementation_guide.md#import) for CSV import details._
 
 ---
 

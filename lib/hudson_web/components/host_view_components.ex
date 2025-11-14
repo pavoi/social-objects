@@ -9,7 +9,6 @@ defmodule HudsonWeb.HostViewComponents do
   """
   use Phoenix.Component
 
-  import HudsonWeb.ImageComponents
 
   alias Hudson.Sessions.SessionProduct
 
@@ -135,18 +134,12 @@ defmodule HudsonWeb.HostViewComponents do
         <% current_image = Enum.at(@product_images, @current_image_index) %>
         <%= if current_image do %>
           <div class="image-wrapper">
-            <.lqip_image
+            <img
               id={"#{@id_prefix}-img-#{@current_product.id}-#{@current_image_index}"}
-              src={public_image_url(current_image.path)}
-              thumb_src={
-                if current_image.thumbnail_path do
-                  public_image_url(current_image.thumbnail_path)
-                else
-                  public_image_url(current_image.path)
-                end
-              }
+              src={current_image.path}
               alt={current_image.alt_text || @current_product.name}
               class="product-image"
+              loading="lazy"
             />
           </div>
           <div class="image-indicator">
@@ -250,7 +243,4 @@ defmodule HudsonWeb.HostViewComponents do
     SessionProduct.effective_prices(session_product)
   end
 
-  defp public_image_url(path) do
-    Hudson.Media.public_image_url(path)
-  end
 end

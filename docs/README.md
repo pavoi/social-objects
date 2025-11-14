@@ -1,6 +1,6 @@
 # Hudson Documentation
 
-**Hudson** is a live session orchestrator for TikTok streaming, replacing ad hoc Google Sheets with a purpose-built Phoenix LiveView application optimized for 3-4 hour live sessions.
+**Hudson** is a live session orchestrator for TikTok streaming built with Phoenix LiveView, optimized for 3-4 hour live sessions.
 
 ## Quick Start
 
@@ -26,24 +26,23 @@ Visit `http://localhost:4000` to access the application.
 ### Technical Documentation
 - **[Architecture](architecture.md)** - System design patterns, context boundaries, and architectural decisions (high-level)
 - **[Domain Model](domain_model.md)** - Database schema, entities, relationships, and migrations
-- **[Implementation Guide](implementation_guide.md)** - Complete development guide with code examples, deployment, error handling, and CSV import
+- **[Implementation Guide](implementation_guide.md)** - Complete development guide with code examples, deployment, and error handling
 
 ## Project Overview
 
 ### The Problem
-TikTok live streaming sessions (3-4 hours) currently rely on:
-- Google Sheets for product catalogs and talking points
-- Manual navigation and searching
-- No real-time coordination between hosts and producers
-- Difficult remote editing
+TikTok live streaming sessions (3-4 hours) need:
+- Organized product catalogs and talking points
+- Efficient navigation during live streams
+- Real-time coordination between hosts and producers
+- Easy remote control and editing
 
 ### The Solution
 Hudson provides:
-- **Product Catalog Management** - CRUD interface for products, images, and talking points
+- **Product Catalog Management** - CRUD interface for products, images, and talking points (manual entry + Shopify sync)
 - **Session Planning** - Build sessions with product selection, ordering, and per-session overrides
 - **Host View** - Large-format display optimized for streaming with keyboard navigation
 - **Producer Console** - Remote control of session state with real-time sync
-- **Import Pipeline** - Convert existing Google Sheets to structured data
 
 ### Tech Stack
 
@@ -135,13 +134,6 @@ Hudson.Catalog.create_product(%{
 3. Add products and reorder
 4. Click "Start Session" → opens Host View
 5. Share URL with producer for remote control
-
-### Import from CSV
-```bash
-mix run priv/import/import_pavoi_holiday.exs
-```
-
-See [Import Guide](import_guide.md) for details.
 
 ## Support & Contributing
 

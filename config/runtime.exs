@@ -12,13 +12,9 @@ if config_env() == :dev and File.exists?(".env") and Code.ensure_loaded?(Dotenvy
   Dotenvy.source!([".env"], side_effect: &System.put_env/1)
 end
 
-# Supabase configuration for development (after .env is loaded)
+# Shopify configuration for development (after .env is loaded)
 if config_env() == :dev do
   config :hudson,
-    supabase_url: System.get_env("SUPABASE_URL"),
-    supabase_anon_key: System.get_env("SUPABASE_ANON_KEY"),
-    supabase_service_role_key: System.get_env("SUPABASE_SERVICE_ROLE_KEY"),
-    storage_public_url: System.get_env("SUPABASE_STORAGE_PUBLIC_URL"),
     shopify_access_token: System.get_env("SHOPIFY_ACCESS_TOKEN"),
     shopify_store_name: System.get_env("SHOPIFY_STORE_NAME")
 end
@@ -51,16 +47,7 @@ if config_env() == :prod do
     pool_size: String.to_integer(System.get_env("POOL_SIZE") || "10"),
     # For machines with several cores, consider starting multiple pools of `pool_size`
     # pool_count: 4,
-    socket_options: maybe_ipv6,
-    ssl: true,
-    ssl_opts: [
-      verify: :verify_peer,
-      cacertfile: System.get_env("SUPABASE_CA_CERT") || CAStore.file_path(),
-      server_name_indication: ~c"db.supabase.net",
-      customize_hostname_check: [
-        match_fun: :public_key.pkix_verify_hostname_match_fun(:https)
-      ]
-    ]
+    socket_options: maybe_ipv6
 
   # The secret key base is used to sign/encrypt cookies and other secrets.
   # A default value is used in config/dev.exs and config/test.exs but you
@@ -79,12 +66,8 @@ if config_env() == :prod do
 
   config :hudson, :dns_cluster_query, System.get_env("DNS_CLUSTER_QUERY")
 
-  # Supabase configuration
+  # Shopify configuration
   config :hudson,
-    supabase_url: System.get_env("SUPABASE_URL"),
-    supabase_anon_key: System.get_env("SUPABASE_ANON_KEY"),
-    supabase_service_role_key: System.get_env("SUPABASE_SERVICE_ROLE_KEY"),
-    storage_public_url: System.get_env("SUPABASE_STORAGE_PUBLIC_URL"),
     shopify_access_token: System.get_env("SHOPIFY_ACCESS_TOKEN"),
     shopify_store_name: System.get_env("SHOPIFY_STORE_NAME")
 

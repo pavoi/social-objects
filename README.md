@@ -7,7 +7,7 @@ Hudson is a purpose-built Phoenix LiveView application for TikTok live streaming
 ### Prerequisites
 
 - Elixir 1.15+ and Erlang/OTP 26+
-- PostgreSQL 15+ (local) OR Supabase account
+- PostgreSQL 15+ (local or hosted, e.g., Supabase)
 - Node.js 18+ (for asset compilation)
 
 ### 1. Clone and Install
@@ -28,19 +28,10 @@ mix deps.get
    cp .env.example .env
    ```
 
-3. Fill in your Supabase credentials in `.env`:
+3. Fill in your database URL in `.env`:
    ```bash
    DATABASE_URL=postgresql://postgres:your-password@your-project.supabase.co:5432/postgres
-   SUPABASE_URL=https://your-project.supabase.co
-   SUPABASE_ANON_KEY=your_anon_key
-   SUPABASE_SERVICE_ROLE_KEY=your_service_key
-   SUPABASE_STORAGE_PUBLIC_URL=https://your-project.supabase.co/storage/v1/object/public
-   SUPABASE_CA_CERT=/path/to/supabase-ca.pem  # Or leave blank to use :castore
    ```
-
-4. Create the `products` storage bucket in Supabase Dashboard
-
-5. Apply RLS policies (see docs/implementation_guide.md §10.2)
 
 **Option B: Use Local PostgreSQL**
 
@@ -206,23 +197,18 @@ See `docs/domain_model.md` for full schema details.
 All configuration is managed via environment variables. See `.env.example` for the complete list.
 
 **Required:**
-- `DATABASE_URL` - PostgreSQL connection (Supabase or local)
+- `DATABASE_URL` - PostgreSQL connection string
 - `SECRET_KEY_BASE` - Phoenix secret (generate with `mix phx.gen.secret`)
 
-**Optional (for Supabase):**
-- `SUPABASE_URL`
-- `SUPABASE_SERVICE_ROLE_KEY`
-- `SUPABASE_STORAGE_PUBLIC_URL`
+**Optional:**
+- `SHOPIFY_ACCESS_TOKEN` - Shopify API access token for product images
+- `SHOPIFY_STORE_NAME` - Your Shopify store name
 
 ## Troubleshooting
 
-### Database Connection Issues (Supabase)
+### Database Connection Issues
 
-If you see SSL verification errors:
-
-1. Download the Supabase CA certificate from your project settings
-2. Set `SUPABASE_CA_CERT` to the path of the certificate file
-3. Alternatively, ensure `:castore` dependency is installed (already in mix.exs)
+If you see SSL verification errors when connecting to a remote PostgreSQL database, ensure your database provider's SSL certificate is properly configured in your connection string or system trust store.
 
 ### Compilation Warnings
 
@@ -237,17 +223,7 @@ PORT=4001 mix phx.server
 
 ## Next Steps
 
-See `docs/implementation_guide.md` for:
-- CSV import setup
-- Supabase storage configuration
-- Authentication implementation
-- Production deployment
-
-See `docs/future_roadmap.md` for planned features:
-- Shopify sync
-- AI-generated talking points
-- OBS integration
-- Mobile companion app
+For deployment, production configuration, and roadmap features, see `docs/future_roadmap.md`.
 
 ## Contributing
 

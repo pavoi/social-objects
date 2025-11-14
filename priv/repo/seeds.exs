@@ -1,7 +1,7 @@
 # Seeds for Hudson - Sample Product Data
 # Run: mix run priv/repo/seeds.exs
 
-alias Hudson.{Repo, Catalog, Media}
+alias Hudson.{Repo, Catalog}
 alias Hudson.Catalog.{Brand, Product, ProductImage}
 
 require Logger
@@ -283,77 +283,6 @@ products =
     product
   end)
 
-# Step 4: Generate placeholder images
-IO.puts("\nStep 4: Generating placeholder images...")
-
-# Create temp directory for placeholders
-tmp_dir = System.tmp_dir!()
-placeholder_dir = Path.join(tmp_dir, "hudson_placeholders")
-File.mkdir_p!(placeholder_dir)
-
-# Generate simple colored placeholder images for each product
-colors = [
-  "#E8D5C4",
-  "#C9A690",
-  "#8B7355",
-  "#D4AF37",
-  "#FFD700",
-  "#C0C0C0",
-  "#E5E4E2",
-  "#F0E68C",
-  "#DDA0DD",
-  "#B0C4DE",
-  "#F4A460",
-  "#BC8F8F",
-  "#D2B48C",
-  "#F5DEB3",
-  "#FFDAB9",
-  "#E6E6FA",
-  "#D8BFD8",
-  "#DDA0DD"
-]
-
-Enum.each(products, fn product ->
-  color = Enum.at(colors, rem(product.id - 1, length(colors)))
-  placeholder_path = Path.join(placeholder_dir, "product_#{product.id}.jpg")
-
-  # Generate a simple colored square
-  {_output, 0} =
-    System.cmd("magick", [
-      "-size",
-      "800x800",
-      "xc:#{color}",
-      "-quality",
-      "90",
-      placeholder_path
-    ])
-
-  # Upload to Supabase
-  case Media.upload_product_image(placeholder_path, product.id, 0) do
-    {:ok, %{path: path, thumbnail_path: thumb_path}} ->
-      {:ok, _} =
-        Catalog.create_product_image(%{
-          product_id: product.id,
-          path: path,
-          thumbnail_path: thumb_path,
-          position: 0,
-          is_primary: true,
-          alt_text: "#{product.name}"
-        })
-
-      IO.puts("  ✓ Generated image for product: #{product.name}")
-
-    {:error, reason} ->
-      IO.puts("  ✗ Failed to upload image for product: #{inspect(reason)}")
-  end
-
-  # Clean up temp file
-  File.rm(placeholder_path)
-end)
-
-# Clean up temp directory
-File.rm_rf!(placeholder_dir)
-
 IO.puts("""
 
 ╔═══════════════════════════════════════════╗
@@ -371,7 +300,4 @@ Next steps:
 
   2. View products:
      http://localhost:4000/products
-
-  3. Create a test session:
-     mix run priv/import/create_session.exs "Sample Session" sample-session
 """)

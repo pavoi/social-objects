@@ -2,8 +2,12 @@ defmodule Hudson.Catalog.ProductImage do
   @moduledoc """
   Represents an image associated with a product.
 
-  Products can have multiple images in a specific order. Images include
-  both full-size and thumbnail versions stored in Supabase Storage.
+  Products can have multiple images in a specific order. Image URLs are
+  provided by Shopify and stored directly in the database.
+
+  Fields:
+  - `path` - Full Shopify image URL
+  - `thumbnail_path` - Optional thumbnail or variant URL (Shopify supports URL-based transformations)
   """
   use Ecto.Schema
   import Ecto.Changeset

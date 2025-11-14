@@ -12,7 +12,6 @@ This document outlines planned features and enhancements beyond the MVP scope.
 - ✅ Session planning and management
 - ✅ Real-time host/producer views
 - ✅ Keyboard-driven navigation
-- ✅ CSV import from Google Sheets
 - ✅ Image management (Supabase Storage)
 - ✅ Per-session product overrides
 - ✅ State persistence across refreshes
@@ -31,65 +30,9 @@ This document outlines planned features and enhancements beyond the MVP scope.
 **Timeline:** Q1 2025
 **Priority:** High
 
-### 2.1 Shopify Sync
+**Note:** Shopify sync has been completed! See `lib/hudson/shopify/` for implementation. Hourly sync runs via Oban.
 
-**Goal:** Automatic product synchronization with Shopify catalog
-
-**Features:**
-- One-way sync: Shopify → Hudson
-- Scheduled sync (hourly/daily)
-- Real-time price updates
-- Automatic image import from Shopify CDN
-- Product variant support
-- Sync history and conflict resolution
-
-**Implementation:**
-```elixir
-defmodule Hudson.Shopify.Sync do
-  # Sync products from Shopify
-  def sync_products(shop_url, api_token) do
-    # Fetch products via Shopify API
-    # Upsert into Hudson catalog
-    # Update images and metadata
-  end
-
-  # Webhook handler for real-time updates
-  def handle_product_update(webhook_payload) do
-    # Process Shopify webhook
-    # Update product in Hudson
-  end
-end
-```
-
-**Benefits:**
-- No manual product entry
-- Always current prices
-- Reduced data inconsistency
-
-**Dependencies:**
-- Shopify Admin API access
-- Webhook endpoint setup
-- Background job processing (Oban)
-
-### 2.2 Google Sheets API Integration
-
-**Goal:** Direct import from Google Sheets without CSV export
-
-**Features:**
-- OAuth authentication with Google
-- Read-only access to specified sheets
-- Scheduled imports
-- Change detection (only import modified rows)
-- Import history and rollback
-
-**Benefits:**
-- Faster iteration on session planning
-- No manual CSV export step
-- Version history
-
-**Complexity:** Medium (OAuth flow, token refresh)
-
-### 2.3 TikTok Shop Integration
+### 2.1 TikTok Shop Integration
 
 **Goal:** Direct product catalog sync with TikTok Shop
 
@@ -518,7 +461,7 @@ _See [Implementation Guide - Deployment](implementation_guide.md#10-deployment-s
 ## Summary
 
 **Immediate Next Steps (Post-MVP):**
-1. Shopify sync (Q1 2025)
+1. ~~Shopify sync~~ ✅ Complete (see `lib/hudson/shopify/`)
 2. Desktop packaging with Elixir Desktop (Q1-Q2 2025)
 3. OBS integration (Q2 2025)
 4. AI talking points generation (Q2 2025)

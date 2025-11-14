@@ -343,9 +343,6 @@ defmodule HudsonWeb.CoreComponents do
         <.button :if={@current_page == :sessions} phx-click="show_new_session_modal" variant="primary">
           New Session
         </.button>
-        <.button :if={@current_page == :products} phx-click="show_new_product_modal" variant="primary">
-          New Product
-        </.button>
       </div>
     </nav>
     """
@@ -607,6 +604,7 @@ defmodule HudsonWeb.CoreComponents do
   def show_modal(js \\ %JS{}, id) when is_binary(id) do
     js
     |> JS.remove_class("modal--hidden", to: "##{id}")
+    |> JS.add_class("overflow-hidden", to: "html")
     |> JS.add_class("overflow-hidden", to: "body")
     |> JS.focus_first(to: "##{id}-container")
   end
@@ -617,6 +615,7 @@ defmodule HudsonWeb.CoreComponents do
   def hide_modal(js \\ %JS{}, id) when is_binary(id) do
     js
     |> JS.add_class("modal--hidden", to: "##{id}")
+    |> JS.remove_class("overflow-hidden", to: "html")
     |> JS.remove_class("overflow-hidden", to: "body")
     |> JS.pop_focus()
   end

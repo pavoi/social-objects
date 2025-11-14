@@ -65,16 +65,10 @@ defmodule Hudson.MixProject do
       {:bandit, "~> 1.5"},
 
       # Hudson-specific dependencies
-      # Supabase client
-      {:supabase_potion, "~> 0.5"},
-      # Supabase storage for image uploads
-      {:supabase_storage, "~> 0.4"},
       # Markdown rendering for talking points
       {:earmark, "~> 1.4"},
       # Password hashing for authentication
       {:bcrypt_elixir, "~> 3.0"},
-      # CA certificate store for SSL
-      {:castore, "~> 1.0"},
       # Load .env files in development
       {:dotenvy, "~> 0.8.0", only: [:dev, :test]},
       # Static type analysis

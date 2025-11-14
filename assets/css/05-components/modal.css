@@ -125,6 +125,17 @@
   padding: 0;
 }
 
+/* Scrollable modal body for product grids */
+.modal__body--scrollable {
+  max-height: 60vh;
+  overflow-y: auto;
+  overflow-x: hidden;
+  /* Smooth scrolling for better UX */
+  scroll-behavior: smooth;
+  /* Ensure proper rendering during scroll */
+  will-change: scroll-position;
+}
+
 .modal__footer {
   display: flex;
   gap: var(--space-3);

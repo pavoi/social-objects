@@ -294,10 +294,10 @@
 .session-card__product-image {
   width: 64px;
   height: 64px;
-  object-fit: cover;
+  object-fit: contain;
   border-radius: var(--radius-sm);
   flex-shrink: 0;
-  background-color: var(--color-bg-primary);
+  background-color: var(--color-bg-tertiary);
 }
 
 .session-card__product-name {

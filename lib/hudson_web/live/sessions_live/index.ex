@@ -84,6 +84,7 @@ defmodule HudsonWeb.SessionsLive.Index do
       |> assign(:show_modal_for_session, nil)
       |> assign(:show_new_session_modal, false)
       |> assign(:editing_product, nil)
+      |> assign(:current_image_index, 0)
       |> assign(
         :product_form,
         to_form(SessionProduct.changeset(%SessionProduct{}, %{}))
@@ -539,6 +540,7 @@ defmodule HudsonWeb.SessionsLive.Index do
     socket =
       socket
       |> assign(:editing_product, product)
+      |> assign(:current_image_index, 0)
       |> assign(:product_edit_form, to_form(changeset))
 
     {:noreply, socket}
@@ -549,9 +551,40 @@ defmodule HudsonWeb.SessionsLive.Index do
     socket =
       socket
       |> assign(:editing_product, nil)
+      |> assign(:current_image_index, 0)
       |> assign(:product_edit_form, to_form(Product.changeset(%Product{}, %{})))
 
     {:noreply, socket}
+  end
+
+  @impl true
+  def handle_event("next_image", _params, socket) do
+    if socket.assigns.editing_product do
+      images = socket.assigns.editing_product.product_images || []
+      current_index = socket.assigns.current_image_index
+      max_index = length(images) - 1
+
+      new_index = if current_index >= max_index, do: 0, else: current_index + 1
+
+      {:noreply, assign(socket, :current_image_index, new_index)}
+    else
+      {:noreply, socket}
+    end
+  end
+
+  @impl true
+  def handle_event("previous_image", _params, socket) do
+    if socket.assigns.editing_product do
+      images = socket.assigns.editing_product.product_images || []
+      current_index = socket.assigns.current_image_index
+      max_index = length(images) - 1
+
+      new_index = if current_index <= 0, do: max_index, else: current_index - 1
+
+      {:noreply, assign(socket, :current_image_index, new_index)}
+    else
+      {:noreply, socket}
+    end
   end
 
   @impl true
@@ -831,7 +864,7 @@ defmodule HudsonWeb.SessionsLive.Index do
           socket
           |> assign(:loading_products, false)
           |> assign(:new_session_products_map, products_map)
-          |> stream(:new_session_products, products_with_state, reset: !append)
+          |> stream(:new_session_products, products_with_state, reset: !append, at: if(append, do: -1, else: 0))
           |> assign(:product_total_count, result.total)
           |> assign(:product_page, result.page)
           |> assign(:new_session_has_more, result.has_more)
@@ -1016,7 +1049,7 @@ defmodule HudsonWeb.SessionsLive.Index do
           socket
           |> assign(:loading_add_products, false)
           |> assign(:add_product_products_map, products_map)
-          |> stream(:add_product_products, products_with_state, reset: !append)
+          |> stream(:add_product_products, products_with_state, reset: !append, at: if(append, do: -1, else: 0))
           |> assign(:add_product_total_count, result.total)
           |> assign(:add_product_page, result.page)
           |> assign(:add_product_has_more, result.has_more)
@@ -1082,7 +1115,8 @@ defmodule HudsonWeb.SessionsLive.Index do
   end
 
   def public_image_url(path) do
-    Hudson.Media.public_image_url(path)
+    # Path is already a full Shopify URL
+    path
   end
 
   # Sorts sessions while preserving the display position of the expanded session.

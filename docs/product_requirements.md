@@ -4,7 +4,7 @@
 
 ### Primary Goals (MVP)
 
-Replace ad hoc Google Sheets workflow with a purpose-built application that serves as:
+Purpose-built application for TikTok streaming sessions that serves as:
 
 1. **CRUD-able Catalog**
    - Central repository for products, images, and talking points
@@ -36,7 +36,7 @@ Replace ad hoc Google Sheets workflow with a purpose-built application that serv
 
 These features are explicitly deferred to post-MVP phases:
 
-- **Shopify Integration** - Manual catalog management for MVP
+- ~~**Shopify Integration**~~ ✅ Complete (hourly sync via Oban)
 - **LLM Features** - No AI-generated talking points or comment summarization
 - **OBS/StreamDeck Integration** - Manual scene switching for MVP
 - **Audio Wake-Word Control** - Keyboard-only navigation for MVP
@@ -154,12 +154,11 @@ These features are explicitly deferred to post-MVP phases:
 
 **Goals for Hudson:**
 - Single source of truth for product data
-- Easy bulk import from existing sheets
 - Organize images by product
 - Update product details once, reflect everywhere
+- Support Shopify sync and manual data entry
 
 **Success Criteria:**
-- Import 40+ products from CSV in <5 minutes
 - Upload multiple images per product
 - Edit product details from one interface
 - See which products are used in which sessions
@@ -256,14 +255,9 @@ These features are explicitly deferred to post-MVP phases:
 - Can set primary image
 - Can reorder images via drag-and-drop
 
-**US-3.2: As a content manager, I want to import products from CSV, so I can migrate existing Google Sheets data.**
+**US-3.2: [DEPRECATED] As a content manager, I want to import products from CSV, so I can migrate existing Google Sheets data.**
 
-**Acceptance Criteria:**
-- Can upload CSV file
-- Preview shows parsed products before import
-- Can map CSV columns to product fields
-- Import creates products and session products
-- Error report shows validation failures
+_Note: CSV import has been removed. Products are now managed via Shopify sync and manual CRUD operations._
 
 **US-3.3: As a content manager, I want to edit product details, so I can keep information current.**
 
@@ -480,7 +474,6 @@ These features are explicitly deferred to post-MVP phases:
 - [ ] Runs for 4 hours without performance degradation
 
 **Should Have (P1):**
-- [ ] CSV import for 40+ products works reliably
 - [ ] Per-session talking point overrides work
 - [ ] Image carousel with 5+ images per product
 - [ ] Arrow key navigation for sequential browsing (convenience)
@@ -526,12 +519,11 @@ These features are explicitly deferred to post-MVP phases:
 
 **Phase 3: Soft Launch**
 - Use for non-critical live session
-- Keep Google Sheet as backup
+- Have fallback plan ready
 - Gather feedback immediately after
 
 **Phase 4: Full Production**
 - Primary tool for all sessions
-- Google Sheets deprecated
 - Monitor first 3 sessions closely
 
 ---
@@ -552,7 +544,7 @@ These features are explicitly deferred to post-MVP phases:
 ### Operational Decisions
 - [ ] Who manages product catalog day-to-day?
 - [ ] How far in advance are sessions prepared?
-- [ ] Define the rollback plan if Hudson fails mid-stream (who flips back to Google Sheets, what state must be documented, how to notify TikTok audience).
+- [ ] Define the rollback plan if Hudson fails mid-stream (who handles fallback, what state must be documented, how to notify TikTok audience).
 
 ---
 

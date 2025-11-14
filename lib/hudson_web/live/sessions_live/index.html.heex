@@ -207,7 +207,7 @@
       <h2 class="modal__title">Add Product to Session</h2>
     </div>
 
-    <div class="modal__body">
+    <div class="modal__body modal__body--scrollable">
       <.product_grid
         products={@streams.add_product_products}
         mode={:select}
@@ -221,8 +221,9 @@
         loading={@loading_add_products}
         is_empty={@add_product_total_count == 0}
       />
+    </div>
 
-      <div class="modal__footer">
+    <div class="modal__footer">
         <.button
           type="button"
           phx-click={JS.push("close_product_modal") |> hide_modal("add-product-modal")}
@@ -241,7 +242,6 @@
           <% end %>
         </.button>
       </div>
-    </div>
   </.modal>
 <% end %>
 
@@ -285,7 +285,7 @@
           label="Notes"
           placeholder="Any additional notes about this session"
         />
-        
+
 <!-- Product Selection Section -->
         <%= if @session_form.params["brand_id"] && @session_form.params["brand_id"] != "" do %>
           <div style="margin-top: var(--space-4);">
@@ -295,19 +295,21 @@
                 ({MapSet.size(@selected_product_ids)} selected)
               </span>
             </h3>
-            <.product_grid
-              products={@streams.new_session_products}
-              mode={:select}
-              search_query={@product_search_query}
-              has_more={@new_session_has_more}
-              selected_ids={@selected_product_ids}
-              on_product_click="toggle_product_selection"
-              on_search="search_products"
-              on_load_more="load_more_products"
-              show_search={true}
-              loading={@loading_products}
-              is_empty={@product_total_count == 0}
-            />
+            <div class="modal__body--scrollable">
+              <.product_grid
+                products={@streams.new_session_products}
+                mode={:select}
+                search_query={@product_search_query}
+                has_more={@new_session_has_more}
+                selected_ids={@selected_product_ids}
+                on_product_click="toggle_product_selection"
+                on_search="search_products"
+                on_load_more="load_more_products"
+                show_search={true}
+                loading={@loading_products}
+                is_empty={@product_total_count == 0}
+              />
+            </div>
           </div>
         <% else %>
           <p class="text-sm text-secondary">
@@ -336,6 +338,7 @@
   editing_product={@editing_product}
   product_edit_form={@product_edit_form}
   brands={@brands}
+  current_image_index={@current_image_index}
 />
 
 <!-- Edit Session Modal -->

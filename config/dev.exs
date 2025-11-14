@@ -1,19 +1,10 @@
 import Config
 
 # Configure your database
-# Supports both local PostgreSQL and Supabase via DATABASE_URL
+# Supports DATABASE_URL environment variable or defaults to local PostgreSQL
 if database_url = System.get_env("DATABASE_URL") do
   config :hudson, Hudson.Repo,
     url: database_url,
-    ssl: true,
-    ssl_opts: [
-      verify: :verify_peer,
-      cacertfile: System.get_env("SUPABASE_CA_CERT") || CAStore.file_path(),
-      server_name_indication: ~c"db.supabase.net",
-      customize_hostname_check: [
-        match_fun: :public_key.pkix_verify_hostname_match_fun(:https)
-      ]
-    ],
     pool_size: String.to_integer(System.get_env("POOL_SIZE") || "10"),
     stacktrace: true,
     show_sensitive_data_on_connection_error: true
@@ -104,4 +95,4 @@ config :phoenix_live_view,
 # Disable swoosh api client as it is only required for production adapters.
 config :swoosh, :api_client, false
 
-# Supabase configuration is set in config/runtime.exs after loading .env
+# Shopify configuration is set in config/runtime.exs after loading .env

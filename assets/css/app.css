@@ -37,7 +37,7 @@
 @import "./05-components/badge.css";
 @import "./05-components/navbar.css";
 @import "./05-components/flash.css";
+@import "./05-components/image-carousel.css";
 
 /* Utilities Layer - Utility classes */
 @import "./06-utilities/utilities.css";
-@import "./06-utilities/lqip.css";

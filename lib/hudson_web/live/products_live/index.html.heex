@@ -13,117 +13,13 @@
     show_search={true}
     loading={@loading_products}
     is_empty={@product_total_count == 0}
+    viewport_bottom={@products_has_more && !@loading_products && "load_more_products"}
   />
 
   <.product_edit_modal
     editing_product={@editing_product}
     product_edit_form={@product_edit_form}
     brands={@brands}
+    current_image_index={@current_edit_image_index}
   />
-
-  <%= if @show_new_product_modal do %>
-    <.modal
-      id="new-product-modal"
-      show={true}
-      on_cancel={JS.push("close_new_product_modal")}
-    >
-      <div class="modal__header">
-        <h2 class="modal__title">New Product</h2>
-      </div>
-
-      <div class="modal__body">
-        <p class="text-sm text-secondary" style="margin-bottom: var(--space-md);">
-          Create a new product. Images can be uploaded after creation using the "Manage Images" option in the product edit modal.
-        </p>
-
-        <.form
-          for={@new_product_form}
-          id="new-product-form"
-          phx-change="validate_new_product"
-          phx-submit="save_new_product"
-          class="stack stack--lg"
-        >
-          <div class="stack">
-            <.input
-              field={@new_product_form[:brand_id]}
-              type="select"
-              label="Brand"
-              options={Enum.map(@brands, fn b -> {b.name, b.id} end)}
-              prompt="Select a brand"
-            />
-
-            <.input
-              field={@new_product_form[:name]}
-              type="text"
-              label="Product Name"
-              placeholder="e.g., Tennis Bracelet"
-            />
-
-            <.input
-              field={@new_product_form[:description]}
-              type="textarea"
-              label="Description"
-              placeholder="Detailed product description"
-            />
-
-            <.input
-              field={@new_product_form[:talking_points_md]}
-              type="textarea"
-              label="Talking Points"
-              placeholder="- Point 1&#10;- Point 2&#10;- Point 3"
-            />
-          </div>
-
-          <div class="stack">
-            <.input
-              field={@new_product_form[:original_price_cents]}
-              type="number"
-              label="Original Price"
-              placeholder="e.g., 19.95"
-              step="0.01"
-            />
-
-            <.input
-              field={@new_product_form[:sale_price_cents]}
-              type="number"
-              label="Sale Price (optional)"
-              placeholder="e.g., 14.95"
-              step="0.01"
-            />
-          </div>
-
-          <div class="stack">
-            <.input
-              field={@new_product_form[:pid]}
-              type="text"
-              label="Product ID (PID)"
-              placeholder="External product ID"
-            />
-
-            <.input
-              field={@new_product_form[:sku]}
-              type="text"
-              label="SKU"
-              placeholder="Stock keeping unit"
-            />
-          </div>
-
-          <div class="modal__footer">
-            <.button
-              type="button"
-              phx-click={
-                JS.push("close_new_product_modal")
-                |> HudsonWeb.CoreComponents.hide_modal("new-product-modal")
-              }
-            >
-              Cancel
-            </.button>
-            <.button type="submit" variant="primary" phx-disable-with="Creating...">
-              Create Product
-            </.button>
-          </div>
-        </.form>
-      </div>
-    </.modal>
-  <% end %>
 </div>

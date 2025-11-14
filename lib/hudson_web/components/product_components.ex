@@ -89,11 +89,13 @@ defmodule HudsonWeb.ProductComponents do
         editing_product={@editing_product}
         product_edit_form={@product_edit_form}
         brands={@brands}
+        current_image_index={@current_edit_image_index}
       />
   """
   attr :editing_product, :any, required: true, doc: "The product being edited"
   attr :product_edit_form, :any, required: true, doc: "The product form"
   attr :brands, :list, required: true, doc: "List of available brands"
+  attr :current_image_index, :integer, default: 0, doc: "Current image index for carousel"
 
   def product_edit_modal(assigns) do
     ~H"""
@@ -102,34 +104,21 @@ defmodule HudsonWeb.ProductComponents do
         id="edit-product-modal"
         show={true}
         on_cancel={JS.push("close_edit_product_modal")}
+        phx-hook="ProductEditModalKeyboard"
       >
         <div class="modal__header">
           <h2 class="modal__title">Edit Product</h2>
         </div>
 
         <div class="modal__body">
-          <%= if image = primary_image(@editing_product) do %>
-            <div class="box box--bordered" style="max-width: 400px; margin-bottom: var(--space-md);">
-              <img
-                src={Hudson.Media.public_image_url(image.path)}
-                alt={image.alt_text}
-                style="width: 100%; height: auto; display: block; border-radius: var(--radius-sm);"
+          <%= if @editing_product.product_images && length(@editing_product.product_images) > 0 do %>
+            <div class="box box--bordered" style="max-width: 500px; margin-bottom: var(--space-md); padding-bottom: var(--space-md);">
+              <HudsonWeb.ImageComponents.image_carousel
+                id_prefix={"edit-product-#{@editing_product.id}"}
+                images={@editing_product.product_images}
+                current_index={@current_image_index}
+                mode={:full}
               />
-              <p
-                class="text-sm text-secondary"
-                style="margin-top: var(--space-xs); text-align: center;"
-              >
-                Product Image {if image.is_primary, do: "(Primary)"}
-              </p>
-              <div style="margin-top: var(--space-sm); text-align: center;">
-                <.button
-                  navigate={~p"/products/upload?product_id=#{@editing_product.id}"}
-                  variant="primary"
-                  size="sm"
-                >
-                  Manage Images
-                </.button>
-              </div>
             </div>
           <% end %>
 
@@ -290,6 +279,8 @@ defmodule HudsonWeb.ProductComponents do
 
   attr :is_empty, :boolean, required: true, doc: "Whether the products collection is empty"
 
+  attr :viewport_bottom, :any, default: nil, doc: "phx-viewport-bottom binding for infinite scroll"
+
   def product_grid(assigns) do
     ~H"""
     <div class={["product-grid", "product-grid--#{@mode}"]}>
@@ -313,7 +304,12 @@ defmodule HudsonWeb.ProductComponents do
         </div>
       <% end %>
 
-      <div class="product-grid__grid" id="product-grid" phx-update="stream">
+      <div
+        class="product-grid__grid"
+        id="product-grid"
+        phx-update="stream"
+        phx-viewport-bottom={@viewport_bottom}
+      >
         <%= if @is_empty do %>
           <div id="product-grid-empty" class="product-grid__empty">
             No products found. Try a different search.
@@ -321,7 +317,8 @@ defmodule HudsonWeb.ProductComponents do
         <% else %>
           <%= for {dom_id, product} <- @products do %>
             <%= if @mode == :browse do %>
-              <.product_card_browse
+              <.live_component
+                module={HudsonWeb.ProductComponents.BrowseCardComponent}
                 id={dom_id}
                 product={product}
                 on_click={@on_product_click}
@@ -336,161 +333,29 @@ defmodule HudsonWeb.ProductComponents do
               />
             <% end %>
           <% end %>
+        <% end %>
+      </div>
 
-          <%= if @has_more do %>
-            <div id="product-grid-loader" class="product-grid__loader">
-              <.button
-                type="button"
-                phx-click={@on_load_more}
-                size="sm"
-                disabled={@loading}
-                phx-disable-with="Loading..."
-              >
-                Load More Products
-              </.button>
+      <%= if !@is_empty && @has_more do %>
+        <div id="product-grid-loader" class="product-grid__loader">
+          <%= if @loading do %>
+            <div class="product-grid__loading-indicator">
+              <div class="spinner"></div>
+              <span>Loading more products...</span>
             </div>
+          <% else %>
+            <.button
+              type="button"
+              phx-click={@on_load_more}
+              size="sm"
+            >
+              Load More Products
+            </.button>
           <% end %>
-        <% end %>
-      </div>
-    </div>
-    """
-  end
-
-  # Browse mode card - for /products page
-  attr :id, :string, default: nil
-  attr :product, :map, required: true
-  attr :on_click, :string, required: true
-  attr :show_prices, :boolean, default: true
-
-  defp product_card_browse(assigns) do
-    ~H"""
-    <div
-      id={@id}
-      class="product-card-browse"
-      phx-click={@on_click}
-      phx-value-product-id={@product.id}
-      role="button"
-      tabindex="0"
-      aria-label={"Open #{@product.name}"}
-    >
-      <%= if @product.primary_image do %>
-        <img
-          src={
-            Hudson.Media.public_image_url(
-              @product.primary_image.thumbnail_path || @product.primary_image.path
-            )
-          }
-          alt={@product.primary_image.alt_text}
-          class="product-card-browse__image"
-        />
-      <% else %>
-        <div class="product-card-browse__image-placeholder">
-          No Image
         </div>
       <% end %>
-
-      <div class="product-card-browse__info">
-        <p class="product-card-browse__name">{@product.name}</p>
-
-        <%= if @show_prices do %>
-          <div class="product-card-browse__pricing">
-            <%= if @product.sale_price_cents do %>
-              <span class="product-card-browse__price-original">
-                ${format_price(@product.original_price_cents)}
-              </span>
-              <span class="product-card-browse__price-sale">
-                ${format_price(@product.sale_price_cents)}
-              </span>
-            <% else %>
-              <span class="product-card-browse__price">
-                <%= if @product.original_price_cents do %>
-                  ${format_price(@product.original_price_cents)}
-                <% else %>
-                  Price not set
-                <% end %>
-              </span>
-            <% end %>
-          </div>
-        <% end %>
-      </div>
     </div>
     """
-  end
-
-  # Select mode card - for New Session modal
-  attr :id, :string, default: nil
-  attr :product, :map, required: true
-  attr :on_click, :string, required: true
-  attr :selected, :boolean, default: false
-
-  defp product_card_select(assigns) do
-    ~H"""
-    <div
-      id={@id}
-      class={["product-card-select", @selected && "product-card-select--selected"]}
-      phx-click={@on_click}
-      phx-value-product-id={@product.id}
-      role="button"
-      tabindex="0"
-      aria-pressed={@selected}
-      aria-label={"Select #{@product.name}"}
-    >
-      <div class={[
-        "product-card-select__checkmark",
-        !@selected && "product-card-select__checkmark--hidden"
-      ]}>
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          viewBox="0 0 20 20"
-          fill="currentColor"
-          class="w-5 h-5"
-        >
-          <path
-            fill-rule="evenodd"
-            d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
-            clip-rule="evenodd"
-          />
-        </svg>
-      </div>
-
-      <%= if @product.primary_image do %>
-        <img
-          src={
-            Hudson.Media.public_image_url(
-              @product.primary_image.thumbnail_path || @product.primary_image.path
-            )
-          }
-          alt={@product.primary_image.alt_text}
-          class="product-card-select__image"
-        />
-      <% else %>
-        <div class="product-card-select__image-placeholder">
-          No Image
-        </div>
-      <% end %>
-
-      <p class="product-card-select__name">{@product.name}</p>
-    </div>
-    """
-  end
-
-  # Helper to format price cents to dollars
-  defp format_price(nil), do: "0.00"
-
-  defp format_price(cents) when is_integer(cents) do
-    (cents / 100) |> Float.round(2) |> Float.to_string()
-  end
-
-  # Helper to get the primary image from a product
-  defp primary_image(product) when is_nil(product), do: nil
-
-  defp primary_image(product) do
-    product.product_images
-    |> Enum.find(& &1.is_primary)
-    |> case do
-      nil -> List.first(product.product_images)
-      image -> image
-    end
   end
 
   # ============================================================================
@@ -543,13 +408,10 @@ defmodule HudsonWeb.ProductComponents do
 
         <%= if @product.primary_image do %>
           <img
-            src={
-              Hudson.Media.public_image_url(
-                @product.primary_image.thumbnail_path || @product.primary_image.path
-              )
-            }
+            src={@product.primary_image.path}
             alt={@product.primary_image.alt_text}
             class="product-card-select__image"
+            loading="lazy"
           />
         <% else %>
           <div class="product-card-select__image-placeholder">
@@ -561,5 +423,127 @@ defmodule HudsonWeb.ProductComponents do
       </div>
       """
     end
+  end
+
+  # ============================================================================
+  # Browse Card Component (LiveComponent with Carousel)
+  # ============================================================================
+
+  defmodule BrowseCardComponent do
+    @moduledoc """
+    Stateful product card with image carousel for browse mode.
+
+    Each card maintains its own image navigation state, allowing users to
+    preview all product images by clicking dot indicators.
+    """
+    use HudsonWeb, :live_component
+
+    alias HudsonWeb.ImageComponents
+
+    @impl true
+    def mount(socket) do
+      {:ok, assign(socket, current_image_index: 0)}
+    end
+
+    @impl true
+    def update(assigns, socket) do
+      {:ok,
+       socket
+       |> assign(assigns)
+       |> assign_new(:current_image_index, fn -> 0 end)}
+    end
+
+    @impl true
+    def handle_event("goto_image", %{"index" => index}, socket) when is_integer(index) do
+      max_index = length(socket.assigns.product.product_images) - 1
+      safe_index = max(0, min(index, max_index))
+
+      {:noreply, assign(socket, current_image_index: safe_index)}
+    end
+
+    @impl true
+    def handle_event("goto_image", %{"index" => index_str}, socket) when is_binary(index_str) do
+      index = String.to_integer(index_str)
+      max_index = length(socket.assigns.product.product_images) - 1
+      safe_index = max(0, min(index, max_index))
+
+      {:noreply, assign(socket, current_image_index: safe_index)}
+    end
+
+    @impl true
+    def handle_event("next_image", _params, socket) do
+      max_index = length(socket.assigns.product.product_images) - 1
+      new_index = min(socket.assigns.current_image_index + 1, max_index)
+
+      {:noreply, assign(socket, current_image_index: new_index)}
+    end
+
+    @impl true
+    def handle_event("previous_image", _params, socket) do
+      new_index = max(socket.assigns.current_image_index - 1, 0)
+
+      {:noreply, assign(socket, current_image_index: new_index)}
+    end
+
+    @impl true
+    def render(assigns) do
+      ~H"""
+      <div
+        id={"browse-card-#{@product.id}"}
+        class="product-card-browse"
+        phx-click={@on_click}
+        phx-value-product-id={@product.id}
+        role="button"
+        tabindex="0"
+        aria-label={"Open #{@product.name}"}
+      >
+        <%= if @product.product_images && length(@product.product_images) > 0 do %>
+          <ImageComponents.image_carousel
+            id_prefix={"product-#{@product.id}"}
+            images={@product.product_images}
+            current_index={@current_image_index}
+            mode={:compact}
+            target={@myself}
+          />
+        <% else %>
+          <div class="product-card-browse__image-placeholder">
+            No Image
+          </div>
+        <% end %>
+
+        <div class="product-card-browse__info">
+          <p class="product-card-browse__name">{@product.name}</p>
+
+          <%= if @show_prices do %>
+            <div class="product-card-browse__pricing">
+              <%= if @product.sale_price_cents do %>
+                <span class="product-card-browse__price-original">
+                  ${format_price(@product.original_price_cents)}
+                </span>
+                <span class="product-card-browse__price-sale">
+                  ${format_price(@product.sale_price_cents)}
+                </span>
+              <% else %>
+                <span class="product-card-browse__price">
+                  <%= if @product.original_price_cents do %>
+                    ${format_price(@product.original_price_cents)}
+                  <% else %>
+                    Price not set
+                  <% end %>
+                </span>
+              <% end %>
+            </div>
+          <% end %>
+        </div>
+      </div>
+      """
+    end
+
+    defp format_price(cents) when is_integer(cents) do
+      dollars = cents / 100
+      :erlang.float_to_binary(dollars, decimals: 2)
+    end
+
+    defp format_price(_), do: "N/A"
   end
 end

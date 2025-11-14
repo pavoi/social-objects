@@ -342,6 +342,7 @@ defmodule HudsonWeb.SessionProducerLive do
   end
 
   def public_image_url(path) do
-    Hudson.Media.public_image_url(path)
+    # Path is already a full Shopify URL
+    path
   end
 end
