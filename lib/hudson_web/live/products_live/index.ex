@@ -2,12 +2,121 @@ defmodule HudsonWeb.ProductsLive.Index do
   use HudsonWeb, :live_view
 
   alias Hudson.{Catalog, Media}
+  alias Hudson.Catalog.Product
+
+  import HudsonWeb.ProductComponents
 
   @impl true
   def mount(_params, _session, socket) do
     products = Catalog.list_products_with_images()
+    brands = Catalog.list_brands()
 
-    {:ok, assign(socket, products: products)}
+    socket =
+      socket
+      |> assign(:products, products)
+      |> assign(:brands, brands)
+      |> assign(:editing_product, nil)
+      |> assign(:product_edit_form, to_form(Product.changeset(%Product{}, %{})))
+
+    {:ok, socket}
+  end
+
+  @impl true
+  def handle_event("show_edit_product_modal", %{"product-id" => product_id}, socket) do
+    product = Catalog.get_product_with_images!(product_id)
+
+    changeset = Product.changeset(product, %{})
+
+    socket =
+      socket
+      |> assign(:editing_product, product)
+      |> assign(:product_edit_form, to_form(changeset))
+
+    {:noreply, socket}
+  end
+
+  @impl true
+  def handle_event("close_edit_product_modal", _params, socket) do
+    socket =
+      socket
+      |> assign(:editing_product, nil)
+      |> assign(:product_edit_form, to_form(Product.changeset(%Product{}, %{})))
+
+    {:noreply, socket}
+  end
+
+  @impl true
+  def handle_event("validate_product", %{"product" => product_params}, socket) do
+    changeset =
+      socket.assigns.editing_product
+      |> Product.changeset(product_params)
+      |> Map.put(:action, :validate)
+
+    {:noreply, assign(socket, :product_edit_form, to_form(changeset))}
+  end
+
+  @impl true
+  def handle_event("save_product", %{"product" => product_params}, socket) do
+    # Convert price fields from dollars to cents
+    product_params = convert_prices_to_cents(product_params)
+
+    case Catalog.update_product(socket.assigns.editing_product, product_params) do
+      {:ok, _product} ->
+        # Refresh the products list
+        products = Catalog.list_products_with_images()
+
+        socket =
+          socket
+          |> assign(:products, products)
+          |> assign(:editing_product, nil)
+          |> assign(:product_edit_form, to_form(Product.changeset(%Product{}, %{})))
+          |> put_flash(:info, "Product updated successfully")
+
+        {:noreply, socket}
+
+      {:error, %Ecto.Changeset{} = changeset} ->
+        socket =
+          socket
+          |> assign(:product_edit_form, to_form(changeset))
+          |> put_flash(:error, "Please fix the errors below")
+
+        {:noreply, socket}
+    end
+  end
+
+  # Helper functions
+
+  defp convert_prices_to_cents(params) do
+    params
+    |> convert_price_field("original_price_cents")
+    |> convert_price_field("sale_price_cents")
+  end
+
+  defp convert_price_field(params, field) do
+    case Map.get(params, field) do
+      nil ->
+        params
+
+      "" ->
+        Map.put(params, field, nil)
+
+      value when is_binary(value) ->
+        # If value contains decimal point, treat as dollars, otherwise as cents
+        if String.contains?(value, ".") do
+          case Float.parse(value) do
+            {dollars, _} -> Map.put(params, field, round(dollars * 100))
+            :error -> params
+          end
+        else
+          params
+        end
+
+      value when is_integer(value) ->
+        params
+
+      _ ->
+        params
+    end
   end
 
   @impl true
@@ -21,7 +130,11 @@ defmodule HudsonWeb.ProductsLive.Index do
 
       <div class="products-grid">
         <%= for product <- @products do %>
-          <.link navigate={~p"/products/#{product.id}/edit"} class="product-card-link">
+          <div
+            class="product-card-link"
+            phx-click="show_edit_product_modal"
+            phx-value-product-id={product.id}
+          >
             <div class="product-card">
               <div class="product-image">
                 <%= if product.primary_image do %>
@@ -59,9 +172,15 @@ defmodule HudsonWeb.ProductsLive.Index do
                 </div>
               </div>
             </div>
-          </.link>
+          </div>
         <% end %>
       </div>
+
+      <.product_edit_modal
+        editing_product={@editing_product}
+        product_edit_form={@product_edit_form}
+        brands={@brands}
+      />
     </div>
 
     <style>

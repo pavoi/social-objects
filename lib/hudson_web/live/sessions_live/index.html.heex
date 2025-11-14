@@ -21,25 +21,12 @@
             <div class="session-card__title-group">
               <div class="session-card__title-row">
                 <h2 class="session-card__title">{session.name}</h2>
-                <span class={["badge", status_badge_class(session.status)]}>
-                  {session.status}
-                </span>
               </div>
 
               <div class="session-card__meta">
                 <div class="session-card__meta-item">
                   <.icon name="hero-building-office" class="size-4" />
                   <span class="font-semibold">{session.brand.name}</span>
-                </div>
-
-                <div class="session-card__meta-item">
-                  <.icon name="hero-calendar" class="size-4" />
-                  {format_datetime(session.scheduled_at)}
-                </div>
-
-                <div class="session-card__meta-item">
-                  <.icon name="hero-clock" class="size-4" />
-                  {format_duration(session.duration_minutes)}
                 </div>
 
                 <div class="session-card__meta-item">
@@ -115,10 +102,10 @@
                 <div class="session-card__product-list">
                   <%= for sp <- session.session_products do %>
                     <div class="session-card__product-item">
-                      <a
-                        href={~p"/products/#{sp.product_id}/edit"}
+                      <div
                         class="session-card__product-link"
-                        phx-click="stop_propagation"
+                        phx-click="show_edit_product_modal"
+                        phx-value-product-id={sp.product_id}
                       >
                         <div class="session-card__product-position">
                           {sp.position}
@@ -135,7 +122,7 @@
                         <p class="session-card__product-name">
                           {sp.featured_name || sp.product.name}
                         </p>
-                      </a>
+                      </div>
 
                       <.button
                         size="xs"
@@ -255,26 +242,6 @@
         />
 
         <.input
-          field={@session_form[:scheduled_at]}
-          type="datetime-local"
-          label="Scheduled Date & Time"
-        />
-
-        <.input
-          field={@session_form[:duration_minutes]}
-          type="number"
-          label="Expected Duration (minutes)"
-          placeholder="e.g., 180"
-        />
-
-        <.input
-          field={@session_form[:status]}
-          type="select"
-          label="Status"
-          options={[{"Draft", "draft"}, {"Live", "live"}, {"Complete", "complete"}]}
-        />
-
-        <.input
           field={@session_form[:notes]}
           type="textarea"
           label="Notes"
@@ -296,3 +263,10 @@
     </div>
   </.modal>
 <% end %>
+
+<!-- Edit Product Modal -->
+<.product_edit_modal
+  editing_product={@editing_product}
+  product_edit_form={@product_edit_form}
+  brands={@brands}
+/>

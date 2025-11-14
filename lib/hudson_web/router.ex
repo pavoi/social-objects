@@ -23,7 +23,6 @@ defmodule HudsonWeb.Router do
     # Product management
     live "/products", ProductsLive.Index
     live "/products/upload", ProductUploadLive
-    live "/products/:id/edit", ProductEditLive
 
     # Session management and live control
     live "/sessions", SessionsLive.Index
