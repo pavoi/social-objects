@@ -35,64 +35,78 @@
       <div class="producer-split-screen">
         <!-- Config Panel (Left) -->
         <div class="config-panel">
-          <div class="producer-session-info">
-            <%= if @current_position do %>
-              <div class="product-count">
-                Product {@current_position} / {@total_products}
-              </div>
-            <% end %>
-          </div>
-          
-<!-- Host Message Controls -->
-          <div class="message-controls">
-            <h3>Message to Host</h3>
-            <form phx-submit="send_host_message">
-              <textarea
-                name="message"
-                placeholder="Type a message..."
-                rows="2"
-                class="message-input"
-                phx-change="update_message_draft"
-                value={@message_draft}
-              ></textarea>
-              <div class="message-buttons">
-                <button type="submit" class="btn-primary btn-sm">Send</button>
-                <%= if @host_message do %>
-                  <button
-                    type="button"
-                    phx-click="clear_host_message"
-                    class="btn-secondary btn-sm"
-                  >
-                    Clear
-                  </button>
-                <% end %>
-              </div>
-            </form>
-          </div>
-          
-<!-- Navigation Controls -->
-          <div class="navigation-controls">
-            <h3>Navigation</h3>
-            <div class="nav-buttons">
-              <button phx-click="jump_to_first" class="btn-nav btn-sm">First</button>
-              <button phx-click="previous_product" class="btn-nav btn-sm">← Prev</button>
-              <button phx-click="next_product" class="btn-nav btn-sm">Next →</button>
-              <button phx-click="jump_to_last" class="btn-nav btn-sm">Last</button>
-            </div>
-            <div class="image-nav-buttons">
-              <button phx-click="previous_image" class="btn-nav btn-sm">← Prev Image</button>
-              <button phx-click="next_image" class="btn-nav btn-sm">Next Image →</button>
+          <div class="config-panel__top">
+            <!-- Host Message Controls -->
+            <div class="message-controls">
+              <h3>Message to Host</h3>
+              <form phx-submit="send_host_message">
+                <textarea
+                  name="message"
+                  placeholder="Type a message..."
+                  rows="2"
+                  class="message-input"
+                  phx-change="update_message_draft"
+                  value={@message_draft}
+                ></textarea>
+                <div class="message-buttons">
+                  <button type="submit" class="btn-primary btn-sm">Send</button>
+                  <%= if @host_message do %>
+                    <button
+                      type="button"
+                      phx-click="clear_host_message"
+                      class="btn-secondary btn-sm"
+                    >
+                      Clear
+                    </button>
+                  <% end %>
+                </div>
+              </form>
             </div>
           </div>
-          
+
+<!-- Product Grid -->
+          <div class="config-panel__middle">
+            <h3>Products</h3>
+            <div class="producer-product-grid">
+              <%= for sp <- Enum.sort_by(@session.session_products, & &1.position) do %>
+                <div
+                  class={[
+                    "producer-product-item",
+                    @current_session_product && @current_session_product.id == sp.id && "producer-product-item--active"
+                  ]}
+                  phx-click="jump_to_product"
+                  phx-value-position={sp.position}
+                >
+                  <div class="producer-product-position">
+                    {sp.position}
+                  </div>
+
+                  <%= if image = primary_image(sp.product) do %>
+                    <img
+                      src={public_image_url(image.thumbnail_path || image.path)}
+                      alt={image.alt_text}
+                      class="producer-product-image"
+                    />
+                  <% end %>
+
+                  <p class="producer-product-name">
+                    {sp.featured_name || sp.product.name}
+                  </p>
+                </div>
+              <% end %>
+            </div>
+          </div>
+
 <!-- Keyboard Shortcuts Reference -->
-          <div class="shortcuts-reference">
-            <h3>Keyboard Shortcuts</h3>
-            <ul>
-              <li><kbd>1-9, 0</kbd> + <kbd>Enter</kbd> - Jump to product</li>
-              <li><kbd>↑/↓</kbd> - Previous/Next product</li>
-              <li><kbd>←/→</kbd> - Previous/Next image</li>
-            </ul>
+          <div class="config-panel__bottom">
+            <div class="shortcuts-reference">
+              <h3>Shortcuts</h3>
+              <ul>
+                <li><kbd>0-99</kbd> - Jump to product</li>
+                <li><kbd>↑/↓</kbd> - Prev/Next product</li>
+                <li><kbd>←/→</kbd> - Prev/Next image</li>
+              </ul>
+            </div>
           </div>
         </div>
         

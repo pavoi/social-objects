@@ -4,7 +4,9 @@
  *
  * Primary Navigation (Direct Jumps):
  * - Type number digits (0-9) to build a product number
- * - Press Enter to jump to that product
+ * - Automatically jumps after 500ms (allows double-digit entry)
+ * - Press Enter to jump immediately (optional)
+ * - Press Escape to cancel pending jump
  *
  * Convenience Navigation (Sequential):
  * - Arrow keys (↑↓) for previous/next product
@@ -19,6 +21,15 @@ export default {
     this.handleKeydown = (e) => {
       // Pause keyboard control when any modal is open
       if (document.getElementById('edit-product-modal')) return
+
+      // Pause keyboard control when typing in input fields
+      const activeElement = document.activeElement
+      const isTyping = activeElement && (
+        activeElement.tagName === 'INPUT' ||
+        activeElement.tagName === 'TEXTAREA' ||
+        activeElement.isContentEditable
+      )
+      if (isTyping) return
 
       // Prevent default for navigation keys to avoid scrolling
       const navKeys = ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space']
@@ -72,12 +83,15 @@ export default {
       this.jumpBuffer += digit
       this.updateJumpDisplay(this.jumpBuffer)
 
-      // Clear buffer after 2 seconds of inactivity
+      // Auto-jump after 500ms debounce (allows double-digit entry)
       clearTimeout(this.jumpTimeout)
       this.jumpTimeout = setTimeout(() => {
-        this.jumpBuffer = ""
-        this.updateJumpDisplay("")
-      }, 2000)
+        if (this.jumpBuffer) {
+          this.pushEvent("jump_to_product", {position: this.jumpBuffer})
+          this.jumpBuffer = ""
+          this.updateJumpDisplay("")
+        }
+      }, 500)
     }
 
     this.updateJumpDisplay = (_value) => {

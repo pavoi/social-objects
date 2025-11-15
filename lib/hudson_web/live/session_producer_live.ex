@@ -11,6 +11,8 @@ defmodule HudsonWeb.SessionProducerLive do
 
   on_mount {HudsonWeb.NavHooks, :set_current_page}
 
+  import HudsonWeb.ViewHelpers
+
   alias Hudson.Sessions
   alias Hudson.Sessions.SessionProduct
 
@@ -331,5 +333,15 @@ defmodule HudsonWeb.SessionProducerLive do
 
   def get_effective_prices(session_product) do
     SessionProduct.effective_prices(session_product)
+  end
+
+  # Template helper to get primary image from product
+  def primary_image(product) do
+    product.product_images
+    |> Enum.find(& &1.is_primary)
+    |> case do
+      nil -> List.first(product.product_images)
+      image -> image
+    end
   end
 end
