@@ -61,6 +61,7 @@ defmodule Hudson.Sessions do
     %Session{}
     |> Session.changeset(attrs)
     |> Repo.insert()
+    |> broadcast_session_list_change()
   end
 
   @doc """
@@ -99,6 +100,7 @@ defmodule Hudson.Sessions do
     session
     |> Session.changeset(attrs)
     |> Repo.update()
+    |> broadcast_session_list_change()
   end
 
   @doc """
@@ -106,6 +108,7 @@ defmodule Hudson.Sessions do
   """
   def delete_session(%Session{} = session) do
     Repo.delete(session)
+    |> broadcast_session_list_change()
   end
 
   # Updates a session's updated_at timestamp to the current time.
@@ -151,6 +154,7 @@ defmodule Hudson.Sessions do
     end
 
     result
+    |> broadcast_session_list_change()
   end
 
   @doc """
@@ -171,6 +175,7 @@ defmodule Hudson.Sessions do
             # Auto-renumber positions to fill gaps
             renumber_session_products(session_product.session_id)
             result
+            |> broadcast_session_list_change()
 
           error ->
             error
@@ -231,6 +236,7 @@ defmodule Hudson.Sessions do
         end
 
         result
+        |> broadcast_session_list_change()
     end
   end
 
@@ -515,6 +521,22 @@ defmodule Hudson.Sessions do
   end
 
   defp broadcast_state_change(error), do: error
+
+  defp broadcast_session_list_change(result) do
+    case result do
+      {:ok, _} ->
+        Phoenix.PubSub.broadcast(
+          Hudson.PubSub,
+          "sessions:list",
+          {:session_list_changed}
+        )
+
+        result
+
+      error ->
+        error
+    end
+  end
 
   defp get_current_session_product(%SessionState{current_session_product_id: nil}),
     do: {:error, :no_current_product}

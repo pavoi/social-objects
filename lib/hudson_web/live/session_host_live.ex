@@ -16,12 +16,13 @@ defmodule HudsonWeb.SessionHostLive do
 
   @impl true
   def mount(%{"id" => session_id}, _session, socket) do
+    session_id = String.to_integer(session_id)
     session = Sessions.get_session!(session_id)
 
     socket =
       assign(socket,
         session: session,
-        session_id: String.to_integer(session_id),
+        session_id: session_id,
         page_title: "#{session.name} - Host View",
         current_session_product: nil,
         current_product: nil,

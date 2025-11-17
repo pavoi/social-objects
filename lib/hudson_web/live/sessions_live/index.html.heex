@@ -38,15 +38,6 @@
             </div>
 
             <div class="session-card__actions" phx-click="stop_propagation">
-              <.button
-                variant="outline"
-                size="sm"
-                phx-click="show_edit_session_modal"
-                phx-value-session-id={session.id}
-              >
-                Edit
-              </.button>
-
               <a
                 href={~p"/sessions/#{session.id}/producer"}
                 target="_blank"
@@ -63,16 +54,56 @@
                 Host View
               </a>
 
-              <.button
-                variant="outline-error"
-                size="sm"
-                phx-click="delete_session"
-                phx-value-session-id={session.id}
-                data-confirm="Are you sure you want to delete this session? This action cannot be undone."
-                aria-label="Delete session"
-              >
-                Delete
-              </.button>
+              <div class="menu-container">
+                <button
+                  class="menu-trigger"
+                  aria-label="Session actions"
+                  aria-haspopup="true"
+                  aria-expanded="false"
+                  phx-click={
+                    JS.toggle(to: "#session-menu-#{session.id}")
+                    |> JS.toggle_attribute({"aria-expanded", "true", "false"})
+                  }
+                >
+                  ⋮
+                </button>
+
+                <nav
+                  id={"session-menu-#{session.id}"}
+                  class="session-menu hidden"
+                  phx-click-away={JS.hide(to: "#session-menu-#{session.id}")}
+                  role="menu"
+                >
+                  <button
+                    class="session-menu__item"
+                    role="menuitem"
+                    phx-click={
+                      JS.push("show_edit_session_modal")
+                      |> JS.hide(to: "#session-menu-#{session.id}")
+                    }
+                    phx-value-session-id={session.id}
+                  >
+                    <.icon name="hero-pencil" class="size-4" />
+                    Edit
+                  </button>
+
+                  <div class="session-menu__divider"></div>
+
+                  <button
+                    class="session-menu__item session-menu__item--danger"
+                    role="menuitem"
+                    phx-click={
+                      JS.push("delete_session")
+                      |> JS.hide(to: "#session-menu-#{session.id}")
+                    }
+                    phx-value-session-id={session.id}
+                    data-confirm="Are you sure you want to delete this session? This action cannot be undone."
+                  >
+                    <.icon name="hero-trash" class="size-4" />
+                    Delete
+                  </button>
+                </nav>
+              </div>
             </div>
           </div>
 

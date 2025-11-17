@@ -71,6 +71,11 @@ defmodule HudsonWeb.SessionsLive.Index do
 
   @impl true
   def mount(_params, _session, socket) do
+    # Subscribe to session list changes for real-time updates across tabs
+    if connected?(socket) do
+      Phoenix.PubSub.subscribe(Hudson.PubSub, "sessions:list")
+    end
+
     sessions = Sessions.list_sessions_with_details()
     brands = Catalog.list_brands()
 
@@ -128,6 +133,24 @@ defmodule HudsonWeb.SessionsLive.Index do
     socket =
       socket
       |> apply_url_params(params)
+
+    {:noreply, socket}
+  end
+
+  @impl true
+  def handle_info({:session_list_changed}, socket) do
+    # Reload sessions from database while preserving UI state
+    expanded_id = socket.assigns.expanded_session_id
+    previous_sessions = socket.assigns.sessions
+    new_sessions = Sessions.list_sessions_with_details()
+
+    sorted_sessions =
+      sort_sessions_preserving_expanded(new_sessions, expanded_id, previous_sessions)
+
+    socket =
+      socket
+      |> assign(:sessions, sorted_sessions)
+      |> assign(:previous_sessions, sorted_sessions)
 
     {:noreply, socket}
   end
