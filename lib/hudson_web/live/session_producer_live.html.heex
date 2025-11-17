@@ -47,8 +47,9 @@
                   rows="2"
                   class="message-input"
                   phx-change="update_message_draft"
-                  value={@message_draft}
-                ></textarea>
+                  phx-hook="MessageInput"
+                  id="message-input-textarea"
+                >{@message_draft}</textarea>
                 <div class="message-buttons">
                   <button type="submit" class="btn-primary btn-sm">Send</button>
                   <%= if @host_message do %>

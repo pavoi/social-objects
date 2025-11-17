@@ -211,49 +211,56 @@ defmodule HudsonWeb.SessionsLive.Index do
 
   @impl true
   def handle_info({:generation_started, generation}, socket) do
+    # Only show banner for batch (session-wide) generation
     socket =
-      socket
-      |> assign(:current_generation, generation)
-      |> assign(:show_generation_modal, false)
+      if generation.session_id do
+        socket
+        |> assign(:current_generation, generation)
+        |> assign(:show_generation_modal, false)
+      else
+        socket
+      end
 
     {:noreply, socket}
   end
 
   @impl true
   def handle_info({:generation_progress, generation, _product_id, product_name}, socket) do
+    # Only update banner for batch (session-wide) generation
     socket =
-      socket
-      |> assign(:current_generation, generation)
-      |> assign(:current_product_name, product_name)
+      if generation.session_id do
+        socket
+        |> assign(:current_generation, generation)
+        |> assign(:current_product_name, product_name)
+      else
+        socket
+      end
 
     {:noreply, socket}
   end
 
   @impl true
   def handle_info({:generation_completed, generation}, socket) do
-    # Update the generation status immediately so the banner shows completion
+    # Update the generation status immediately so the banner shows completion (only for batch generation)
     socket =
-      socket
-      |> assign(:current_generation, generation)
-      |> assign(:current_product_name, nil)
+      if generation.session_id do
+        socket
+        |> assign(:current_generation, generation)
+        |> assign(:current_product_name, nil)
+      else
+        socket
+      end
       |> assign(:generating_in_modal, false)
 
-    # Defer the session reload slightly to let the DOM settle
-    # This prevents a brief period where products are unclickable during re-render
-    Process.send_after(self(), {:reload_sessions_after_generation, generation}, 100)
-
-    {:noreply, socket}
-  end
-
-  @impl true
-  def handle_info({:reload_sessions_after_generation, generation}, socket) do
-    # Reload sessions to show updated talking points
-    expanded_id = socket.assigns.expanded_session_id
-    previous_sessions = socket.assigns.sessions
-    new_sessions = Sessions.list_sessions_with_details()
-
-    sorted_sessions =
-      sort_sessions_preserving_expanded(new_sessions, expanded_id, previous_sessions)
+    # Only reload sessions if this was a session-wide generation
+    # For single product generations, we don't need to reload the full list
+    socket =
+      if generation.session_id do
+        # Reload just the affected session, not all sessions
+        reload_single_session(socket, generation.session_id)
+      else
+        socket
+      end
 
     # If a product modal is currently open, refresh it with updated talking points
     socket =
@@ -275,21 +282,20 @@ defmodule HudsonWeb.SessionsLive.Index do
         socket
       end
 
-    socket =
-      socket
-      |> assign(:sessions, sorted_sessions)
-      |> assign(:previous_sessions, sorted_sessions)
-      |> assign(:current_generation, generation)
-
     {:noreply, socket}
   end
 
   @impl true
   def handle_info({:generation_failed, generation, _reason}, socket) do
+    # Only show banner for batch (session-wide) generation failures
     socket =
-      socket
-      |> assign(:current_generation, generation)
-      |> assign(:current_product_name, nil)
+      if generation.session_id do
+        socket
+        |> assign(:current_generation, generation)
+        |> assign(:current_product_name, nil)
+      else
+        socket
+      end
       |> assign(:generating_in_modal, false)
 
     {:noreply, socket}
@@ -1031,6 +1037,30 @@ defmodule HudsonWeb.SessionsLive.Index do
   end
 
   # Helper functions
+
+  # Reloads just one session in the list without a full database reload
+  defp reload_single_session(socket, session_id) do
+    previous_sessions = socket.assigns.sessions
+
+    # Find and reload just the affected session
+    case Enum.find_index(previous_sessions, &(&1.id == session_id)) do
+      nil ->
+        # Session not in the current list, do nothing
+        socket
+
+      index ->
+        # Reload only this session from the database
+        updated_session = Sessions.get_session!(session_id)
+
+        # Replace the session in the list
+        updated_sessions = List.replace_at(previous_sessions, index, updated_session)
+
+        # Update the socket with the new sessions list
+        socket
+        |> assign(:sessions, updated_sessions)
+        |> assign(:previous_sessions, updated_sessions)
+    end
+  end
 
   # Template helper to get primary image from product
   def primary_image(product) do

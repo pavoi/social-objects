@@ -237,9 +237,9 @@ defmodule HudsonWeb.ProductComponents do
               />
             </div>
           <% end %>
-          
+
     <!-- Product details -->
-          <div class="stack" style="gap: var(--space-3); margin-bottom: var(--space-6);">
+          <div class="stack" style="gap: var(--space-3);">
             <div style="color: var(--color-text-primary);">
               <strong style="font-weight: var(--font-semibold);">Brand:</strong>
               {@editing_product.brand.name}
@@ -283,9 +283,9 @@ defmodule HudsonWeb.ProductComponents do
               </div>
             <% end %>
           </div>
-          
+
     <!-- Talking Points - Editable field -->
-          <div style="margin-top: var(--space-3);">
+          <div style="margin-top: var(--space-6);">
             <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: var(--space-2);">
               <strong style="font-weight: var(--font-semibold); color: var(--color-text-primary);">
                 Talking Points
@@ -426,22 +426,44 @@ defmodule HudsonWeb.ProductComponents do
   attr :last_sync_at, :any, default: nil, doc: "Last sync timestamp (DateTime)"
   attr :syncing, :boolean, default: false, doc: "Whether sync is in progress"
   attr :on_sync, :string, default: nil, doc: "Event to trigger on sync button click"
+  attr :show_sort, :boolean, default: false, doc: "Whether to show sort dropdown"
+  attr :sort_by, :string, default: "", doc: "Current sort option"
+  attr :on_sort_change, :string, default: nil, doc: "Event to trigger on sort change"
 
   def product_grid(assigns) do
     ~H"""
     <div class={["product-grid", "product-grid--#{@mode}"]}>
       <%= if @show_search do %>
         <div class="product-grid__header">
-          <div class="product-grid__search">
-            <form phx-change={@on_search} phx-submit={@on_search} phx-debounce="300">
-              <input
-                type="text"
-                name="value"
-                placeholder={@search_placeholder}
-                value={@search_query}
-                class="input input--sm"
-              />
-            </form>
+          <div class="product-grid__controls">
+            <div class="product-grid__search">
+              <form phx-change={@on_search} phx-submit={@on_search} phx-debounce="300">
+                <input
+                  type="text"
+                  name="value"
+                  placeholder={@search_placeholder}
+                  value={@search_query}
+                  class="input input--sm"
+                />
+              </form>
+            </div>
+            <%= if @show_sort do %>
+              <div class="product-grid__sort">
+                <form phx-change={@on_sort_change}>
+                  <select
+                    id="product-sort"
+                    name="sort"
+                    value={@sort_by}
+                    class="input input--sm"
+                  >
+                    <option value="">-- Sort by --</option>
+                    <option value="name" selected={@sort_by == "name"}>Name (A-Z)</option>
+                    <option value="price_asc" selected={@sort_by == "price_asc"}>Price: Low to High</option>
+                    <option value="price_desc" selected={@sort_by == "price_desc"}>Price: High to Low</option>
+                  </select>
+                </form>
+              </div>
+            <% end %>
           </div>
           <%= if @mode == :select do %>
             <div class="product-grid__count">
@@ -480,13 +502,14 @@ defmodule HudsonWeb.ProductComponents do
         <div
           class="product-grid__grid"
           id={
-            if @use_dynamic_id,
-              do:
-                if(@search_query == "",
-                  do: "product-grid-all",
-                  else: "product-grid-#{String.replace(@search_query, " ", "-")}"
-                ),
-              else: "product-grid"
+            if @use_dynamic_id do
+              # Include both search and sort in ID to force re-render on changes
+              search_part = if @search_query == "", do: "all", else: String.replace(@search_query, " ", "-")
+              sort_part = if @sort_by == "", do: "default", else: @sort_by
+              "product-grid-#{search_part}-#{sort_part}"
+            else
+              "product-grid"
+            end
           }
           phx-update="stream"
           phx-viewport-bottom={@viewport_bottom}

@@ -33,6 +33,7 @@ defmodule HudsonWeb.ProductsLive.Index do
       |> assign(:current_edit_image_index, 0)
       |> assign(:generating_in_modal, false)
       |> assign(:product_search_query, "")
+      |> assign(:product_sort_by, "")
       |> assign(:product_page, 1)
       |> assign(:product_total_count, 0)
       |> assign(:products_has_more, false)
@@ -248,11 +249,36 @@ defmodule HudsonWeb.ProductsLive.Index do
   @impl true
   def handle_event("search_products", %{"value" => query}, socket) do
     # Use push_patch to update URL - handle_params will handle the actual search
+    # Preserve the current sort option
     query_params =
-      if query == "" do
-        %{}
-      else
-        %{q: query}
+      case {query, socket.assigns.product_sort_by} do
+        {"", ""} -> %{}
+        {"", sort_by} -> %{sort: sort_by}
+        {q, ""} -> %{q: q}
+        {q, sort_by} -> %{q: q, sort: sort_by}
+      end
+
+    {:noreply, push_patch(socket, to: ~p"/products?#{query_params}")}
+  end
+
+  @impl true
+  def handle_event("sort_changed", %{"sort" => sort_by}, socket) do
+    # Build query params preserving search query and adding sort
+    query_params =
+      case socket.assigns.product_search_query do
+        "" ->
+          if sort_by == "" do
+            %{}
+          else
+            %{sort: sort_by}
+          end
+
+        search_query ->
+          if sort_by == "" do
+            %{q: search_query}
+          else
+            %{q: search_query, sort: sort_by}
+          end
       end
 
     {:noreply, push_patch(socket, to: ~p"/products?#{query_params}")}
@@ -336,22 +362,22 @@ defmodule HudsonWeb.ProductsLive.Index do
   defp load_products_for_browse(socket, opts \\ [append: false]) do
     append = Keyword.get(opts, :append, false)
     search_query = socket.assigns.product_search_query
+    sort_by = socket.assigns.product_sort_by
     page = if append, do: socket.assigns.product_page + 1, else: 1
 
     try do
       result =
         Catalog.search_products_paginated(
           search_query: search_query,
+          sort_by: sort_by,
           page: page,
           per_page: 20
         )
 
-      # Precompute primary images for all products
-      products_with_images = Enum.map(result.products, &add_primary_image/1)
-
+      # Products already have primary_image field from Catalog context
       socket
       |> assign(:loading_products, false)
-      |> stream(:products, products_with_images,
+      |> stream(:products, result.products,
         reset: !append,
         at: if(append, do: -1, else: 0)
       )
@@ -406,17 +432,20 @@ defmodule HudsonWeb.ProductsLive.Index do
   end
 
   defp apply_search_params(socket, params) do
-    # Read "q" param for search query
+    # Read "q" param for search query and "sort" param for sorting
     search_query = params["q"] || ""
+    sort_by = params["sort"] || ""
 
-    # Reload products if search query changed OR if products haven't been loaded yet
+    # Reload products if search query OR sort changed OR if products haven't been loaded yet
     should_load =
       socket.assigns.product_search_query != search_query ||
+        socket.assigns.product_sort_by != sort_by ||
         socket.assigns.product_total_count == 0
 
     if should_load do
       socket
       |> assign(:product_search_query, search_query)
+      |> assign(:product_sort_by, sort_by)
       |> assign(:product_page, 1)
       |> assign(:loading_products, true)
       |> load_products_for_browse()

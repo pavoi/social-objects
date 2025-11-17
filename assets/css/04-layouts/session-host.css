@@ -228,7 +228,7 @@
   color: var(--color-text-inverse);
   padding: var(--space-6) var(--space-8);
   z-index: var(--z-toast);
-  animation: slideDown 0.3s ease-out;
+  animation: slideDownPulse 0.5s ease-out;
   box-shadow: var(--shadow-xl);
 }
 
@@ -272,6 +272,97 @@
   to {
     transform: translateY(0);
     opacity: 1;
+  }
+}
+
+@keyframes slideDownPulse {
+  0% {
+    transform: translateY(-100%);
+    opacity: 0;
+  }
+  60% {
+    transform: translateY(0);
+    opacity: 1;
+  }
+  70% {
+    transform: scale(1.02);
+  }
+  80% {
+    transform: scale(0.98);
+  }
+  90% {
+    transform: scale(1.01);
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+/* ===========================================================================
+   SESSION DESCRIPTION
+   Displays session notes at the top of the host/producer view
+   =========================================================================== */
+
+.session-description {
+  background-color: var(--color-surface-secondary);
+  padding: var(--space-6);
+  border-radius: var(--radius-lg);
+  margin: var(--space-6) var(--space-4) var(--space-4) var(--space-4);
+  border: 2px solid var(--color-border-primary);
+  box-shadow: var(--shadow-md);
+  max-width: 1400px;
+}
+
+.session-description-header {
+  font-size: var(--text-2xl);
+  font-weight: var(--font-bold);
+  color: var(--color-text-primary);
+  margin: 0 0 var(--space-4) 0;
+  text-align: center;
+}
+
+.session-description-content {
+  font-size: var(--text-xl);
+  line-height: var(--leading-relaxed);
+  color: var(--color-text-primary);
+  text-align: center;
+}
+
+/* When inside preview, make it more compact */
+.host-preview .session-description {
+  padding: var(--space-4);
+  margin: var(--space-3);
+}
+
+.host-preview .session-description-header {
+  font-size: var(--text-lg);
+  margin-bottom: var(--space-2);
+}
+
+.host-preview .session-description-content {
+  font-size: var(--text-base);
+}
+
+/* When in fullscreen, maintain good sizing */
+.producer-fullscreen-host .session-description {
+  max-width: 1200px;
+  margin: var(--space-6) auto var(--space-4) auto;
+}
+
+/* Mobile adjustments */
+@media (max-width: 768px) {
+  .session-description {
+    padding: var(--space-4);
+    margin: var(--space-4) var(--space-3);
+  }
+
+  .session-description-header {
+    font-size: var(--text-xl);
+  }
+
+  .session-description-content {
+    font-size: var(--text-lg);
   }
 }
 

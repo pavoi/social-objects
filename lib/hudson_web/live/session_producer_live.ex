@@ -198,7 +198,7 @@ defmodule HudsonWeb.SessionProducerLive do
       {:ok, _state} ->
         socket =
           socket
-          |> assign(:message_draft, "")
+          |> assign(:message_draft, message_text)
           |> put_flash(:info, "Message sent to host")
 
         {:noreply, socket}
@@ -302,16 +302,20 @@ defmodule HudsonWeb.SessionProducerLive do
         socket
       end
 
-    # Load host message if present
+    # Load host message if present and populate message draft
     socket =
       if state.current_host_message_text do
-        assign(socket, :host_message, %{
+        socket
+        |> assign(:host_message, %{
           text: state.current_host_message_text,
           id: state.current_host_message_id,
           timestamp: state.current_host_message_timestamp
         })
+        |> assign(:message_draft, state.current_host_message_text)
       else
-        assign(socket, :host_message, nil)
+        socket
+        |> assign(:host_message, nil)
+        |> assign(:message_draft, "")
       end
 
     socket

@@ -12,6 +12,9 @@
     on_load_more="load_more_products"
     show_prices={true}
     show_search={true}
+    show_sort={true}
+    sort_by={@product_sort_by}
+    on_sort_change="sort_changed"
     loading={@loading_products}
     is_empty={@product_total_count == 0}
     viewport_bottom={

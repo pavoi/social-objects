@@ -103,6 +103,17 @@ defmodule Hudson.Catalog do
     end)
   end
 
+  # Allow-list for safe product sorting
+  defp build_order_by(sort_by) do
+    case sort_by do
+      "price_asc" -> [asc: :original_price_cents]
+      "price_desc" -> [desc: :original_price_cents]
+      "name" -> [asc: :name]
+      "" -> [asc: :name]  # Default/blank: sort by name
+      _ -> [asc: :name]  # Fallback for invalid values
+    end
+  end
+
   @doc """
   Searches and paginates products with optional filters.
 
@@ -112,6 +123,7 @@ defmodule Hudson.Catalog do
     - exclude_ids: List of product IDs to exclude from results (default: [])
     - page: Current page number (default: 1)
     - per_page: Items per page (default: 20)
+    - sort_by: Sort order - "" or "name" (default), "price_asc", "price_desc"
 
   ## Returns
     A map with:
@@ -127,6 +139,7 @@ defmodule Hudson.Catalog do
     exclude_ids = Keyword.get(opts, :exclude_ids, [])
     page = Keyword.get(opts, :page, 1)
     per_page = Keyword.get(opts, :per_page, 20)
+    sort_by = Keyword.get(opts, :sort_by, "")
 
     # Build base query
     query = from(p in Product, preload: :product_images)
@@ -166,10 +179,12 @@ defmodule Hudson.Catalog do
     # Get total count
     total = Repo.aggregate(query, :count)
 
-    # Get paginated results
+    # Get paginated results with dynamic sorting
+    order_by_clause = build_order_by(sort_by)
+
     products =
       query
-      |> order_by([p], p.name)
+      |> order_by(^order_by_clause)
       |> limit(^per_page)
       |> offset(^((page - 1) * per_page))
       |> Repo.all()

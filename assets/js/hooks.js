@@ -6,6 +6,7 @@ import ImageCarouselDrag from "./hooks/image_carousel_drag"
 import ProductEditModalKeyboard from "./hooks/product_edit_modal_keyboard"
 import ProductSortable from "./hooks/product_sortable"
 import ThemeToggle from "./hooks/theme_toggle"
+import MessageInput from "./hooks/message_input"
 
 const Hooks = {
   SessionHostKeyboard,
@@ -13,7 +14,8 @@ const Hooks = {
   ImageCarouselDrag,
   ProductEditModalKeyboard,
   ProductSortable,
-  ThemeToggle
+  ThemeToggle,
+  MessageInput
 }
 
 export default Hooks

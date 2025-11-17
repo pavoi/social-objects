@@ -51,6 +51,10 @@ defmodule HudsonWeb.HostViewComponents do
       <.host_message_banner message={@host_message} />
     <% end %>
 
+    <%= if @session.notes && String.trim(@session.notes) != "" do %>
+      <.session_description session={@session} />
+    <% end %>
+
     <%= if @show_header do %>
       <.session_header
         session={@session}
@@ -97,9 +101,26 @@ defmodule HudsonWeb.HostViewComponents do
 
   def host_message_banner(assigns) do
     ~H"""
-    <div class="host-message-banner">
+    <div class="host-message-banner" id={"host-message-#{@message.id}"} key={@message.id}>
       <div class="host-message-content">
         {@message.text}
+      </div>
+    </div>
+    """
+  end
+
+  @doc """
+  Session description box component.
+  Displays the session notes in a rounded box with session name as header.
+  """
+  attr :session, :map, required: true
+
+  def session_description(assigns) do
+    ~H"""
+    <div class="session-description">
+      <h2 class="session-description-header">{@session.name}</h2>
+      <div class="session-description-content">
+        {@session.notes}
       </div>
     </div>
     """
