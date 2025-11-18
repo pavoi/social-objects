@@ -47,11 +47,3 @@ erl_crash.dump
 
 # Misc / Temporary projects
 red-hot-xtra/
-
-# Desktop build artifacts
-/burrito_out/
-/src-tauri/target/
-/src-tauri/binaries/
-*.dmg
-*.msi
-*.pkg

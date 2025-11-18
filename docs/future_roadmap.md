@@ -236,73 +236,12 @@ end
 
 ---
 
-## Phase 5: Desktop Application
-
-**Timeline:** Q4 2025
-**Priority:** Medium
-
-### 5.1 Native Desktop Packaging
-
-**Goal:** Single-click installable desktop application for Windows/Mac/Linux
-
-**Recommended Path:** Elixir Desktop
-
-**Features:**
-- No browser required
-- System tray icon
-- Auto-start on boot
-- Auto-update mechanism
-- Offline capability (local SQLite)
-
-**Benefits:**
-- Professional distribution
-- Simplified installation
-- Better user experience
-- Reduced dependency on browser
-
-### 5.1.1 Packaging Options Comparison
-
-| Solution | Binary Size | Pros | Cons | Recommendation |
-|----------|-------------|------|------|----------------|
-| **Burrito** | ~15MB | Simple, self-contained | Version caching issues | ⭐ MVP |
-| **Elixir Desktop** | Varies | Purpose-built, mobile support | Installers not ready yet | ⭐⭐ Long-term |
-| **Tauri + Burrito** | 3-10MB | Smallest, auto-updater | Complex setup | Advanced only |
-
-**MVP Recommendation:** Use Burrito for Windows service deployment
-
-**Long-Term:** Migrate to Elixir Desktop once desktop installers are available (Q2-Q3 2025)
-
-_See [Implementation Guide - Deployment](implementation_guide.md#10-deployment-setup) for setup details._
-
-### 5.2 Mobile Companion App
-
-**Goal:** iOS/Android app for remote session control
-
-**Features:**
-- View current product
-- Navigate session
-- Edit talking points
-- Monitor connection status
-- Push notifications for session start
-
-**Use Cases:**
-- Producer controlling from backstage
-- Remote team member observing
-- Backup control if main system fails
-
-**Implementation:**
-- Elixir Desktop supports mobile
-- Or React Native with LiveView Native
-- Same backend, different frontend
-
----
-
-## Phase 6: Collaboration & Team Features
+## Phase 5: Collaboration & Team Features
 
 **Timeline:** 2026
 **Priority:** Low-Medium
 
-### 6.1 User Accounts & Permissions
+### 5.1 User Accounts & Permissions
 
 **Goal:** Multi-user system with role-based access
 
@@ -323,7 +262,7 @@ _See [Implementation Guide - Deployment](implementation_guide.md#10-deployment-s
 - Role-based authorization
 - Audit trail
 
-### 6.2 Collaborative Session Planning
+### 5.2 Collaborative Session Planning
 
 **Goal:** Multiple team members planning sessions together
 
@@ -339,7 +278,7 @@ _See [Implementation Guide - Deployment](implementation_guide.md#10-deployment-s
 - Operational transformation for concurrent edits
 - Version history
 
-### 6.3 Multi-Brand Management
+### 5.3 Multi-Brand Management
 
 **Goal:** Support multiple brands in single installation
 
@@ -356,12 +295,12 @@ _See [Implementation Guide - Deployment](implementation_guide.md#10-deployment-s
 
 ---
 
-## Phase 7: Analytics & Optimization
+## Phase 6: Analytics & Optimization
 
 **Timeline:** 2026
 **Priority:** Low
 
-### 7.1 Session Analytics Dashboard
+### 6.1 Session Analytics Dashboard
 
 **Goal:** Detailed metrics on session performance
 
@@ -383,7 +322,7 @@ _See [Implementation Guide - Deployment](implementation_guide.md#10-deployment-s
 - Identify top performers
 - Improve session structure
 
-### 7.2 A/B Testing
+### 6.2 A/B Testing
 
 **Goal:** Test different talking points, product orders, pricing
 
@@ -398,7 +337,7 @@ _See [Implementation Guide - Deployment](implementation_guide.md#10-deployment-s
 - Compare talking point styles
 - Optimize product sequencing
 
-### 7.3 TikTok Analytics Integration
+### 6.3 TikTok Analytics Integration
 
 **Goal:** Correlate Hudson data with TikTok performance metrics
 
@@ -462,13 +401,13 @@ _See [Implementation Guide - Deployment](implementation_guide.md#10-deployment-s
 
 **Immediate Next Steps (Post-MVP):**
 1. ~~Shopify sync~~ ✅ Complete (see `lib/hudson/shopify/`)
-2. Desktop packaging with Elixir Desktop (Q1-Q2 2025)
-3. OBS integration (Q2 2025)
-4. AI talking points generation (Q2 2025)
+2. OBS integration (Q2 2025)
+3. AI talking points generation (Q2 2025)
+4. Cloud deployment optimization
 
 **Long-Term Vision:**
 - Full studio automation platform
-- Multi-platform presence (desktop, mobile, web)
+- Web-based with mobile companion app
 - AI-powered optimization
 - White-label solution for agencies
 - Open-source community

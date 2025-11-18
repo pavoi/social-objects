@@ -8,10 +8,8 @@
 import Config
 
 config :hudson,
-  ecto_repos: [Hudson.Repo, Hudson.LocalRepo],
+  ecto_repos: [Hudson.Repo],
   generators: [timestamp_type: :utc_datetime]
-
-config :hudson, Hudson.LocalRepo, priv: "priv/local_repo"
 
 # Configures the endpoint
 config :hudson, HudsonWeb.Endpoint,

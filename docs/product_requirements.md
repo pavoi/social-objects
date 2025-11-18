@@ -42,7 +42,7 @@ These features are explicitly deferred to post-MVP phases:
 - **Audio Wake-Word Control** - Keyboard-only navigation for MVP
 - **Multi-brand Management UI** - Single brand (Pavoi) hardcoded is acceptable
 - **User Authentication System** - Simple shared password acceptable for MVP
-- **Mobile Apps** - Desktop/browser-only for MVP
+- **Mobile Apps** - Browser-based web application only for MVP
 - **Analytics & Reporting** - Focus on core streaming functionality
 
 ### Constraints

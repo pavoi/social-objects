@@ -50,7 +50,7 @@ Hudson provides:
 - **Database:** PostgreSQL (Supabase-hosted)
 - **Storage:** Supabase Storage buckets
 - **Real-time:** Phoenix PubSub
-- **Deployment:** Localhost server with optional desktop packaging (Burrito/Elixir Desktop)
+- **Deployment:** Cloud-hosted web application (Fly.io, Render, etc.)
 
 ### Key Features
 
@@ -111,7 +111,7 @@ Hudson provides:
    - Integration tests: `mix test --only integration`
 
 3. **Deployment:**
-   - See [Deployment Guide](deployment.md) for detailed instructions
+   - See [DEPLOYMENT.md](../DEPLOYMENT.md) for detailed instructions
 
 ## Common Tasks
 
@@ -153,4 +153,3 @@ Hudson.Catalog.create_product(%{
 - **Phoenix Framework:** https://phoenixframework.org
 - **Phoenix LiveView:** https://hexdocs.pm/phoenix_live_view
 - **Supabase:** https://supabase.com/docs
-- **Elixir Desktop:** https://github.com/elixir-desktop/desktop

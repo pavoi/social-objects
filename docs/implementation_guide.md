@@ -8,7 +8,7 @@ This guide tracks implementation progress and provides instructions for remainin
 
 - [x] **Project Setup** - Phoenix 1.8 with LiveView, no Tailwind
 - [x] **Database Configuration** - PostgreSQL (Supabase or local) with SSL/TLS support
-- [x] **Dependencies** - earmark, bcrypt_elixir
+- [x] **Dependencies** - earmark, req, oban, openai_ex
 - [x] **Domain Model** - All schemas and migrations (brands, products, product_images, sessions, session_products, session_states)
 - [x] **Contexts** - Catalog and Sessions contexts with CRUD operations
 - [x] **SessionHostLive & SessionProducerLive** - Separated views with real-time state sync
@@ -25,7 +25,7 @@ This guide tracks implementation progress and provides instructions for remainin
 ### 📦 Post-MVP Features
 
 - [ ] **Authentication Gate** - Hash shared secrets, session tokens, rate limiting
-- [ ] **Production Deployment** - Windows service, desktop packaging
+- [ ] **Production Deployment** - Cloud hosting (see DEPLOYMENT.md)
 
 ---
 
@@ -138,25 +138,7 @@ Designate plugs (`HudsonWeb.RequireProducer`, etc.) now so migrating to `mix phx
 **Status:** Not implemented
 **Priority:** Low (localhost sufficient for MVP)
 
-### 6.1 Windows Service Setup (NSSM)
-
-```powershell
-# Install service
-nssm install Hudson "C:\path\to\hudson.exe"
-nssm set Hudson AppDirectory "C:\path\to\app"
-nssm set Hudson Start SERVICE_AUTO_START
-nssm start Hudson
-```
-
-### 6.2 Desktop Packaging Options
-
-- **Burrito** (Recommended for MVP) - Single executable, ~15MB
-- **Elixir Desktop** (Long-term) - Native app with installers
-- **Tauri + Burrito** (Advanced) - Smallest binary (3-10MB), complex setup
-
-See [Future Roadmap](future_roadmap.md) for detailed comparison.
-
-### 6.3 Production Configuration
+### 6.1 Production Configuration
 
 ```elixir
 # config/runtime.exs
@@ -293,7 +275,7 @@ When you're ready to continue development:
 
 1. **Add authentication** - Hash secrets, session tokens, rate limiting
 4. **Write tests** - Context and LiveView coverage
-5. **Deploy to production** - Windows service or desktop app
+5. **Deploy to production** - Cloud hosting (see DEPLOYMENT.md)
 
 ---
 

@@ -28,22 +28,6 @@ if config_env() == :dev do
     initial_backoff_ms: String.to_integer(System.get_env("OPENAI_INITIAL_BACKOFF_MS", "1000"))
 end
 
-local_db_path =
-  case config_env() do
-    :test ->
-      Path.join(System.tmp_dir!(), "hudson_local_test.db")
-
-    _ ->
-      Hudson.Desktop.Bootstrap.ensure_data_dir!()
-      Hudson.Desktop.Bootstrap.local_db_path()
-  end
-
-config :hudson, Hudson.LocalRepo,
-  database: local_db_path,
-  pool_size: 5,
-  journal_mode: :wal,
-  stacktrace: config_env() != :prod
-
 # ## Using releases
 #
 # If you use `mix release`, you need to explicitly enable the server
@@ -58,39 +42,18 @@ if System.get_env("PHX_SERVER") do
 end
 
 if config_env() == :prod do
-  host = System.get_env("PHX_HOST") || "127.0.0.1"
+  database_url =
+    System.get_env("DATABASE_URL") ||
+      raise """
+      environment variable DATABASE_URL is missing.
+      For example: ecto://USER:PASS@HOST/DATABASE
+      """
 
   maybe_ipv6 = if System.get_env("ECTO_IPV6") in ~w(true 1), do: [:inet6], else: []
 
-  port =
-    case System.get_env("PORT") do
-      nil ->
-        chosen = Hudson.Desktop.Bootstrap.pick_ephemeral_port()
-        Hudson.Desktop.Bootstrap.write_handshake!(chosen)
-        chosen
-
-      port_str ->
-        chosen = String.to_integer(port_str)
-        Hudson.Desktop.Bootstrap.write_handshake!(chosen)
-        chosen
-    end
-
-  neon_mode = System.get_env("HUDSON_ENABLE_NEON", "true")
-
-  database_url =
-    case neon_mode do
-      "local" -> Hudson.Desktop.Bootstrap.default_database_url()
-      "false" -> nil
-      _ -> Hudson.Desktop.Bootstrap.database_url()
-    end
-
-  secret_key_base = Hudson.Desktop.Bootstrap.ensure_secret_key_base()
-
   config :hudson, Hudson.Repo,
     url: database_url,
-    pool_size: String.to_integer(System.get_env("POOL_SIZE") || "5"),
-    # For machines with several cores, consider starting multiple pools of `pool_size`
-    # pool_count: 4,
+    pool_size: String.to_integer(System.get_env("POOL_SIZE") || "10"),
     socket_options: maybe_ipv6
 
   # The secret key base is used to sign/encrypt cookies and other secrets.
@@ -98,11 +61,20 @@ if config_env() == :prod do
   # want to use a different value for prod and you most likely don't want
   # to check this value into version control, so we use an environment
   # variable instead.
+  secret_key_base =
+    System.get_env("SECRET_KEY_BASE") ||
+      raise """
+      environment variable SECRET_KEY_BASE is missing.
+      You can generate one by calling: mix phx.gen.secret
+      """
+
+  host = System.get_env("PHX_HOST") || "example.com"
+  port = String.to_integer(System.get_env("PORT") || "4000")
+
   config :hudson, :dns_cluster_query, System.get_env("DNS_CLUSTER_QUERY")
 
   # Shopify configuration
   config :hudson,
-    neon_enabled: neon_mode in ["true", "local"],
     shopify_access_token: System.get_env("SHOPIFY_ACCESS_TOKEN"),
     shopify_store_name: System.get_env("SHOPIFY_STORE_NAME"),
     openai_api_key: System.get_env("OPENAI_API_KEY")
@@ -116,10 +88,13 @@ if config_env() == :prod do
     initial_backoff_ms: String.to_integer(System.get_env("OPENAI_INITIAL_BACKOFF_MS", "1000"))
 
   config :hudson, HudsonWeb.Endpoint,
-    server: true,
-    url: [host: host, port: port, scheme: "http"],
+    url: [host: host, port: 443, scheme: "https"],
     http: [
-      ip: {127, 0, 0, 1},
+      # Enable IPv6 and bind on all interfaces.
+      # Set it to  {0, 0, 0, 0, 0, 0, 0, 1} for local network only access.
+      # See the documentation on https://hexdocs.pm/bandit/Bandit.html#t:options/0
+      # for details about using IPv6 vs IPv4 and loopback vs public addresses.
+      ip: {0, 0, 0, 0, 0, 0, 0, 0},
       port: port
     ],
     secret_key_base: secret_key_base
