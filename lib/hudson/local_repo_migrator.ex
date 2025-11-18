@@ -6,19 +6,22 @@ defmodule Hudson.LocalRepoMigrator do
   require Logger
   alias Hudson.Desktop.Bootstrap
 
-  @migrations_path Application.app_dir(:hudson, "priv/local_repo/migrations")
+  defp migrations_path do
+    Application.app_dir(:hudson, "priv/local_repo/migrations")
+  end
 
   def migrate do
     Bootstrap.ensure_data_dir!()
+    path = migrations_path()
 
-    if File.dir?(@migrations_path) do
+    if File.dir?(path) do
       Logger.info("Running local SQLite migrations for Hudson.LocalRepo")
 
       Ecto.Migrator.with_repo(Hudson.LocalRepo, fn repo ->
-        Ecto.Migrator.run(repo, @migrations_path, :up, all: true)
+        Ecto.Migrator.run(repo, path, :up, all: true)
       end)
     else
-      Logger.warning("SQLite migrations path missing: #{@migrations_path}")
+      Logger.warning("SQLite migrations path missing: #{path}")
       :ok
     end
   end

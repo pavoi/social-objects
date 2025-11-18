@@ -117,14 +117,25 @@ defmodule Hudson.MixProject do
       hudson: [
         steps: [:assemble, &Burrito.wrap/1],
         burrito: [
-          targets: [
-            # Only build for current arch to avoid Makefile issues with spaces in path
-            macos_arm: [os: :darwin, cpu: :aarch64]
-            # macos_intel: [os: :darwin, cpu: :x86_64],
-            # windows: [os: :windows, cpu: :x86_64]
-          ]
+          targets: burrito_targets()
         ]
       ]
     ]
+  end
+
+  defp burrito_targets do
+    case System.get_env("HUDSON_BURRITO_TARGETS", "macos_arm") do
+      "all" ->
+        [
+          macos_arm: [os: :darwin, cpu: :aarch64],
+          macos_intel: [os: :darwin, cpu: :x86_64],
+          windows: [os: :windows, cpu: :x86_64]
+        ]
+
+      _ ->
+        [
+          macos_arm: [os: :darwin, cpu: :aarch64]
+        ]
+    end
   end
 end

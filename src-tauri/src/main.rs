@@ -118,10 +118,9 @@ fn spawn_backend(resource_dir: Option<PathBuf>) -> Result<Child> {
         command.args(args);
     }
 
-    // Pass through environment variables for configuration
-    if let Ok(enable_neon) = std::env::var("HUDSON_ENABLE_NEON") {
-        command.env("HUDSON_ENABLE_NEON", enable_neon);
-    }
+    // Desktop apps default to offline mode (SQLite only) unless explicitly enabled
+    let enable_neon = std::env::var("HUDSON_ENABLE_NEON").unwrap_or_else(|_| "false".to_string());
+    command.env("HUDSON_ENABLE_NEON", enable_neon);
 
     command
         .stdout(Stdio::piped())
@@ -140,6 +139,13 @@ fn candidate_backend_paths(resource_dir: Option<PathBuf>) -> Vec<PathBuf> {
     }
 
     if let Some(dir) = resource_dir {
+        // Tauri places externalBin in Contents/MacOS/, check there first
+        if let Some(macos_dir) = dir.parent().map(|p| p.join("MacOS")) {
+            paths.push(macos_dir.join("hudson_macos_arm-aarch64-apple-darwin"));
+            paths.push(macos_dir.join("hudson_macos_arm"));
+            paths.push(macos_dir.join("hudson_backend"));
+        }
+        // Also check Resources/binaries/ (manual bundle location)
         paths.push(dir.join("binaries").join("hudson_macos_arm-aarch64-apple-darwin"));
         paths.push(dir.join("binaries").join("hudson_macos_arm"));
         paths.push(dir.join("binaries").join("hudson_backend"));

@@ -80,8 +80,10 @@ defmodule HudsonWeb.SessionsLive.Index do
       Phoenix.PubSub.subscribe(Hudson.PubSub, "ai:talking_points")
     end
 
-    sessions = Sessions.list_sessions_with_details()
-    brands = Catalog.list_brands()
+    # Desktop pilot: offline mode with empty data when Neon is disabled
+    neon_enabled? = Application.get_env(:hudson, :neon_enabled, true)
+    sessions = if neon_enabled?, do: Sessions.list_sessions_with_details(), else: []
+    brands = if neon_enabled?, do: Catalog.list_brands(), else: []
 
     socket =
       socket

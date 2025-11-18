@@ -94,6 +94,7 @@ if config_env() == :prod do
 
   # Shopify configuration
   config :hudson,
+    neon_enabled: System.get_env("HUDSON_ENABLE_NEON", "true") in ["true", "1", "yes"],
     shopify_access_token: System.get_env("SHOPIFY_ACCESS_TOKEN"),
     shopify_store_name: System.get_env("SHOPIFY_STORE_NAME"),
     openai_api_key: System.get_env("OPENAI_API_KEY")

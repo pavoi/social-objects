@@ -10,11 +10,14 @@ cd "$SCRIPT_DIR"
 echo "🚀 Launching Hudson native app..."
 
 # Prefer the packaged app bundle if present
-APP_BUNDLE="$SCRIPT_DIR/src-tauri/target/release/bundle/macos/Hudson.app/Contents/MacOS/hudson_desktop"
-APP_FALLBACK="$SCRIPT_DIR/src-tauri/target/release/hudson_desktop"
+APP_BUNDLE="$SCRIPT_DIR/src-tauri/target/release/bundle/macos/Hudson.app/Contents/MacOS/Hudson"
+APP_FALLBACK="$SCRIPT_DIR/src-tauri/target/release/Hudson"
 
 # Set the backend binary path (Tauri also looks in app resources via externalBin)
 export HUDSON_BACKEND_BIN="${HUDSON_BACKEND_BIN:-$SCRIPT_DIR/burrito_out/hudson_macos_arm}"
+
+# Disable Neon for offline-first desktop mode (uses SQLite LocalRepo only)
+export HUDSON_ENABLE_NEON="${HUDSON_ENABLE_NEON:-false}"
 
 # Prepare the expected external bin name for Tauri bundling
 if [ -f "$SCRIPT_DIR/burrito_out/hudson_macos_arm" ] && [ ! -e "$SCRIPT_DIR/burrito_out/hudson_macos_arm-aarch64-apple-darwin" ]; then
