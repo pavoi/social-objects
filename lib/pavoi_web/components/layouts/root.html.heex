@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light dark" />
+    <meta name="csrf-token" content={get_csrf_token()} />
+    <.live_title default="Pavoi" suffix=" · Live Session Controller">
+      {assigns[:page_title]}
+    </.live_title>
+    <%!-- FOUC Prevention: Apply theme class before styles load --%>
+    <script>
+      (function() {
+        const getTheme = () => {
+          const saved = localStorage.getItem('theme');
+          if (saved === 'light' || saved === 'dark') return saved;
+          return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+        };
+        const theme = getTheme();
+        document.documentElement.classList.add(theme);
+        document.documentElement.setAttribute('data-theme', theme);
+      })();
+    </script>
+    <link phx-track-static rel="stylesheet" href={~p"/assets/js/app.css"} />
+    <script defer phx-track-static type="text/javascript" src={~p"/assets/js/app.js"}>
+    </script>
+  </head>
+  <body>
+    {@inner_content}
+  </body>
+</html>

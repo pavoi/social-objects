@@ -7,19 +7,19 @@
 # General application configuration
 import Config
 
-config :hudson,
-  ecto_repos: [Hudson.Repo],
+config :pavoi,
+  ecto_repos: [Pavoi.Repo],
   generators: [timestamp_type: :utc_datetime]
 
 # Configures the endpoint
-config :hudson, HudsonWeb.Endpoint,
+config :pavoi, PavoiWeb.Endpoint,
   url: [host: "localhost"],
   adapter: Bandit.PhoenixAdapter,
   render_errors: [
-    formats: [html: HudsonWeb.ErrorHTML, json: HudsonWeb.ErrorJSON],
+    formats: [html: PavoiWeb.ErrorHTML, json: PavoiWeb.ErrorJSON],
     layout: false
   ],
-  pubsub_server: Hudson.PubSub,
+  pubsub_server: Pavoi.PubSub,
   live_view: [signing_salt: "qaFml4h+"]
 
 # Configures the mailer
@@ -29,17 +29,17 @@ config :hudson, HudsonWeb.Endpoint,
 #
 # For production it's recommended to configure a different adapter
 # at the `config/runtime.exs`.
-config :hudson, Hudson.Mailer, adapter: Swoosh.Adapters.Local
+config :pavoi, Pavoi.Mailer, adapter: Swoosh.Adapters.Local
 
 # Configure Oban background job processing
-config :hudson, Oban,
-  repo: Hudson.Repo,
+config :pavoi, Oban,
+  repo: Pavoi.Repo,
   plugins: [
     {Oban.Plugins.Pruner, max_age: 60 * 60 * 24 * 7},
     {Oban.Plugins.Cron,
      crontab: [
        # Sync products every hour
-       {"0 * * * *", Hudson.Workers.ShopifySyncWorker}
+       {"0 * * * *", Pavoi.Workers.ShopifySyncWorker}
      ]}
   ],
   queues: [default: 10, shopify: 5]
@@ -47,7 +47,7 @@ config :hudson, Oban,
 # Configure esbuild (the version is required)
 config :esbuild,
   version: "0.25.4",
-  hudson: [
+  pavoi: [
     args:
       ~w(js/app.js --bundle --target=es2022 --outdir=../priv/static/assets/js --external:/fonts/* --external:/images/* --alias:@=.),
     cd: Path.expand("../assets", __DIR__),

@@ -1,4 +1,4 @@
-defmodule Hudson.Repo.Migrations.CreateTalkingPointsGenerations do
+defmodule Pavoi.Repo.Migrations.CreateTalkingPointsGenerations do
   use Ecto.Migration
 
   def change do

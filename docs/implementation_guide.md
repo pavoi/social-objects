@@ -19,7 +19,7 @@ This guide tracks implementation progress and provides instructions for remainin
 
 ### 🚧 In Progress / Next Steps
 
-- [x] **Shopify Integration** - Hourly sync via Oban (see `lib/hudson/shopify/` and `lib/hudson/workers/shopify_sync_worker.ex`)
+- [x] **Shopify Integration** - Hourly sync via Oban (see `lib/pavoi/shopify/` and `lib/pavoi/workers/shopify_sync_worker.ex`)
 - [ ] **Testing** - Context and LiveView tests
 
 ### 📦 Post-MVP Features
@@ -37,10 +37,10 @@ This guide tracks implementation progress and provides instructions for remainin
 ### 1.1 Context Tests
 
 ```elixir
-# test/hudson/sessions_test.exs
-defmodule Hudson.SessionsTest do
-  use Hudson.DataCase
-  alias Hudson.Sessions
+# test/pavoi/sessions_test.exs
+defmodule Pavoi.SessionsTest do
+  use Pavoi.DataCase
+  alias Pavoi.Sessions
 
   describe "jump_to_product/2" do
     setup do
@@ -53,7 +53,7 @@ defmodule Hudson.SessionsTest do
     end
 
     test "jumps directly to product by position", %{session: session, sp10: sp10} do
-      Phoenix.PubSub.subscribe(Hudson.PubSub, "session:#{session.id}:state")
+      Phoenix.PubSub.subscribe(Pavoi.PubSub, "session:#{session.id}:state")
 
       {:ok, new_state} = Sessions.jump_to_product(session.id, 10)
 
@@ -72,9 +72,9 @@ end
 ### 1.2 LiveView Tests
 
 ```elixir
-# test/hudson_web/live/session_producer_live_test.exs
-defmodule HudsonWeb.SessionProducerLiveTest do
-  use HudsonWeb.ConnCase
+# test/pavoi_web/live/session_producer_live_test.exs
+defmodule PavoiWeb.SessionProducerLiveTest do
+  use PavoiWeb.ConnCase
   import Phoenix.LiveViewTest
 
   test "loads session and displays first product", %{conn: conn} do
@@ -98,7 +98,7 @@ end
 
 ### MVP Approach
 
-Hudson is designed for local use by internal team members. Authentication is deferred to post-MVP because:
+Pavoi is designed for local use by internal team members. Authentication is deferred to post-MVP because:
 
 - **Local deployment only** - Runs on localhost, not exposed to internet
 - **Trusted network** - Used by internal team on secure network
@@ -118,7 +118,7 @@ When deploying to production or remote access is required:
 
 2. **Hash secrets on boot** in `config/runtime.exs`:
    ```elixir
-   config :hudson, Hudson.Auth,
+   config :pavoi, Pavoi.Auth,
      producer_secret_hash: Bcrypt.hash_pwd_salt(System.fetch_env!("PRODUCER_SHARED_SECRET")),
      host_secret_hash: Bcrypt.hash_pwd_salt(System.fetch_env!("HOST_SHARED_SECRET")),
      admin_secret_hash: Bcrypt.hash_pwd_salt(System.fetch_env!("ADMIN_SHARED_SECRET")),
@@ -129,7 +129,7 @@ When deploying to production or remote access is required:
 4. **Throttle** `/login` route (e.g., using `Hammer`) to 5 attempts/min/IP
 5. **Log audit events** (login, logout, elevated actions) with structured metadata
 
-Designate plugs (`HudsonWeb.RequireProducer`, etc.) now so migrating to `mix phx.gen.auth` later is drop-in.
+Designate plugs (`PavoiWeb.RequireProducer`, etc.) now so migrating to `mix phx.gen.auth` later is drop-in.
 
 ---
 
@@ -147,7 +147,7 @@ if config_env() == :prod do
     System.get_env("DATABASE_URL") ||
       raise "DATABASE_URL not set"
 
-  config :hudson, Hudson.Repo,
+  config :pavoi, Pavoi.Repo,
     url: database_url,
     pool_size: String.to_integer(System.get_env("POOL_SIZE") || "10"),
     ssl: true,
@@ -156,7 +156,7 @@ if config_env() == :prod do
       server_name_indication: ~c"db.supabase.net"
     ]
 
-  config :hudson, HudsonWeb.Endpoint,
+  config :pavoi, PavoiWeb.Endpoint,
     server: true,  # CRITICAL for deployment
     http: [port: String.to_integer(System.get_env("PORT") || "4000")]
 end
@@ -185,7 +185,7 @@ Critical patterns already implemented:
 
 ```
 lib/
-├── hudson/
+├── pavoi/
 │   ├── catalog/              # Product catalog schemas
 │   │   ├── brand.ex
 │   │   ├── product.ex
@@ -196,7 +196,7 @@ lib/
 │   │   └── session_state.ex
 │   ├── catalog.ex            # Catalog context (CRUD)
 │   └── sessions.ex           # Sessions context (state management)
-└── hudson_web/
+└── pavoi_web/
     ├── live/
     │   ├── session_run_live.ex        # Main LiveView
     │   └── session_run_live.html.heex # Template
@@ -219,7 +219,7 @@ priv/
 
 **Temporary Assigns (Memory Management):**
 ```elixir
-# lib/hudson_web/live/session_run_live.ex:31-36
+# lib/pavoi_web/live/session_run_live.ex:31-36
 {:ok, socket, temporary_assigns: [
   current_session_product: nil,
   current_product: nil,
@@ -230,10 +230,10 @@ priv/
 
 **State Synchronization:**
 ```elixir
-# lib/hudson/sessions.ex:258-266
+# lib/pavoi/sessions.ex:258-266
 defp broadcast_state_change({:ok, %SessionState{} = state}) do
   Phoenix.PubSub.broadcast(
-    Hudson.PubSub,
+    Pavoi.PubSub,
     "session:#{state.session_id}:state",
     {:state_changed, state}
   )
@@ -248,7 +248,7 @@ end
 
 **Database Timestamp Handling:**
 ```elixir
-# lib/hudson/sessions/session_state.ex:22
+# lib/pavoi/sessions/session_state.ex:22
 |> put_change(:updated_at, DateTime.utc_now() |> DateTime.truncate(:second))
 ```
 _Note: PostgreSQL `:utc_datetime` rejects microseconds, must truncate to seconds_

@@ -1,14 +1,14 @@
-# Seeds for Hudson - Sample Product Data
+# Seeds for Pavoi - Sample Product Data
 # Run: mix run priv/repo/seeds.exs
 
-alias Hudson.{Repo, Catalog}
-alias Hudson.Catalog.{Brand, Product, ProductImage}
+alias Pavoi.{Repo, Catalog}
+alias Pavoi.Catalog.{Brand, Product, ProductImage}
 
 require Logger
 
 IO.puts("""
 ╔═══════════════════════════════════════════╗
-║     Hudson Database Seeding               ║
+║     Pavoi Database Seeding                ║
 ╚═══════════════════════════════════════════╝
 """)
 
@@ -16,7 +16,7 @@ IO.puts("""
 IO.puts("Step 1: Clearing existing data...")
 
 # Import Sessions module for clearing session data
-alias Hudson.Sessions.{Session, SessionProduct, SessionState}
+alias Pavoi.Sessions.{Session, SessionProduct, SessionState}
 
 Repo.delete_all(SessionState)
 Repo.delete_all(SessionProduct)

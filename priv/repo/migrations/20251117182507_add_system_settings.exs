@@ -1,4 +1,4 @@
-defmodule Hudson.Repo.Migrations.AddSystemSettings do
+defmodule Pavoi.Repo.Migrations.AddSystemSettings do
   use Ecto.Migration
 
   def change do

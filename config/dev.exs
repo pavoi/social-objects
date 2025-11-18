@@ -3,17 +3,17 @@ import Config
 # Configure your database
 # Supports DATABASE_URL environment variable or defaults to local PostgreSQL
 if database_url = System.get_env("DATABASE_URL") do
-  config :hudson, Hudson.Repo,
+  config :pavoi, Pavoi.Repo,
     url: database_url,
     pool_size: String.to_integer(System.get_env("POOL_SIZE") || "10"),
     stacktrace: true,
     show_sensitive_data_on_connection_error: true
 else
-  config :hudson, Hudson.Repo,
+  config :pavoi, Pavoi.Repo,
     username: "postgres",
     password: "postgres",
     hostname: "localhost",
-    database: "hudson_dev",
+    database: "pavoi_dev",
     stacktrace: true,
     show_sensitive_data_on_connection_error: true,
     pool_size: 10
@@ -25,7 +25,7 @@ end
 # The watchers configuration can be used to run external
 # watchers to your application. For example, we can use it
 # to bundle .js and .css sources.
-config :hudson, HudsonWeb.Endpoint,
+config :pavoi, PavoiWeb.Endpoint,
   # Binding to loopback ipv4 address prevents access from other machines.
   # Change to `ip: {0, 0, 0, 0}` to allow access from other machines.
   http: [ip: {127, 0, 0, 1}, port: String.to_integer(System.get_env("PORT") || "4000")],
@@ -34,7 +34,7 @@ config :hudson, HudsonWeb.Endpoint,
   debug_errors: true,
   secret_key_base: "cbp7vzcpMcH98t9a7NIO3LrSWzXeN5nccqZdEFe2QWydund6F2h5TvtuAdvhv1dz",
   watchers: [
-    esbuild: {Esbuild, :install_and_run, [:hudson, ~w(--sourcemap=inline --watch)]}
+    esbuild: {Esbuild, :install_and_run, [:pavoi, ~w(--sourcemap=inline --watch)]}
   ]
 
 # ## SSL Support
@@ -61,18 +61,18 @@ config :hudson, HudsonWeb.Endpoint,
 # different ports.
 
 # Watch static and templates for browser reloading.
-config :hudson, HudsonWeb.Endpoint,
+config :pavoi, PavoiWeb.Endpoint,
   live_reload: [
     web_console_logger: true,
     patterns: [
       ~r"priv/static/(?!uploads/).*(js|css|png|jpeg|jpg|gif|svg)$",
       ~r"priv/gettext/.*(po)$",
-      ~r"lib/hudson_web/(?:controllers|live|components|router)/?.*\.(ex|heex)$"
+      ~r"lib/pavoi_web/(?:controllers|live|components|router)/?.*\.(ex|heex)$"
     ]
   ]
 
 # Enable dev routes for dashboard and mailbox
-config :hudson, dev_routes: true
+config :pavoi, dev_routes: true
 
 # Do not include metadata nor timestamps in development logs
 config :logger, :default_formatter, format: "[$level] $message\n"

@@ -1,4 +1,4 @@
-// Hudson JavaScript Hooks for LiveView
+// Pavoi JavaScript Hooks for LiveView
 
 import SessionHostKeyboard from "./hooks/session_host_keyboard"
 import ConnectionStatus from "./hooks/connection_status"

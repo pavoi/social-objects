@@ -1,4 +1,4 @@
-defmodule Hudson.Repo.Migrations.CreateBrands do
+defmodule Pavoi.Repo.Migrations.CreateBrands do
   use Ecto.Migration
 
   def change do

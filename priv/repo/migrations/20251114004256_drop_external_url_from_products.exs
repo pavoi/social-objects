@@ -1,4 +1,4 @@
-defmodule Hudson.Repo.Migrations.DropExternalUrlFromProducts do
+defmodule Pavoi.Repo.Migrations.DropExternalUrlFromProducts do
   use Ecto.Migration
 
   def change do

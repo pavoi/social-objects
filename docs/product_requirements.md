@@ -88,7 +88,7 @@ These features are explicitly deferred to post-MVP phases:
 - Accidentally navigating away from sheet loses place
 - No clear visual separation between products
 
-**Goals for Hudson:**
+**Goals for Pavoi:**
 - Navigate products instantly with keyboard shortcuts
 - See large, clear product images
 - Read bullet-pointed talking points easily
@@ -121,7 +121,7 @@ These features are explicitly deferred to post-MVP phases:
 - Can't control what host is viewing remotely
 - Image management is manual and error-prone
 
-**Goals for Hudson:**
+**Goals for Pavoi:**
 - Create sessions quickly from product catalog
 - Control host view remotely during live streams
 - Edit talking points without disrupting live session
@@ -152,7 +152,7 @@ These features are explicitly deferred to post-MVP phases:
 - Image organization is chaotic
 - Price updates require finding all sheets
 
-**Goals for Hudson:**
+**Goals for Pavoi:**
 - Single source of truth for product data
 - Organize images by product
 - Update product details once, reflect everywhere
@@ -542,7 +542,7 @@ _Note: CSV import has been removed. Products are now managed via Shopify sync an
 ### Operational Decisions
 - [ ] Who manages product catalog day-to-day?
 - [ ] How far in advance are sessions prepared?
-- [ ] Define the rollback plan if Hudson fails mid-stream (who handles fallback, what state must be documented, how to notify TikTok audience).
+- [ ] Define the rollback plan if Pavoi fails mid-stream (who handles fallback, what state must be documented, how to notify TikTok audience).
 
 ---
 

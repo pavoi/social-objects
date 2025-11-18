@@ -1,4 +1,4 @@
-defmodule Hudson.Repo.Migrations.CreateProductVariants do
+defmodule Pavoi.Repo.Migrations.CreateProductVariants do
   use Ecto.Migration
 
   def change do

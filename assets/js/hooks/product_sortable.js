@@ -20,7 +20,20 @@ export default {
       chosenClass: "sortable-chosen",  // Class when item is selected
 
       forceFallback: false,     // Use native HTML5 DnD when available
-      handle: ".drag-handle",   // Only allow dragging from the handle element
+
+      // Callback fired when item is clicked (not dragged)
+      onClick: (evt) => {
+        // Find the clicked product item
+        const productItem = evt.item
+        const productId = productItem.querySelector('[data-product-id]')?.dataset.productId
+
+        if (productId) {
+          // Send event to LiveView to open the product modal
+          hook.pushEventTo(hook.el, "show_edit_product_modal", {
+            "product-id": productId
+          })
+        }
+      },
 
       // Callback fired when drag operation ends
       onEnd: (evt) => {

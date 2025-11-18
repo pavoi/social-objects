@@ -1,4 +1,4 @@
-defmodule Hudson.Repo.Migrations.AddUniqueSessionProductConstraint do
+defmodule Pavoi.Repo.Migrations.AddUniqueSessionProductConstraint do
   use Ecto.Migration
 
   def change do

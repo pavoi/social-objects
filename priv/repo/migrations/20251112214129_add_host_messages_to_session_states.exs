@@ -1,4 +1,4 @@
-defmodule Hudson.Repo.Migrations.AddHostMessagesToSessionStates do
+defmodule Pavoi.Repo.Migrations.AddHostMessagesToSessionStates do
   use Ecto.Migration
 
   def change do

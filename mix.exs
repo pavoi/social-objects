@@ -1,9 +1,9 @@
-defmodule Hudson.MixProject do
+defmodule Pavoi.MixProject do
   use Mix.Project
 
   def project do
     [
-      app: :hudson,
+      app: :pavoi,
       version: "0.1.0",
       elixir: "~> 1.15",
       elixirc_paths: elixirc_paths(Mix.env()),
@@ -24,7 +24,7 @@ defmodule Hudson.MixProject do
   # Type `mix help compile.app` for more information.
   def application do
     [
-      mod: {Hudson.Application, []},
+      mod: {Pavoi.Application, []},
       extra_applications: [:logger, :runtime_tools]
     ]
   end
@@ -63,7 +63,7 @@ defmodule Hudson.MixProject do
       {:dns_cluster, "~> 0.2.0"},
       {:bandit, "~> 1.5"},
 
-      # Hudson-specific dependencies
+      # Pavoi-specific dependencies
       # Markdown rendering for talking points
       {:earmark, "~> 1.4"},
       # OpenAI API integration for AI-generated content
@@ -90,9 +90,9 @@ defmodule Hudson.MixProject do
       "ecto.reset": ["ecto.drop", "ecto.setup"],
       test: ["ecto.create --quiet", "ecto.migrate --quiet", "test"],
       "assets.setup": ["esbuild.install --if-missing"],
-      "assets.build": ["compile", "esbuild hudson"],
+      "assets.build": ["compile", "esbuild pavoi"],
       "assets.deploy": [
-        "esbuild hudson --minify",
+        "esbuild pavoi --minify",
         "phx.digest"
       ],
       precommit: [

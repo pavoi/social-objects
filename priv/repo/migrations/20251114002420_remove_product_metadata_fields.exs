@@ -1,4 +1,4 @@
-defmodule Hudson.Repo.Migrations.RemoveProductMetadataFields do
+defmodule Pavoi.Repo.Migrations.RemoveProductMetadataFields do
   use Ecto.Migration
 
   def change do

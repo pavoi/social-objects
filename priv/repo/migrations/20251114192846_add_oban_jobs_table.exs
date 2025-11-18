@@ -1,4 +1,4 @@
-defmodule Hudson.Repo.Migrations.AddObanJobsTable do
+defmodule Pavoi.Repo.Migrations.AddObanJobsTable do
   use Ecto.Migration
 
   def up do

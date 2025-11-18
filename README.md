@@ -1,6 +1,6 @@
-# Hudson - Live Session Orchestrator
+# Pavoi - Live Session Orchestrator
 
-Hudson is a purpose-built Phoenix LiveView application for TikTok live streaming sessions. It replaces ad hoc Google Sheets with real-time product catalog management, keyboard-driven navigation, and synchronized host/producer views.
+Pavoi is a purpose-built Phoenix LiveView application for TikTok live streaming sessions. It replaces ad hoc Google Sheets with real-time product catalog management, keyboard-driven navigation, and synchronized host/producer views.
 
 ## Quick Start (Core MVP)
 
@@ -14,7 +14,7 @@ Hudson is a purpose-built Phoenix LiveView application for TikTok live streaming
 
 ```bash
 git clone <your-repo-url>
-cd hudson
+cd pavoi
 mix deps.get
 ```
 
@@ -38,7 +38,7 @@ mix deps.get
 Leave DATABASE_URL unset in `.env`, and the app will use local PostgreSQL:
 - Username: `postgres`
 - Password: `postgres`
-- Database: `hudson_dev`
+- Database: `pavoi_dev`
 
 ### 3. Create Database and Run Migrations
 
@@ -75,7 +75,7 @@ Visit: **http://localhost:4000/sessions/1/producer**
 
 ## Keyboard Controls
 
-Hudson is designed for hands-free operation during live streams:
+Pavoi is designed for hands-free operation during live streams:
 
 ### Primary Navigation (Direct Jumps)
 - **Type number + Enter**: Jump directly to product (e.g., "23" → Enter jumps to product 23)
@@ -100,9 +100,9 @@ Hudson is designed for hands-free operation during live streams:
 ## Project Structure
 
 ```
-hudson/
+pavoi/
 ├── lib/
-│   ├── hudson/
+│   ├── pavoi/
 │   │   ├── catalog/           # Product catalog schemas
 │   │   │   ├── brand.ex
 │   │   │   ├── product.ex
@@ -113,7 +113,7 @@ hudson/
 │   │   │   └── session_state.ex
 │   │   ├── catalog.ex         # Catalog context (CRUD)
 │   │   └── sessions.ex        # Sessions context (state management)
-│   └── hudson_web/
+│   └── pavoi_web/
 │       ├── live/
 │       │   ├── session_host_live.ex       # Host view (read-only)
 │       │   └── session_producer_live.ex   # Producer control panel
@@ -159,7 +159,7 @@ mix ecto.reset  # Drops, creates, migrates, and seeds
 
 ## Real-Time Synchronization
 
-Hudson uses Phoenix PubSub to synchronize state across multiple connected clients:
+Pavoi uses Phoenix PubSub to synchronize state across multiple connected clients:
 
 1. **Host View**: Read-only display optimized for on-camera host
 2. **Producer Console**: Remote control of session state
@@ -171,7 +171,7 @@ Hudson uses Phoenix PubSub to synchronize state across multiple connected client
 
 ## Memory Management
 
-Hudson is optimized for 3-4 hour live streaming sessions:
+Pavoi is optimized for 3-4 hour live streaming sessions:
 
 - **Temporary assigns**: Render-only data cleared after each render
 - **Minimal state**: Only current product kept in memory

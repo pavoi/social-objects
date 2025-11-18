@@ -30,7 +30,7 @@ This document outlines planned features and enhancements beyond the MVP scope.
 **Timeline:** Q1 2025
 **Priority:** High
 
-**Note:** Shopify sync has been completed! See `lib/hudson/shopify/` for implementation. Hourly sync runs via Oban.
+**Note:** Shopify sync has been completed! See `lib/pavoi/shopify/` for implementation. Hourly sync runs via Oban.
 
 ### 2.1 TikTok Shop Integration
 
@@ -66,7 +66,7 @@ This document outlines planned features and enhancements beyond the MVP scope.
 
 **Implementation:**
 ```elixir
-defmodule Hudson.AI.TalkingPoints do
+defmodule Pavoi.AI.TalkingPoints do
   def generate(product, style \\ :energetic) do
     prompt = """
     Generate 4-6 bullet point talking points for this product:
@@ -152,7 +152,7 @@ end
 
 ### 4.1 OBS Integration
 
-**Goal:** Control OBS scenes and sources from Hudson
+**Goal:** Control OBS scenes and sources from Pavoi
 
 **Features:**
 - Switch OBS scenes when changing products
@@ -163,7 +163,7 @@ end
 
 **Implementation:**
 - OBS WebSocket plugin
-- Hudson → OBS commands on product change
+- Pavoi → OBS commands on product change
 - Template-based overlays
 
 **Benefits:**
@@ -173,7 +173,7 @@ end
 
 **Technical Approach:**
 ```elixir
-defmodule Hudson.OBS do
+defmodule Pavoi.OBS do
   # Connect to OBS via WebSocket
   def connect(host, port, password) do
     ObsWebSocket.connect(host, port, password)
@@ -201,7 +201,7 @@ end
 
 **Implementation:**
 - StreamDeck SDK
-- WebSocket connection to Hudson
+- WebSocket connection to Pavoi
 - Button mapping configuration
 
 **Benefits:**
@@ -214,7 +214,7 @@ end
 **Goal:** Voice-activated navigation during stream
 
 **Features:**
-- Wake word detection ("Okay Hudson")
+- Wake word detection ("Okay Pavoi")
 - Voice commands ("next product", "show image 3", "jump to product 15")
 - Text-to-speech confirmation
 - Noise-cancellation for studio environment
@@ -291,7 +291,7 @@ end
 **Use Cases:**
 - Agency managing multiple clients
 - Company with multiple product lines
-- White-label Hudson for resale
+- White-label Pavoi for resale
 
 ---
 
@@ -339,7 +339,7 @@ end
 
 ### 6.3 TikTok Analytics Integration
 
-**Goal:** Correlate Hudson data with TikTok performance metrics
+**Goal:** Correlate Pavoi data with TikTok performance metrics
 
 **Data Points:**
 - Viewer count
@@ -383,7 +383,7 @@ end
 
 ### Potential Future Direction
 
-**Consider open-sourcing Hudson:**
+**Consider open-sourcing Pavoi:**
 - Community contributions
 - Plugin ecosystem
 - Third-party integrations
@@ -400,7 +400,7 @@ end
 ## Summary
 
 **Immediate Next Steps (Post-MVP):**
-1. ~~Shopify sync~~ ✅ Complete (see `lib/hudson/shopify/`)
+1. ~~Shopify sync~~ ✅ Complete (see `lib/pavoi/shopify/`)
 2. OBS integration (Q2 2025)
 3. AI talking points generation (Q2 2025)
 4. Cloud deployment optimization

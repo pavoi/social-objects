@@ -1,4 +1,4 @@
-defmodule Hudson.Repo.Migrations.RemoveSessionMetadataFields do
+defmodule Pavoi.Repo.Migrations.RemoveSessionMetadataFields do
   use Ecto.Migration
 
   def change do

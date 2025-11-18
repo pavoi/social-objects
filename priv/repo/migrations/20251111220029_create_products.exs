@@ -1,4 +1,4 @@
-defmodule Hudson.Repo.Migrations.CreateProducts do
+defmodule Pavoi.Repo.Migrations.CreateProducts do
   use Ecto.Migration
 
   def change do
