@@ -4,21 +4,22 @@ defmodule Hudson.Application do
   @moduledoc false
 
   use Application
+  require Logger
 
   @impl true
   def start(_type, _args) do
-    children = [
-      HudsonWeb.Telemetry,
-      Hudson.Repo,
-      Hudson.LocalRepo,
-      {Oban, Application.fetch_env!(:hudson, Oban)},
-      {DNSCluster, query: Application.get_env(:hudson, :dns_cluster_query) || :ignore},
-      {Phoenix.PubSub, name: Hudson.PubSub},
-      # Start a worker by calling: Hudson.Worker.start_link(arg)
-      # {Hudson.Worker, arg},
-      # Start to serve requests, typically the last entry
-      HudsonWeb.Endpoint
-    ]
+    neon_enabled? = neon_enabled?()
+
+    children =
+      [
+        HudsonWeb.Telemetry,
+        Hudson.LocalRepo,
+        {DNSCluster, query: Application.get_env(:hudson, :dns_cluster_query) || :ignore},
+        {Phoenix.PubSub, name: Hudson.PubSub},
+        HudsonWeb.Endpoint
+      ]
+      |> maybe_add_neon(neon_enabled?)
+      |> maybe_add_oban(neon_enabled?)
 
     # See https://hexdocs.pm/elixir/Supervisor.html
     # for other strategies and supported options
@@ -37,5 +38,25 @@ defmodule Hudson.Application do
   def config_change(changed, _new, removed) do
     HudsonWeb.Endpoint.config_change(changed, removed)
     :ok
+  end
+
+  defp neon_enabled? do
+    value = System.get_env("HUDSON_ENABLE_NEON", "true") |> String.downcase()
+    value in ["true", "1", "yes"]
+  end
+
+  defp maybe_add_neon(children, true), do: [Hudson.Repo | children]
+
+  defp maybe_add_neon(children, false) do
+    Logger.info("🔌 HUDSON_ENABLE_NEON=false; skipping Hudson.Repo for offline-first boot")
+    children
+  end
+
+  defp maybe_add_oban(children, true),
+    do: [{Oban, Application.fetch_env!(:hudson, Oban)} | children]
+
+  defp maybe_add_oban(children, false) do
+    Logger.info("🔌 HUDSON_ENABLE_NEON=false; skipping Oban startup")
+    children
   end
 end

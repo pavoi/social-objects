@@ -25,6 +25,7 @@
     "bundle": {
       "identifier": "com.hudson.app",
       "icon": ["icons/icon.png"],
+      "externalBin": ["../burrito_out/hudson_macos_arm"],
       "resources": [],
       "targets": "all"
     }

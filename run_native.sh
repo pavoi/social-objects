@@ -9,11 +9,25 @@ cd "$SCRIPT_DIR"
 
 echo "🚀 Launching Hudson native app..."
 
-# Set the backend binary path
-export HUDSON_BACKEND_BIN="$SCRIPT_DIR/burrito_out/hudson_macos_arm"
+# Prefer the packaged app bundle if present
+APP_BUNDLE="$SCRIPT_DIR/src-tauri/target/release/bundle/macos/Hudson.app/Contents/MacOS/hudson_desktop"
+APP_FALLBACK="$SCRIPT_DIR/src-tauri/target/release/hudson_desktop"
+
+# Set the backend binary path (Tauri also looks in app resources via externalBin)
+export HUDSON_BACKEND_BIN="${HUDSON_BACKEND_BIN:-$SCRIPT_DIR/burrito_out/hudson_macos_arm}"
+
+# Prepare the expected external bin name for Tauri bundling
+if [ -f "$SCRIPT_DIR/burrito_out/hudson_macos_arm" ] && [ ! -e "$SCRIPT_DIR/burrito_out/hudson_macos_arm-aarch64-apple-darwin" ]; then
+  ln -sf hudson_macos_arm "$SCRIPT_DIR/burrito_out/hudson_macos_arm-aarch64-apple-darwin"
+fi
 
 # Clean up old handshake file
 rm -f /tmp/hudson_port.json
 
-# Launch the native app
-exec ./src-tauri/target/release/hudson_desktop
+if [ -x "$APP_BUNDLE" ]; then
+  echo "Using bundled app at $APP_BUNDLE"
+  exec "$APP_BUNDLE"
+fi
+
+echo "Using fallback binary at $APP_FALLBACK"
+exec "$APP_FALLBACK"

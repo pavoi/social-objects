@@ -37,7 +37,7 @@ fn main() {
             let app_handle = app.handle();
             let state = Arc::clone(&app.state::<BackendState>().child);
 
-            let window = tauri::WindowBuilder::new(
+            tauri::WindowBuilder::new(
                 app,
                 "main",
                 tauri::WindowUrl::App("index.html".into()),
@@ -46,8 +46,6 @@ fn main() {
             .inner_size(1440.0, 900.0)
             .resizable(true)
             .build()?;
-
-            eprintln!("Window created successfully");
 
             tauri::async_runtime::spawn(async move {
                 if let Err(err) = boot_sequence(app_handle, state).await {
@@ -72,7 +70,8 @@ fn main() {
 async fn boot_sequence(app: AppHandle<Wry>, state: Arc<Mutex<Option<Child>>>) -> Result<()> {
     eprintln!("Boot sequence started");
 
-    let child = spawn_backend().context("failed to launch BEAM sidecar")?;
+    let resource_dir = tauri::api::path::resource_dir(app.package_info(), &app.env());
+    let child = spawn_backend(resource_dir).context("failed to launch BEAM sidecar")?;
     eprintln!("Backend spawned");
 
     let port = wait_for_port_file().await?;
@@ -101,8 +100,15 @@ async fn boot_sequence(app: AppHandle<Wry>, state: Arc<Mutex<Option<Child>>>) ->
     Ok(())
 }
 
-fn spawn_backend() -> Result<Child> {
-    let executable = std::env::var("HUDSON_BACKEND_BIN").unwrap_or_else(|_| default_backend_path());
+fn spawn_backend(resource_dir: Option<PathBuf>) -> Result<Child> {
+    let candidates = candidate_backend_paths(resource_dir);
+
+    let executable = candidates
+        .iter()
+        .find(|path| path.exists())
+        .cloned()
+        .ok_or_else(|| anyhow!("No backend binary found. Tried: {candidates:?}"))?;
+
     let args = std::env::var("HUDSON_BACKEND_ARGS")
         .map(|value| value.split_whitespace().map(String::from).collect())
         .unwrap_or_else(|_| default_args_for(&executable));
@@ -112,6 +118,11 @@ fn spawn_backend() -> Result<Child> {
         command.args(args);
     }
 
+    // Pass through environment variables for configuration
+    if let Ok(enable_neon) = std::env::var("HUDSON_ENABLE_NEON") {
+        command.env("HUDSON_ENABLE_NEON", enable_neon);
+    }
+
     command
         .stdout(Stdio::piped())
         .stderr(Stdio::inherit())
@@ -119,8 +130,39 @@ fn spawn_backend() -> Result<Child> {
         .context("failed to spawn backend process")
 }
 
-fn default_args_for(executable: &str) -> Vec<String> {
-    if executable.contains("burrito_out") {
+fn candidate_backend_paths(resource_dir: Option<PathBuf>) -> Vec<PathBuf> {
+    let mut paths = Vec::new();
+
+    if let Ok(env_path) = std::env::var("HUDSON_BACKEND_BIN") {
+        if !env_path.trim().is_empty() {
+            paths.push(PathBuf::from(env_path));
+        }
+    }
+
+    if let Some(dir) = resource_dir {
+        paths.push(dir.join("binaries").join("hudson_macos_arm-aarch64-apple-darwin"));
+        paths.push(dir.join("binaries").join("hudson_macos_arm"));
+        paths.push(dir.join("binaries").join("hudson_backend"));
+        paths.push(dir.join("hudson_macos_arm-aarch64-apple-darwin"));
+        paths.push(dir.join("hudson_macos_arm"));
+        paths.push(dir.join("hudson_backend"));
+    }
+
+    if cfg!(target_os = "windows") {
+        paths.push(PathBuf::from("..\\burrito_out\\hudson_windows.exe"));
+        paths.push(PathBuf::from("..\\_build\\prod\\rel\\hudson\\bin\\hudson.bat"));
+    } else {
+        paths.push(PathBuf::from("../burrito_out/hudson_macos_arm"));
+        paths.push(PathBuf::from("../burrito_out/hudson_macos_intel"));
+        paths.push(PathBuf::from("../_build/prod/rel/hudson/bin/hudson"));
+    }
+
+    paths
+}
+
+fn default_args_for(executable: &PathBuf) -> Vec<String> {
+    let path_str = executable.to_string_lossy();
+    if path_str.contains("burrito_out") {
         vec![]
     } else {
         vec!["foreground".to_string()]
