@@ -185,11 +185,8 @@
   transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
   overflow: hidden;
 
-  /* Start hidden - animation will reveal */
-  opacity: 0;
-
   /* Fade in + slide up animation - delay applied inline per component */
-  animation: fadeInSlideUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  animation: fadeInSlideUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
 .product-card-browse:hover {

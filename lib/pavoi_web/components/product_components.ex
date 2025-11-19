@@ -670,12 +670,12 @@ defmodule PavoiWeb.ProductComponents do
 
     @impl true
     def render(assigns) do
-      # Calculate staggered animation delay: first item at 0.15s (longer to ensure styles apply), increment 0.08s per item
+      # Calculate staggered animation delay: first item at 0.3s (production needs more time), increment 0.08s per item
       animation_delay =
         if Map.has_key?(assigns, :index) do
-          "#{assigns.index * 0.08 + 0.15}s"
+          "#{assigns.index * 0.08 + 0.3}s"
         else
-          "0.15s"
+          "0.3s"
         end
 
       assigns = assign(assigns, :animation_delay, animation_delay)
