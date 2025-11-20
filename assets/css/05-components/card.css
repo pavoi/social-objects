@@ -302,6 +302,11 @@
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
+.session-card__collapse-btn svg {
+  width: 16px;
+  height: 16px;
+}
+
 .session-card__collapse-btn:hover {
   background-color: var(--color-bg-hover);
   border-color: var(--color-border-primary);

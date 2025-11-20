@@ -13,8 +13,6 @@ defmodule Mix.Tasks.Assets.CopyVendor do
 
   @shortdoc "Copy vendor WASM and model files to priv/static"
 
-  @requirements ["app.config"]
-
   def run(_args) do
     assets_dir = Path.join([File.cwd!(), "assets", "node_modules"])
     static_dir = Path.join([File.cwd!(), "priv", "static"])

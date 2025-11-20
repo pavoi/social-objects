@@ -224,6 +224,7 @@ export default {
 
     // Get references to UI elements
     this.panel = this.el.querySelector('.voice-control-panel');
+    this.header = this.el.querySelector('.voice-control-header');
     this.minimizeBtn = this.el.querySelector('#voice-minimize');
     this.toggleBtn = this.el.querySelector('#voice-toggle');
     this.micSelect = this.el.querySelector('#mic-select');
@@ -235,8 +236,17 @@ export default {
     requestAnimationFrame(() => this.setupCanvas());
 
     // Wire up event listeners
-    this.minimizeBtn.addEventListener('click', () => this.toggleCollapse());
-    this.toggleBtn.addEventListener('click', () => this.toggle());
+    this.minimizeBtn.addEventListener('click', (e) => {
+      e.stopPropagation(); // Prevent header click from also firing
+      this.toggleCollapse();
+    });
+    this.toggleBtn.addEventListener('click', (e) => {
+      e.stopPropagation(); // Prevent header click from also firing
+      this.toggle();
+    });
+
+    // Make the entire header clickable for expand/collapse
+    this.header.addEventListener('click', () => this.toggleCollapse());
 
     this.micSelect.addEventListener('change', () => {
       const selectedMic = this.micSelect.value;
