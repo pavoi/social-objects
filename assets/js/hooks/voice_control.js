@@ -22,7 +22,7 @@
  * 3. **Number Extraction** - Converts spoken numbers to integers
  *    - Handles words: "twenty three" → 23, "five" → 5
  *    - Handles digits: "23" → 23
- *    - Validates range: 1 to totalProducts
+ *    - Validates range: 1 to 99 (backend validates against actual product count)
  *
  * 4. **LiveView Integration** - Pushes events to trigger product navigation
  *    - Event: "jump_to_product" with {position: "23"}
@@ -49,7 +49,7 @@
  *
  * ## Data Attributes
  *
- * - `data-total-products` (required) - Maximum product number (for validation)
+ * - `data-total-products` (optional) - Total product count (not used for validation; backend handles range checking)
  *
  * ## Keyboard Shortcuts
  *
@@ -502,7 +502,9 @@ export default {
     // Extract number from transcript
     const number = this.extractNumber(text);
 
-    if (number !== null && number >= 1 && number <= this.totalProducts) {
+    // Support all two-digit numbers (1-99) to match keyboard shortcuts
+    // Backend will validate against actual product count
+    if (number !== null && number >= 1 && number <= 99) {
       // Valid number! Jump to product
       this.updateStatus('success', `Jumping to product ${number}`);
       console.log(`[VoiceControl] Jumping to product ${number}`);
@@ -523,7 +525,7 @@ export default {
       // Invalid or out of range
       const message = number === null
         ? 'No number detected'
-        : `Invalid: ${number} (must be 1-${this.totalProducts})`;
+        : `Invalid: ${number} (must be 1-99)`;
 
       this.updateStatus('error', message);
       console.warn(`[VoiceControl] ${message}`);
