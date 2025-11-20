@@ -47,6 +47,10 @@ Temporary Items
 !/priv/static/assets/
 /priv/static/assets/*
 !/priv/static/assets/vad/
+!/priv/static/assets/js/
+/priv/static/assets/js/*
+!/priv/static/assets/js/ort-wasm-*.mjs
+!/priv/static/assets/js/ort-wasm-*.wasm
 /priv/plts/
 erl_crash.dump
 *.beam
