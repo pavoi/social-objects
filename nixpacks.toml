@@ -13,7 +13,9 @@ cmds = [
   "cd assets && npm ci --production=false && cd ..",
   "mix compile",
   "mix assets.deploy",
-  "mix release"
+  "mix release",
+  "ls -la priv/static/images/ || echo 'Images dir missing'",
+  "ls -la _build/prod/rel/pavoi/lib/pavoi-*/priv/static/images/ || echo 'Images not in release'"
 ]
 
 [start]
