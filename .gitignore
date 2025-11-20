@@ -44,6 +44,9 @@ Temporary Items
 !/priv/static/images/logo-dark.svg
 !/priv/static/images/favicon-16x16.png
 !/priv/static/images/favicon-32x32.png
+!/priv/static/assets/
+/priv/static/assets/*
+!/priv/static/assets/vad/
 /priv/plts/
 erl_crash.dump
 *.beam
