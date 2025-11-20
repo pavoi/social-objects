@@ -260,6 +260,14 @@ defmodule Pavoi.Catalog do
   end
 
   @doc """
+  Gets a product by TikTok product ID.
+  Returns nil if not found.
+  """
+  def get_product_by_tiktok_product_id(tiktok_product_id) do
+    Repo.get_by(Product, tiktok_product_id: tiktok_product_id)
+  end
+
+  @doc """
   Gets multiple products by their Shopify product IDs (PIDs).
   Returns a list of products that match any of the given PIDs.
   """

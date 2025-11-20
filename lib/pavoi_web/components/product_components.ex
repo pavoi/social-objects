@@ -262,7 +262,7 @@ defmodule PavoiWeb.ProductComponents do
                   <strong style="font-weight: var(--font-semibold); color: var(--color-text-primary);">
                     Shopify Product ID:
                   </strong>
-                  <span style="font-family: monospace;">{@editing_product.pid}</span>
+                  <span style="font-family: monospace;">{Pavoi.Shopify.GID.display_id(@editing_product.pid)}</span>
                 </div>
               <% end %>
               <%= if @editing_product.tiktok_product_id do %>

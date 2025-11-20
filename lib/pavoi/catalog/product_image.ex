@@ -18,6 +18,7 @@ defmodule Pavoi.Catalog.ProductImage do
     field :thumbnail_path, :string
     field :alt_text, :string
     field :is_primary, :boolean, default: false
+    field :tiktok_uri, :string
 
     belongs_to :product, Pavoi.Catalog.Product
 
@@ -27,7 +28,7 @@ defmodule Pavoi.Catalog.ProductImage do
   @doc false
   def changeset(image, attrs) do
     image
-    |> cast(attrs, [:product_id, :position, :path, :thumbnail_path, :alt_text, :is_primary])
+    |> cast(attrs, [:product_id, :position, :path, :thumbnail_path, :alt_text, :is_primary, :tiktok_uri])
     |> validate_required([:product_id, :path])
     |> foreign_key_constraint(:product_id)
   end

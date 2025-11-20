@@ -142,6 +142,21 @@ defmodule Pavoi.Workers.TiktokSyncWorker do
     end
   end
 
+  defp fetch_product_details(tiktok_product_id) do
+    case TiktokShop.make_api_request(:get, "/product/202309/products/#{tiktok_product_id}", %{}) do
+      {:ok, %{"data" => product_data}} ->
+        {:ok, product_data}
+
+      {:ok, response} ->
+        Logger.error("Unexpected TikTok API response for product #{tiktok_product_id}: #{inspect(response)}")
+        {:error, :unexpected_response}
+
+      {:error, reason} ->
+        Logger.error("Failed to fetch product details for #{tiktok_product_id}: #{inspect(reason)}")
+        {:error, reason}
+    end
+  end
+
   defp sync_and_accumulate(tiktok_product, acc) do
     case sync_product(tiktok_product) do
       {:ok, {variant_count, is_new, is_matched}} ->
@@ -171,13 +186,34 @@ defmodule Pavoi.Workers.TiktokSyncWorker do
       # Try to find matching product by matching any SKU
       {matching_product, _matching_variant, is_matched} = find_matching_product(tiktok_skus)
 
-      if matching_product do
-        # Update existing product with TikTok data
-        update_existing_product(matching_product, tiktok_product_id, tiktok_skus, is_matched)
-      else
-        # Create new TikTok-only product
-        create_tiktok_only_product(tiktok_product_id, tiktok_title, tiktok_skus)
+      # Sync product and variant data
+      {product, result} =
+        if matching_product do
+          # Update existing product with TikTok data
+          result = update_existing_product(matching_product, tiktok_product_id, tiktok_skus, is_matched)
+          {matching_product, result}
+        else
+          # Create new TikTok-only product
+          result = create_tiktok_only_product(tiktok_product_id, tiktok_title, tiktok_skus)
+          # Fetch the newly created product
+          product = Catalog.get_product_by_tiktok_product_id(tiktok_product_id)
+          {product, result}
+        end
+
+      # Fetch product details to get images
+      case fetch_product_details(tiktok_product_id) do
+        {:ok, product_data} ->
+          # Sync product images
+          sync_product_images(product, product_data, is_matched)
+
+        {:error, reason} ->
+          Logger.warning(
+            "Failed to fetch details for product #{tiktok_product_id}, skipping images: #{inspect(reason)}"
+          )
       end
+
+      # Return the original result tuple
+      result
     end)
   end
 
@@ -250,6 +286,75 @@ defmodule Pavoi.Workers.TiktokSyncWorker do
         )
 
         raise "Failed to create TikTok-only product"
+    end
+  end
+
+  defp sync_product_images(product, tiktok_product_data, is_matched) do
+    if should_skip_tiktok_images?(product, is_matched) do
+      Logger.debug("Product #{product.id} has Shopify images, skipping TikTok images")
+      :ok
+    else
+      replace_tiktok_images(product, tiktok_product_data)
+    end
+  end
+
+  defp should_skip_tiktok_images?(product, is_matched) do
+    return_val = is_matched && has_shopify_images?(product)
+    return_val
+  end
+
+  defp has_shopify_images?(product) do
+    existing_images = Repo.preload(product, :product_images).product_images
+    Enum.any?(existing_images, &is_nil(&1.tiktok_uri))
+  end
+
+  defp replace_tiktok_images(product, tiktok_product_data) do
+    delete_existing_tiktok_images(product.id)
+
+    main_images = get_in(tiktok_product_data, ["main_images"]) || []
+
+    main_images
+    |> Enum.with_index()
+    |> Enum.each(fn {image_data, index} ->
+      create_product_image_from_tiktok(product.id, image_data, index)
+    end)
+
+    :ok
+  end
+
+  defp delete_existing_tiktok_images(product_id) do
+    from(pi in Pavoi.Catalog.ProductImage,
+      where: pi.product_id == ^product_id and not is_nil(pi.tiktok_uri)
+    )
+    |> Repo.delete_all()
+  end
+
+  defp create_product_image_from_tiktok(product_id, image_data, index) do
+    urls = image_data["urls"] || []
+    thumb_urls = image_data["thumb_urls"] || []
+    tiktok_uri = image_data["uri"]
+
+    if Enum.empty?(urls) do
+      :skip
+    else
+      image_attrs = %{
+        product_id: product_id,
+        path: List.first(urls),
+        thumbnail_path: List.first(thumb_urls),
+        tiktok_uri: tiktok_uri,
+        is_primary: index == 0,
+        position: index
+      }
+
+      case Catalog.create_product_image(image_attrs) do
+        {:ok, _image} ->
+          Logger.debug("Created image for product #{product_id}, position #{index}")
+
+        {:error, changeset} ->
+          Logger.error(
+            "Failed to create image for product #{product_id}: #{inspect(changeset.errors)}"
+          )
+      end
     end
   end
 
