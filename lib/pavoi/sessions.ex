@@ -7,7 +7,15 @@ defmodule Pavoi.Sessions do
   alias Pavoi.Repo
 
   alias Pavoi.Catalog.{ProductImage, ProductVariant}
-  alias Pavoi.Sessions.{Session, SessionProduct, SessionState, MessagePreset}
+  alias Pavoi.Sessions.{MessagePreset, Session, SessionProduct, SessionState}
+
+  # Default color for host messages
+  @default_message_color "amber"
+
+  @doc """
+  Returns the default color for host messages.
+  """
+  def default_message_color, do: @default_message_color
 
   ## Sessions
 
@@ -632,7 +640,7 @@ defmodule Pavoi.Sessions do
   Sends a message to the host by updating the session state.
   The message is persisted in the database and broadcast to all connected clients.
   """
-  def send_host_message(session_id, message_text, color \\ "amber") do
+  def send_host_message(session_id, message_text, color \\ @default_message_color) do
     message_id = generate_message_id()
     timestamp = DateTime.utc_now() |> DateTime.truncate(:second)
 

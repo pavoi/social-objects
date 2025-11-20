@@ -3,15 +3,16 @@
   class="producer-container"
   phx-hook="SessionHostKeyboard"
 >
-  <%!-- Voice Control Panel (Fixed Top-Right) --%>
+  <%!-- Voice Control Panel --%>
   <div
     id="voice-control"
     phx-hook="VoiceControl"
+    phx-update="ignore"
     data-total-products={@total_products}
   >
   </div>
-
-  <!-- Top Control Bar -->
+  
+<!-- Top Control Bar -->
   <div class="producer-control-bar">
     <div class="producer-left-section">
       <.link navigate={~p"/sessions"} class="back-to-sessions">
@@ -37,7 +38,7 @@
       <.theme_toggle />
     </div>
   </div>
-
+  
 <!-- Main Content Based on View Mode -->
   <%= case @view_mode do %>
     <% :split_screen -> %>
@@ -168,7 +169,12 @@
 
   <%!-- Message Presets Modal --%>
   <%= if @show_preset_modal do %>
-    <div class="preset-modal-overlay" phx-click="close_preset_modal" phx-window-keydown="close_preset_modal" phx-key="Escape">
+    <div
+      class="preset-modal-overlay"
+      phx-click="close_preset_modal"
+      phx-window-keydown="close_preset_modal"
+      phx-key="Escape"
+    >
       <div class="preset-modal" phx-click="skip">
         <div class="preset-modal__header">
           <h2>Message Presets</h2>

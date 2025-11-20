@@ -220,16 +220,13 @@
    =========================================================================== */
 
 .host-message-banner {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
+  position: relative;
   background-color: var(--color-accent-amber);
   color: var(--color-text-inverse);
   padding: var(--space-6) var(--space-8);
-  z-index: var(--z-toast);
   animation: slideDownPulse 0.5s ease-out;
   box-shadow: var(--shadow-xl);
+  margin-bottom: var(--space-4);
 }
 
 /* Color variants */

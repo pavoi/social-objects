@@ -14,6 +14,7 @@ This guide tracks implementation progress and provides instructions for remainin
 - [x] **SessionHostLive & SessionProducerLive** - Separated views with real-time state sync
 - [x] **Template** - Dark theme UI optimized for live streaming (3-foot viewing distance)
 - [x] **Keyboard Navigation** - JS hooks for hands-free control (direct jump + arrow keys)
+- [x] **Voice Control** - Local speech recognition with Whisper.js + Silero VAD (see VOICE_CONTROL_PLAN.md)
 - [x] **State Management** - PubSub broadcasting, URL persistence, temporary assigns
 - [x] **Seed Data** - 8 sample products with talking points
 
@@ -237,10 +238,12 @@ defp broadcast_state_change({:ok, %SessionState{} = state}) do
 end
 ```
 
-**Keyboard Navigation:**
-- **Primary (Direct Jump):** Type number + Enter (e.g., "23" + Enter)
-- **Convenience (Sequential):** ↑/↓ arrows, Space
-- **Images:** ←/→ arrows
+**Navigation:**
+- **Keyboard (Primary):** Type number + Enter (e.g., "23" + Enter)
+- **Keyboard (Sequential):** ↑/↓ arrows, Space for products, ←/→ arrows for images
+- **Voice Control:** Say product numbers (e.g., "twenty three") - toggle with Ctrl/Cmd + M
+  - Local processing with Whisper.js (speech recognition) + Silero VAD (voice activity detection)
+  - See VOICE_CONTROL_PLAN.md for complete documentation
 
 **Database Timestamp Handling:**
 ```elixir

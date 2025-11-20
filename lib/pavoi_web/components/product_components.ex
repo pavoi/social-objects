@@ -399,7 +399,11 @@ defmodule PavoiWeb.ProductComponents do
   attr :products, :any, required: true, doc: "List of products to display"
   attr :mode, :atom, default: :browse, values: [:browse, :select], doc: "Grid mode"
   attr :search_query, :string, default: "", doc: "Current search query"
-  attr :search_touched, :boolean, default: false, doc: "Whether search has been used (disables animations)"
+
+  attr :search_touched, :boolean,
+    default: false,
+    doc: "Whether search has been used (disables animations)"
+
   attr :has_more, :boolean, default: false, doc: "Whether more products are available"
   attr :on_product_click, :string, required: true, doc: "Event to trigger on product click"
   attr :on_search, :string, default: nil, doc: "Event to trigger on search"

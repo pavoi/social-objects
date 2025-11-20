@@ -41,6 +41,8 @@
 @import "./05-components/toast.css";
 @import "./05-components/image-carousel.css";
 @import "./05-components/theme-toggle.css";
+@import "./05-components/host-message.css";
+@import "./05-components/voice-control.css";
 
 /* Utilities Layer - Utility classes */
 @import "./06-utilities/utilities.css";

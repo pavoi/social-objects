@@ -356,7 +356,12 @@ defmodule PavoiWeb.CoreComponents do
             }
             aria-label="Clear search"
           >
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" style="width: 16px; height: 16px;">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 20 20"
+              fill="currentColor"
+              style="width: 16px; height: 16px;"
+            >
               <path d="M6.28 5.22a.75.75 0 00-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 101.06 1.06L10 11.06l3.72 3.72a.75.75 0 101.06-1.06L11.06 10l3.72-3.72a.75.75 0 00-1.06-1.06L10 8.94 6.28 5.22z" />
             </svg>
           </button>
@@ -438,7 +443,7 @@ defmodule PavoiWeb.CoreComponents do
         <%= if @current_page == :products do %>
           <%= if @last_sync_at do %>
             <div class="navbar__sync-meta">
-              Last synced: <%= format_relative_time(@last_sync_at) %>
+              Last synced: {format_relative_time(@last_sync_at)}
             </div>
           <% end %>
           <.button
@@ -448,7 +453,7 @@ defmodule PavoiWeb.CoreComponents do
             class={@syncing && "button--disabled"}
             disabled={@syncing}
           >
-            <%= if @syncing, do: "Syncing...", else: "Initiate Shopify Sync" %>
+            {if @syncing, do: "Syncing...", else: "Initiate Shopify Sync"}
           </.button>
         <% end %>
         <.theme_toggle />

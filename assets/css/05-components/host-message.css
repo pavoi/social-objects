@@ -1,0 +1,31 @@
+/**
+ * Host Message Banner Component
+ *
+ * Shared color variants for host message banners across different views.
+ * Used in both host view and producer view previews.
+ */
+
+/* Color variants */
+.host-message-banner--amber {
+  background-color: var(--color-accent-amber);
+}
+
+.host-message-banner--blue {
+  background-color: var(--color-accent-blue);
+}
+
+.host-message-banner--green {
+  background-color: var(--color-accent-green);
+}
+
+.host-message-banner--red {
+  background-color: var(--color-accent-red);
+}
+
+.host-message-banner--purple {
+  background-color: var(--color-accent-purple);
+}
+
+.host-message-banner--gray {
+  background-color: var(--color-text-secondary);
+}

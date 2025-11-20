@@ -16,11 +16,19 @@ mix phx.server
 
 Visit: **http://localhost:4000/sessions/1/producer**
 
-## Keyboard Controls
+## Controls
 
+**Keyboard:**
 - **Type number + Enter**: Jump directly to product (e.g., "23" → Enter)
 - **↓ / ↑ / Space**: Navigate products
 - **← / →**: Navigate images
+
+**Voice Control:**
+- **Ctrl/Cmd + M**: Toggle voice recognition
+- **Say product numbers**: "twenty three", "product 12", etc.
+- 100% local processing (Whisper.js + Silero VAD)
+
+See [VOICE_CONTROL_PLAN.md](VOICE_CONTROL_PLAN.md) for complete documentation.
 
 ## Production (Railway)
 

@@ -50,10 +50,12 @@ Pavoi provides:
 - **Database:** PostgreSQL (cloud-hosted or local)
 - **Storage:** Object storage for product images
 - **Real-time:** Phoenix PubSub
+- **Voice Control:** Whisper.js + Silero VAD (100% local processing)
 - **Deployment:** Cloud-hosted web application
 
 ### Key Features
 
+- **Voice control** - Hands-free product navigation with local speech recognition
 - Keyboard-first navigation (↑/↓ for products, ←/→ for images)
 - Multi-client state synchronization via PubSub
 - URL-based state persistence (survives refreshes)

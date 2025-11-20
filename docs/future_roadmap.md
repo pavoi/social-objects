@@ -209,30 +209,43 @@ end
 - Faster navigation than keyboard
 - Professional production feel
 
-### 4.3 Audio Wake-Word Control
+### 4.3 Voice Control ✅ **IMPLEMENTED**
+
+**Status:** Completed November 2024
 
 **Goal:** Voice-activated navigation during stream
 
-**Features:**
-- Wake word detection ("Okay Pavoi")
-- Voice commands ("next product", "show image 3", "jump to product 15")
-- Text-to-speech confirmation
-- Noise-cancellation for studio environment
+**Implemented Features:**
+- ✅ Voice command recognition ("five", "twenty three", "product 12")
+- ✅ Local speech recognition (Whisper Tiny English)
+- ✅ Voice Activity Detection (Silero VAD)
+- ✅ Keyboard shortcut toggle (Ctrl/Cmd + M)
+- ✅ Microphone device selection
+- ✅ Real-time status feedback
+- ✅ 100% local processing (privacy-first)
+- ✅ WebGPU acceleration for fast transcription
 
 **Implementation:**
-- Whisper.cpp for speech recognition (local, offline)
-- Custom wake word model
-- LiveView event triggers from detected commands
+- Whisper.js (Transformers.js) - OpenAI's Whisper model in browser
+- Silero VAD via `@ricky0123/vad-web` - Voice activity detection
+- Web Workers for non-blocking audio processing
+- Custom word-to-number parser (handles "twenty three" → 23)
+- LiveView event integration (reuses existing `jump_to_product` handler)
 
-**Challenges:**
-- Studio noise environment
-- Avoiding false positives
-- Low latency processing
+**Performance:**
+- Latency: 0.5-2s per utterance (WebGPU: 0.5-1s, CPU: 1-2s)
+- Memory: ~150-200MB (models + runtime)
+- Network: ~42MB first load (cached), 0 bytes thereafter
+- Browser support: Chrome 113+, Firefox 141+, Safari 26+ (WebGPU)
+- CPU fallback for older browsers
 
-**Safety:**
-- Require confirmation for critical actions
-- Manual override always available
-- Disable during sensitive discussions
+**Future Enhancements (Not Implemented):**
+- Wake word detection ("Okay Pavoi") - Currently manual toggle
+- Extended commands ("next product", "show image 3") - Currently numbers only
+- Text-to-speech confirmation - Visual feedback only
+- Multi-language support - English only
+
+_See [VOICE_CONTROL_PLAN.md](../VOICE_CONTROL_PLAN.md) for complete documentation._
 
 ---
 
@@ -399,10 +412,14 @@ end
 
 ## Summary
 
-**Immediate Next Steps (Post-MVP):**
+**Recently Completed:**
 1. ~~Shopify sync~~ ✅ Complete (see `lib/pavoi/shopify/`)
-2. OBS integration (Q2 2025)
-3. AI talking points generation (Q2 2025)
+2. ~~Voice control~~ ✅ Complete (see `VOICE_CONTROL_PLAN.md`)
+
+**Immediate Next Steps (Post-MVP):**
+1. OBS integration (Q2 2025)
+2. AI talking points generation (Q2 2025)
+3. StreamDeck integration (Q2 2025)
 4. Cloud deployment optimization
 
 **Long-Term Vision:**

@@ -11,6 +11,7 @@ defmodule PavoiWeb.HostViewComponents do
 
   import PavoiWeb.ViewHelpers
 
+  alias Pavoi.Sessions
   alias Pavoi.Sessions.SessionProduct
 
   @doc """
@@ -102,7 +103,7 @@ defmodule PavoiWeb.HostViewComponents do
   def host_message_banner(assigns) do
     ~H"""
     <div
-      class={"host-message-banner host-message-banner--#{@message.color || "amber"}"}
+      class={"host-message-banner host-message-banner--#{Map.get(@message, :color, Sessions.default_message_color())}"}
       id={"host-message-#{@message.id}"}
       key={@message.id}
     >

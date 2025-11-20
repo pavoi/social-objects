@@ -294,8 +294,7 @@ defmodule PavoiWeb.SessionProducerLive do
       {:error, changeset} ->
         errors =
           Ecto.Changeset.traverse_errors(changeset, fn {msg, _opts} -> msg end)
-          |> Enum.map(fn {field, msgs} -> "#{field}: #{Enum.join(msgs, ", ")}" end)
-          |> Enum.join("; ")
+          |> Enum.map_join("; ", fn {field, msgs} -> "#{field}: #{Enum.join(msgs, ", ")}" end)
 
         {:noreply, put_flash(socket, :error, "Failed to create preset: #{errors}")}
     end
@@ -414,7 +413,7 @@ defmodule PavoiWeb.SessionProducerLive do
           text: state.current_host_message_text,
           id: state.current_host_message_id,
           timestamp: state.current_host_message_timestamp,
-          color: state.current_host_message_color || "amber"
+          color: state.current_host_message_color || Sessions.default_message_color()
         })
         |> assign(:message_draft, state.current_host_message_text)
       else

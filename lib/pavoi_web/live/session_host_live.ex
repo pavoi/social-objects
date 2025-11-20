@@ -264,7 +264,8 @@ defmodule PavoiWeb.SessionHostLive do
         assign(socket, :host_message, %{
           text: state.current_host_message_text,
           id: state.current_host_message_id,
-          timestamp: state.current_host_message_timestamp
+          timestamp: state.current_host_message_timestamp,
+          color: state.current_host_message_color || Sessions.default_message_color()
         })
       else
         assign(socket, :host_message, nil)

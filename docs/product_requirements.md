@@ -37,9 +37,9 @@ Purpose-built application for TikTok streaming sessions that serves as:
 These features are explicitly deferred to post-MVP phases:
 
 - ~~**Shopify Integration**~~ ✅ Complete (hourly sync via Oban)
+- ~~**Voice Control**~~ ✅ Complete (local speech recognition with Whisper.js + Silero VAD)
 - **LLM Features** - No AI-generated talking points or comment summarization
 - **OBS/StreamDeck Integration** - Manual scene switching for MVP
-- **Audio Wake-Word Control** - Keyboard-only navigation for MVP
 - **Multi-brand Management UI** - Single brand (Pavoi) hardcoded is acceptable
 - **User Authentication System** - Simple shared password acceptable for MVP
 - **Mobile Apps** - Browser-based web application only for MVP

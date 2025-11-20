@@ -234,9 +234,8 @@ async function transcribe(audioArray) {
     }
 
     // Run inference
+    // Note: For English-only models (.en), don't specify language/task parameters
     const result = await transcriber(audioData, {
-      language: 'english',
-      task: 'transcribe',
       // Return timestamps is optional - we mainly care about the text
       return_timestamps: false,
       // Chunk length in seconds (for long audio)

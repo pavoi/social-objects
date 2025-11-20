@@ -6,8 +6,6 @@
   "dependencies": {
     "@huggingface/transformers": "^3.2.0",
     "@ricky0123/vad-web": "^0.0.19",
-    "onnxruntime-web": "^1.20.0",
-    "words-to-numbers": "^1.5.1"
-  },
-  "devDependencies": {}
+    "onnxruntime-web": "^1.20.0"
+  }
 }

@@ -220,6 +220,7 @@ _See [Implementation Guide](implementation_guide.md) for code examples._
 - Route: `/sessions/:id/producer`
 - Purpose: Full control panel for managing live sessions
 - Key Features:
+  - **Voice control** - Hands-free navigation via speech recognition (Ctrl/Cmd+M)
   - Keyboard navigation controls (jump to product, cycle images)
   - Send live messages to host (persistent in database)
   - View mode toggling (fullscreen config, split-screen, fullscreen host preview)
@@ -253,6 +254,36 @@ _See [Implementation Guide](implementation_guide.md) for code examples._
 **Critical Pattern:** Use `temporary_assigns` for render-only data to prevent memory bloat during 3-4 hour sessions.
 
 _See [Implementation Guide](implementation_guide.md#sessionrunlive) for full code examples._
+
+### 4.3 Client-Side Hooks
+
+**VoiceControl Hook** - Voice-Activated Navigation
+- File: `assets/js/hooks/voice_control.js`
+- Purpose: Enable hands-free product navigation using speech recognition
+- Key Features:
+  - **Local AI Processing** - Whisper.js for speech-to-text (WebGPU accelerated)
+  - **Voice Activity Detection** - Silero VAD to segment speech from silence
+  - **Number Extraction** - Converts "twenty three" → 23
+  - **Privacy-First** - 100% local processing, no cloud dependencies
+  - **Keyboard Shortcut** - Ctrl/Cmd + M to toggle
+  - **Microphone Selection** - Device picker with localStorage persistence
+- Technology Stack:
+  - `@huggingface/transformers` - Whisper Tiny English model (~40MB)
+  - `@ricky0123/vad-web` - Silero VAD model (~1.7MB)
+  - Web Workers for non-blocking audio processing
+  - WebGPU acceleration (2-4x faster than CPU)
+- Performance:
+  - Memory: ~150-200MB (models + runtime)
+  - Latency: 0.5-2s per utterance
+  - Network: ~42MB first load (cached), 0 bytes thereafter
+
+_See [VOICE_CONTROL_PLAN.md](../VOICE_CONTROL_PLAN.md) for complete implementation details._
+
+**Other Hooks:**
+- **SessionHostKeyboard** - Keyboard navigation in producer view
+- **ProductSortable** - Drag-and-drop product ordering
+- **ImageCarouselDrag** - Touch/mouse image carousel
+- **ThemeToggle** - Dark/light mode switching
 
 ---
 

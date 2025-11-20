@@ -8,7 +8,7 @@ import ProductSortable from "./hooks/product_sortable"
 import ThemeToggle from "./hooks/theme_toggle"
 import MessageInput from "./hooks/message_input"
 import GlobalNavigation from "./hooks/global_navigation"
-import WhisperWorkerTest from "./hooks/whisper_worker_test"
+import VoiceControl from "./hooks/voice_control"
 
 const Hooks = {
   SessionHostKeyboard,
@@ -19,7 +19,7 @@ const Hooks = {
   ThemeToggle,
   MessageInput,
   GlobalNavigation,
-  WhisperWorkerTest
+  VoiceControl
 }
 
 export default Hooks
