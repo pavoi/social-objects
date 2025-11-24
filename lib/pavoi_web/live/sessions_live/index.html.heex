@@ -175,12 +175,12 @@
         </div>
 
         <%!-- Content switcher: thumbnails and products --%>
-        <%= if length(session.session_products) > 0 do %>
-          <div class={[
-            "session-card__content-switcher",
-            @expanded_session_id == session.id && "session-card__content-switcher--expanded"
-          ]}>
-            <%!-- Product thumbnails preview (visible when collapsed) --%>
+        <div class={[
+          "session-card__content-switcher",
+          @expanded_session_id == session.id && "session-card__content-switcher--expanded"
+        ]}>
+          <%!-- Product thumbnails preview (visible when collapsed) --%>
+          <%= if length(session.session_products) > 0 do %>
             <div class="session-card__thumbnails">
               <%= for {product, image} <- session_top_products(session) do %>
                 <img
@@ -192,71 +192,71 @@
                 />
               <% end %>
             </div>
+          <% end %>
 
-            <%!-- Product details (visible when expanded) --%>
-            <div class="session-card__products-wrapper">
-              <div class="session-card__products-inner">
-                <%!-- Product list --%>
-                <div
-                  id={"session-#{session.id}-products"}
-                  phx-hook="ProductSortable"
-                  data-session-id={session.id}
-                  class="session-card__product-list"
-                >
-                  <%= for sp <- session.session_products do %>
-                    <div
-                      id={"session-product-#{sp.id}"}
-                      class="session-card__product-item"
-                      data-id={sp.id}
-                      data-product-id={sp.product_id}
-                    >
-                      <div class="session-card__product-link">
-                        <div class="session-card__product-position">
-                          {sp.position}
-                        </div>
-
-                        <%= if image = primary_image(sp.product) do %>
-                          <img
-                            src={public_image_url(image.thumbnail_path || image.path)}
-                            alt={image.alt_text}
-                            class="session-card__product-image"
-                          />
-                        <% end %>
-
-                        <p class="session-card__product-name">
-                          {sp.featured_name || sp.product.name}
-                        </p>
-                      </div>
-
-                      <div class="session-card__product-actions">
-                        <.button
-                          size="xs"
-                          variant="ghost"
-                          circle
-                          phx-click="remove_product"
-                          phx-value-session-product-id={sp.id}
-                          aria-label="Remove product"
-                          class="text-error"
-                        >
-                          ×
-                        </.button>
-                      </div>
-                    </div>
-                  <% end %>
-                  <.button
-                    size="sm"
-                    variant="ghost"
-                    phx-click="load_products_for_session"
-                    phx-value-session-id={session.id}
-                    class="session-card__add-product-btn"
+          <%!-- Product details (visible when expanded) --%>
+          <div class="session-card__products-wrapper">
+            <div class="session-card__products-inner">
+              <%!-- Product list --%>
+              <div
+                id={"session-#{session.id}-products"}
+                phx-hook="ProductSortable"
+                data-session-id={session.id}
+                class="session-card__product-list"
+              >
+                <%= for sp <- session.session_products do %>
+                  <div
+                    id={"session-product-#{sp.id}"}
+                    class="session-card__product-item"
+                    data-id={sp.id}
+                    data-product-id={sp.product_id}
                   >
-                    +
-                  </.button>
-                </div>
+                    <div class="session-card__product-link">
+                      <div class="session-card__product-position">
+                        {sp.position}
+                      </div>
+
+                      <%= if image = primary_image(sp.product) do %>
+                        <img
+                          src={public_image_url(image.thumbnail_path || image.path)}
+                          alt={image.alt_text}
+                          class="session-card__product-image"
+                        />
+                      <% end %>
+
+                      <p class="session-card__product-name">
+                        {sp.featured_name || sp.product.name}
+                      </p>
+                    </div>
+
+                    <div class="session-card__product-actions">
+                      <.button
+                        size="xs"
+                        variant="ghost"
+                        circle
+                        phx-click="remove_product"
+                        phx-value-session-product-id={sp.id}
+                        aria-label="Remove product"
+                        class="text-error"
+                      >
+                        ×
+                      </.button>
+                    </div>
+                  </div>
+                <% end %>
+                <.button
+                  size="sm"
+                  variant="ghost"
+                  phx-click="load_products_for_session"
+                  phx-value-session-id={session.id}
+                  class="session-card__add-product-btn"
+                >
+                  +
+                </.button>
               </div>
             </div>
           </div>
-        <% end %>
+        </div>
       </article>
     <% end %>
 
