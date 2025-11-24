@@ -13,6 +13,8 @@ if config_env() == :dev and File.exists?(".env") and Code.ensure_loaded?(Dotenvy
 end
 
 # Shopify configuration for development (after .env is loaded)
+# Note: SHOPIFY_ACCESS_TOKEN is NOT needed here - tokens are generated dynamically
+# using client credentials grant. See lib/pavoi/shopify/auth.ex for details.
 if config_env() == :dev do
   config :pavoi,
     shopify_client_id: System.get_env("SHOPIFY_CLIENT_ID"),
@@ -75,6 +77,8 @@ if config_env() == :prod do
   config :pavoi, :dns_cluster_query, System.get_env("DNS_CLUSTER_QUERY")
 
   # Shopify configuration
+  # Note: SHOPIFY_ACCESS_TOKEN is NOT needed - tokens are generated dynamically
+  # using client credentials grant. See lib/pavoi/shopify/auth.ex for details.
   config :pavoi,
     shopify_client_id: System.get_env("SHOPIFY_CLIENT_ID"),
     shopify_client_secret: System.get_env("SHOPIFY_CLIENT_SECRET"),

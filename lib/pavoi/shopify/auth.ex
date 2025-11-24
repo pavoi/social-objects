@@ -2,14 +2,33 @@ defmodule Pavoi.Shopify.Auth do
   @moduledoc """
   Handles Shopify authentication using the Client Credentials OAuth 2.0 grant.
 
-  This module implements the client credentials flow where the app exchanges
-  its client ID and client secret for an access token. Tokens are valid for
-  24 hours and are automatically refreshed when needed.
+  ## Dev Dashboard Apps (New Standard as of January 2026)
+
+  This module implements authentication for Shopify apps created through the
+  Dev Dashboard, which replaced the legacy "Custom Apps" approach. Starting
+  January 1, 2026, you cannot create new legacy custom apps.
+
+  ## How It Works
+
+  1. App is created in Dev Dashboard (https://partners.shopify.com)
+  2. App must be installed on your store through Dev Dashboard > Install app
+  3. This module exchanges the app's client ID + client secret for an access token
+  4. Tokens are valid for 24 hours and auto-refresh on 401 errors
+
+  ## Important Configuration
+
+  Required environment variables:
+  - `SHOPIFY_CLIENT_ID` - From Dev Dashboard app settings
+  - `SHOPIFY_CLIENT_SECRET` - From Dev Dashboard app settings
+  - `SHOPIFY_STORE_NAME` - Your store name (e.g., "pavoipearls")
+
+  Note: `SHOPIFY_ACCESS_TOKEN` is NOT needed - tokens are generated dynamically.
 
   ## Token Management
 
   Tokens are stored in Application config (in-memory) and refreshed on-demand
-  when API requests return 401 Unauthorized errors.
+  when API requests return 401 Unauthorized errors. See `Pavoi.Shopify.Client`
+  for the automatic retry logic.
   """
 
   require Logger
@@ -77,7 +96,9 @@ defmodule Pavoi.Shopify.Auth do
     # Convert body to form-encoded format
     form_body = URI.encode_query(body)
 
-    case Req.post(url, headers: headers, body: form_body) do
+    result = Req.post(url, headers: headers, body: form_body)
+
+    case result do
       {:ok, %{status: 200, body: %{"access_token" => token, "expires_in" => expires_in}}} ->
         Logger.info("✅ Successfully acquired Shopify access token (expires in #{expires_in}s)")
 
@@ -88,7 +109,8 @@ defmodule Pavoi.Shopify.Auth do
 
       {:ok, %{status: status, body: body}} ->
         Logger.error("Failed to acquire Shopify access token: HTTP #{status}")
-        Logger.error("Response: #{inspect(body)}")
+        Logger.error("Response body: #{inspect(body)}")
+        Logger.error("Hint: Ensure the app is installed on the store via Dev Dashboard > Install app")
         {:error, {:http_error, status, body}}
 
       {:error, reason} ->

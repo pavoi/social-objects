@@ -3,6 +3,18 @@ defmodule Pavoi.Shopify.Client do
   Shopify GraphQL API client for fetching product data.
 
   Handles authentication, pagination, rate limiting, and response parsing.
+
+  ## Authentication
+
+  Uses `Pavoi.Shopify.Auth` to acquire access tokens via client credentials grant.
+  Tokens are cached in-memory and automatically refreshed when they expire (24 hours).
+
+  When a request receives a 401 Unauthorized response, this module automatically:
+  1. Clears the cached token
+  2. Requests a fresh token from Shopify
+  3. Retries the request once with the new token
+
+  This ensures the sync continues working even if tokens expire mid-execution.
   """
 
   require Logger

@@ -24,7 +24,10 @@ defmodule Pavoi.Workers.TiktokSyncWorker do
   The sync fetches all pages until no more tokens are returned.
   """
 
-  use Oban.Worker, queue: :tiktok, max_attempts: 3
+  use Oban.Worker,
+    queue: :tiktok,
+    max_attempts: 3,
+    unique: [period: :infinity, states: [:available, :scheduled, :executing]]
 
   require Logger
   import Ecto.Query

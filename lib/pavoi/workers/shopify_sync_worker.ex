@@ -30,7 +30,10 @@ defmodule Pavoi.Workers.ShopifySyncWorker do
   - `is_primary` - Primary image flag
   """
 
-  use Oban.Worker, queue: :shopify, max_attempts: 3
+  use Oban.Worker,
+    queue: :shopify,
+    max_attempts: 3,
+    unique: [period: :infinity, states: [:available, :scheduled, :executing]]
 
   require Logger
   alias Pavoi.Catalog
