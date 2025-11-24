@@ -99,25 +99,10 @@ defmodule Pavoi.Shopify.Client do
   defp make_graphql_request(url, headers, body, query, variables, retry) do
     case Req.post(url, headers: headers, body: body) do
       {:ok, %{status: 200, body: body}} ->
-        case body do
-          %{"data" => data} -> {:ok, data}
-          %{"errors" => errors} -> {:error, {:graphql_errors, errors}}
-        end
+        parse_graphql_body(body)
 
       {:ok, %{status: 401}} when retry ->
-        Logger.warning("Shopify API returned 401 Unauthorized - refreshing token and retrying")
-        Auth.clear_token()
-
-        case Auth.refresh_access_token() do
-          {:ok, _token} ->
-            Logger.info("Token refreshed, retrying request...")
-            # Retry once with new token (retry=false to prevent infinite loop)
-            execute_graphql(query, variables, false)
-
-          {:error, reason} ->
-            Logger.error("Failed to refresh token: #{inspect(reason)}")
-            {:error, {:auth_error, reason}}
-        end
+        handle_401_retry(query, variables)
 
       {:ok, %{status: 401}} ->
         Logger.error("Shopify API returned 401 after token refresh - check app credentials")
@@ -134,6 +119,25 @@ defmodule Pavoi.Shopify.Client do
       {:error, reason} ->
         Logger.error("HTTP request failed: #{inspect(reason)}")
         {:error, {:request_failed, reason}}
+    end
+  end
+
+  defp parse_graphql_body(%{"data" => data}), do: {:ok, data}
+  defp parse_graphql_body(%{"errors" => errors}), do: {:error, {:graphql_errors, errors}}
+
+  defp handle_401_retry(query, variables) do
+    Logger.warning("Shopify API returned 401 Unauthorized - refreshing token and retrying")
+    Auth.clear_token()
+
+    case Auth.refresh_access_token() do
+      {:ok, _token} ->
+        Logger.info("Token refreshed, retrying request...")
+        # Retry once with new token (retry=false to prevent infinite loop)
+        execute_graphql(query, variables, false)
+
+      {:error, reason} ->
+        Logger.error("Failed to refresh token: #{inspect(reason)}")
+        {:error, {:auth_error, reason}}
     end
   end
 

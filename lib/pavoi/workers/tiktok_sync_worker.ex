@@ -187,72 +187,96 @@ defmodule Pavoi.Workers.TiktokSyncWorker do
   end
 
   defp sync_product(tiktok_product) do
-    Repo.transaction(fn ->
-      tiktok_product_id = tiktok_product["id"]
-      tiktok_title = tiktok_product["title"]
-      tiktok_skus = tiktok_product["skus"] || []
+    tiktok_product_id = tiktok_product["id"]
+    tiktok_title = tiktok_product["title"]
+    tiktok_skus = tiktok_product["skus"] || []
 
-      # Try to find matching product by matching any SKU
-      {matching_product, _matching_variant, is_matched} = find_matching_product(tiktok_skus)
+    transaction_result =
+      Repo.transaction(fn ->
+        # Try to find matching product by matching any SKU
+        {matching_product, _matching_variant, is_matched} = find_matching_product(tiktok_skus)
 
-      # Also check for existing product by tiktok_product_id (prevents duplicates)
-      existing_tiktok_product = Catalog.get_product_by_tiktok_product_id(tiktok_product_id)
+        # Also check for existing product by tiktok_product_id (prevents duplicates)
+        existing_tiktok_product = Catalog.get_product_by_tiktok_product_id(tiktok_product_id)
 
-      # Sync product and variant data
-      # Priority: SKU match > existing TikTok product > create new
-      {product, result} =
-        cond do
-          matching_product ->
-            # SKU match found - update with TikTok data
-            result =
-              update_existing_product(
-                matching_product,
-                tiktok_product_id,
-                tiktok_skus,
-                is_matched
-              )
+        # Sync product and variant data
+        # Priority: SKU match > existing TikTok product > create new
+        {product, result} =
+          sync_product_data(
+            matching_product,
+            existing_tiktok_product,
+            tiktok_product_id,
+            tiktok_title,
+            tiktok_skus,
+            is_matched
+          )
 
-            {matching_product, result}
+        # Return product info for image sync after transaction
+        {product, is_matched, result}
+      end)
 
-          existing_tiktok_product ->
-            # No SKU match, but product already exists by TikTok ID - update it
-            result =
-              update_existing_product(
-                existing_tiktok_product,
-                tiktok_product_id,
-                tiktok_skus,
-                false
-              )
+    case transaction_result do
+      {:ok, {product, is_matched, result}} ->
+        sync_product_images(product, is_matched, tiktok_product_id)
+        {:ok, result}
 
-            {existing_tiktok_product, result}
+      {:error, reason} ->
+        {:error, reason}
+    end
+  end
 
-          true ->
-            # No existing product found - create new TikTok-only product
-            result = create_tiktok_only_product(tiktok_product_id, tiktok_title, tiktok_skus)
-            # Fetch the newly created product
-            product = Catalog.get_product_by_tiktok_product_id(tiktok_product_id)
-            {product, result}
-        end
+  defp sync_product_data(
+         matching_product,
+         existing_tiktok_product,
+         tiktok_product_id,
+         tiktok_title,
+         tiktok_skus,
+         is_matched
+       ) do
+    cond do
+      matching_product ->
+        # SKU match found - update with TikTok data
+        result =
+          update_existing_product(matching_product, tiktok_product_id, tiktok_skus, is_matched)
 
-      # Only fetch product details if we need images (TikTok-only or no Shopify images)
-      # This avoids an HTTP call for every Shopify-matched product
-      if should_skip_tiktok_images?(product, is_matched) do
-        Logger.debug("Product #{product.id} has Shopify images, skipping TikTok image fetch")
-      else
-        case fetch_product_details(tiktok_product_id) do
-          {:ok, product_data} ->
-            replace_tiktok_images(product, product_data)
+        {matching_product, result}
 
-          {:error, reason} ->
-            Logger.warning(
-              "Failed to fetch details for product #{tiktok_product_id}, skipping images: #{inspect(reason)}"
-            )
-        end
-      end
+      existing_tiktok_product ->
+        # No SKU match, but product already exists by TikTok ID - update it
+        result =
+          update_existing_product(existing_tiktok_product, tiktok_product_id, tiktok_skus, false)
 
-      # Return the original result tuple
-      result
-    end)
+        {existing_tiktok_product, result}
+
+      true ->
+        # No existing product found - create new TikTok-only product
+        result = create_tiktok_only_product(tiktok_product_id, tiktok_title, tiktok_skus)
+        # Fetch the newly created product
+        product = Catalog.get_product_by_tiktok_product_id(tiktok_product_id)
+        {product, result}
+    end
+  end
+
+  defp sync_product_images(product, is_matched, tiktok_product_id) do
+    # Only fetch product details if we need images (TikTok-only or no Shopify images)
+    # This avoids an HTTP call for every Shopify-matched product
+    if should_skip_tiktok_images?(product, is_matched) do
+      Logger.debug("Product #{product.id} has Shopify images, skipping TikTok image fetch")
+    else
+      fetch_and_replace_images(product, tiktok_product_id)
+    end
+  end
+
+  defp fetch_and_replace_images(product, tiktok_product_id) do
+    case fetch_product_details(tiktok_product_id) do
+      {:ok, product_data} ->
+        replace_tiktok_images(product, product_data)
+
+      {:error, reason} ->
+        Logger.warning(
+          "Failed to fetch details for product #{tiktok_product_id}, skipping images: #{inspect(reason)}"
+        )
+    end
   end
 
   defp find_matching_product(tiktok_skus) do
