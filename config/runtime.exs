@@ -12,6 +12,11 @@ if config_env() == :dev and File.exists?(".env") and Code.ensure_loaded?(Dotenvy
   Dotenvy.source!([".env"], side_effect: &System.put_env/1)
 end
 
+# Feature flags (read from environment variables, applies to all environments)
+# Must be after Dotenvy loads .env in dev
+config :pavoi, :features,
+  voice_control_enabled: System.get_env("VOICE_CONTROL_ENABLED", "true") == "true"
+
 # Shopify configuration for development (after .env is loaded)
 # Note: SHOPIFY_ACCESS_TOKEN is NOT needed here - tokens are generated dynamically
 # using client credentials grant. See lib/pavoi/shopify/auth.ex for details.

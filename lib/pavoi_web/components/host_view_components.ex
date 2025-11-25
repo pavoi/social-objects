@@ -94,7 +94,11 @@ defmodule PavoiWeb.HostViewComponents do
         </div>
       </div>
     <% else %>
-      <.loading_state />
+      <%= if @total_products == 0 do %>
+        <.empty_session_state />
+      <% else %>
+        <.loading_state />
+      <% end %>
     <% end %>
     """
   end
@@ -244,7 +248,6 @@ defmodule PavoiWeb.HostViewComponents do
         <div class="talking-points">
           {@talking_points_html}
         </div>
-        <div class="talking-points-fade"></div>
       </div>
     <% end %>
     """
@@ -259,6 +262,20 @@ defmodule PavoiWeb.HostViewComponents do
       <div class="loading-state">
         <div class="loading-spinner"></div>
         <p>Loading session...</p>
+      </div>
+    </div>
+    """
+  end
+
+  @doc """
+  Empty session state component shown when no products are in the session.
+  """
+  def empty_session_state(assigns) do
+    ~H"""
+    <div class="session-main">
+      <div class="empty-state">
+        <p class="empty-state-title">No products in this session</p>
+        <p class="empty-state-subtitle">Add products to get started</p>
       </div>
     </div>
     """

@@ -11,6 +11,10 @@ config :pavoi,
   ecto_repos: [Pavoi.Repo],
   generators: [timestamp_type: :utc_datetime]
 
+# Feature flags (defaults - can be overridden via env vars in runtime.exs)
+config :pavoi, :features,
+  voice_control_enabled: true
+
 # Configures the endpoint
 config :pavoi, PavoiWeb.Endpoint,
   url: [host: "localhost"],

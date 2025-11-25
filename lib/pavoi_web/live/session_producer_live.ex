@@ -21,6 +21,7 @@ defmodule PavoiWeb.SessionProducerLive do
   def mount(%{"id" => session_id}, _session, socket) do
     session = Sessions.get_session!(session_id)
     message_presets = Sessions.list_message_presets()
+    voice_control_enabled = Application.get_env(:pavoi, :features)[:voice_control_enabled]
 
     voice_assets = %{
       vad_worklet: PavoiWeb.Endpoint.static_path("/assets/vad/vad.worklet.bundle.min.js"),
@@ -46,7 +47,8 @@ defmodule PavoiWeb.SessionProducerLive do
         message_draft: "",
         message_presets: message_presets,
         show_preset_modal: false,
-        voice_assets: voice_assets
+        voice_assets: voice_assets,
+        voice_control_enabled: voice_control_enabled
       )
 
     # Subscribe to PubSub ONLY after WebSocket connection

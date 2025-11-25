@@ -107,12 +107,33 @@ defmodule Pavoi.Workers.TiktokSyncWorker do
           "Filtered to #{length(valid_products)} products with valid pricing (skipped #{length(tiktok_products) - length(valid_products)} products)"
         )
 
+        # Phase 1: Sync product/variant data (DB operations only - fast)
+        # Collect products that need image fetching for Phase 2
+        initial_state = {:ok, counts, []}
+
         result =
-          Enum.reduce_while(valid_products, {:ok, counts}, fn tiktok_product, {:ok, acc} ->
-            sync_and_accumulate(tiktok_product, acc)
+          valid_products
+          |> Enum.with_index(1)
+          |> Enum.reduce_while(initial_state, fn {tiktok_product, index},
+                                                 {:ok, acc, image_queue} ->
+            # Log progress every 100 products
+            if rem(index, 100) == 0 do
+              Logger.info("Syncing product #{index}/#{length(valid_products)}...")
+            end
+
+            sync_and_accumulate(tiktok_product, acc, image_queue)
           end)
 
-        result
+        # Phase 2: Fetch and sync images in parallel (HTTP operations)
+        case result do
+          {:ok, final_counts, products_needing_images} ->
+            images_synced = sync_images_in_parallel(products_needing_images)
+            Logger.info("Images synced for #{images_synced} products")
+            {:ok, final_counts}
+
+          {:error, reason} ->
+            {:error, reason}
+        end
 
       {:error, reason} ->
         {:error, reason}
@@ -166,9 +187,9 @@ defmodule Pavoi.Workers.TiktokSyncWorker do
     end
   end
 
-  defp sync_and_accumulate(tiktok_product, acc) do
+  defp sync_and_accumulate(tiktok_product, acc, image_queue) do
     case sync_product(tiktok_product) do
-      {:ok, {variant_count, is_new, is_matched}} ->
+      {:ok, {product, tiktok_product_id, needs_images?, variant_count, is_new, is_matched}} ->
         new_acc = %{
           acc
           | products: acc.products + 1,
@@ -177,7 +198,15 @@ defmodule Pavoi.Workers.TiktokSyncWorker do
             matched: acc.matched + if(is_matched, do: 1, else: 0)
         }
 
-        {:cont, {:ok, new_acc}}
+        # Queue this product for image sync if needed
+        new_image_queue =
+          if needs_images? do
+            [{product, tiktok_product_id} | image_queue]
+          else
+            image_queue
+          end
+
+        {:cont, {:ok, new_acc, new_image_queue}}
 
       {:error, reason} ->
         Logger.error("Failed to sync TikTok product #{tiktok_product["id"]}: #{inspect(reason)}")
@@ -211,16 +240,74 @@ defmodule Pavoi.Workers.TiktokSyncWorker do
             is_matched
           )
 
-        # Return product info for image sync after transaction
+        # Return product info for image sync decision (done later in parallel)
         {product, is_matched, result}
       end)
 
     case transaction_result do
-      {:ok, {product, is_matched, result}} ->
-        sync_product_images(product, is_matched, tiktok_product_id)
-        {:ok, result}
+      {:ok, {product, is_matched, {variant_count, is_new, is_matched_result}}} ->
+        # Determine if this product needs TikTok images (will be fetched in parallel later)
+        needs_images? = needs_tiktok_images?(product, is_matched)
+
+        {:ok,
+         {product, tiktok_product_id, needs_images?, variant_count, is_new, is_matched_result}}
 
       {:error, reason} ->
+        {:error, reason}
+    end
+  end
+
+  defp needs_tiktok_images?(product, is_matched) do
+    # Skip TikTok images if product is matched with Shopify AND has Shopify images
+    not (is_matched && has_shopify_images?(product))
+  end
+
+  defp sync_images_in_parallel(products_needing_images) do
+    count = length(products_needing_images)
+
+    if count == 0 do
+      Logger.info("No products need TikTok image fetching")
+      0
+    else
+      Logger.info("Fetching images for #{count} products in parallel (10 concurrent)...")
+
+      products_needing_images
+      |> Task.async_stream(
+        fn {product, tiktok_id} ->
+          fetch_and_sync_images(product, tiktok_id)
+        end,
+        max_concurrency: 10,
+        timeout: 30_000,
+        on_timeout: :kill_task
+      )
+      |> Enum.reduce(0, fn
+        {:ok, :ok}, acc ->
+          acc + 1
+
+        {:ok, {:error, _}}, acc ->
+          acc
+
+        {:exit, :timeout}, acc ->
+          Logger.warning("Image fetch timed out for a product")
+          acc
+
+        _, acc ->
+          acc
+      end)
+    end
+  end
+
+  defp fetch_and_sync_images(product, tiktok_product_id) do
+    case fetch_product_details(tiktok_product_id) do
+      {:ok, product_data} ->
+        replace_tiktok_images(product, product_data)
+        :ok
+
+      {:error, reason} ->
+        Logger.warning(
+          "Failed to fetch details for product #{tiktok_product_id}, skipping images: #{inspect(reason)}"
+        )
+
         {:error, reason}
     end
   end
@@ -254,28 +341,6 @@ defmodule Pavoi.Workers.TiktokSyncWorker do
         # Fetch the newly created product
         product = Catalog.get_product_by_tiktok_product_id(tiktok_product_id)
         {product, result}
-    end
-  end
-
-  defp sync_product_images(product, is_matched, tiktok_product_id) do
-    # Only fetch product details if we need images (TikTok-only or no Shopify images)
-    # This avoids an HTTP call for every Shopify-matched product
-    if should_skip_tiktok_images?(product, is_matched) do
-      Logger.debug("Product #{product.id} has Shopify images, skipping TikTok image fetch")
-    else
-      fetch_and_replace_images(product, tiktok_product_id)
-    end
-  end
-
-  defp fetch_and_replace_images(product, tiktok_product_id) do
-    case fetch_product_details(tiktok_product_id) do
-      {:ok, product_data} ->
-        replace_tiktok_images(product, product_data)
-
-      {:error, reason} ->
-        Logger.warning(
-          "Failed to fetch details for product #{tiktok_product_id}, skipping images: #{inspect(reason)}"
-        )
     end
   end
 
@@ -351,10 +416,6 @@ defmodule Pavoi.Workers.TiktokSyncWorker do
     end
   end
 
-  defp should_skip_tiktok_images?(product, is_matched) do
-    is_matched && has_shopify_images?(product)
-  end
-
   defp has_shopify_images?(product) do
     existing_images = Repo.preload(product, :product_images).product_images
     Enum.any?(existing_images, &is_nil(&1.tiktok_uri))
@@ -366,12 +427,17 @@ defmodule Pavoi.Workers.TiktokSyncWorker do
     main_images = get_in(tiktok_product_data, ["main_images"]) || []
     now = NaiveDateTime.utc_now() |> NaiveDateTime.truncate(:second)
 
+    # Check if a primary image already exists (from Shopify)
+    has_primary? = has_primary_image?(product.id)
+
     # Build image records for batch insert
     image_records =
       main_images
       |> Enum.with_index()
       |> Enum.map(fn {image_data, index} ->
-        build_tiktok_image_attrs(product.id, image_data, index, now)
+        # Only set is_primary if no primary image exists and this is the first image
+        is_primary = !has_primary? && index == 0
+        build_tiktok_image_attrs(product.id, image_data, index, is_primary, now)
       end)
       |> Enum.reject(&is_nil/1)
 
@@ -383,6 +449,14 @@ defmodule Pavoi.Workers.TiktokSyncWorker do
     :ok
   end
 
+  defp has_primary_image?(product_id) do
+    from(pi in Pavoi.Catalog.ProductImage,
+      where: pi.product_id == ^product_id and pi.is_primary == true,
+      limit: 1
+    )
+    |> Repo.exists?()
+  end
+
   defp delete_existing_tiktok_images(product_id) do
     from(pi in Pavoi.Catalog.ProductImage,
       where: pi.product_id == ^product_id and not is_nil(pi.tiktok_uri)
@@ -390,7 +464,7 @@ defmodule Pavoi.Workers.TiktokSyncWorker do
     |> Repo.delete_all()
   end
 
-  defp build_tiktok_image_attrs(product_id, image_data, index, now) do
+  defp build_tiktok_image_attrs(product_id, image_data, index, is_primary, now) do
     urls = image_data["urls"] || []
     thumb_urls = image_data["thumb_urls"] || []
     tiktok_uri = image_data["uri"]
@@ -403,7 +477,7 @@ defmodule Pavoi.Workers.TiktokSyncWorker do
         path: List.first(urls),
         thumbnail_path: List.first(thumb_urls),
         tiktok_uri: tiktok_uri,
-        is_primary: index == 0,
+        is_primary: is_primary,
         position: index,
         inserted_at: now,
         updated_at: now
@@ -423,10 +497,11 @@ defmodule Pavoi.Workers.TiktokSyncWorker do
     seller_sku = tiktok_sku["seller_sku"]
     tiktok_sku_id = tiktok_sku["id"]
 
-    # Find matching variant by SKU
+    # Find matching variant by SKU (limit 1 to handle duplicate SKUs gracefully)
     variant =
       from(v in Pavoi.Catalog.ProductVariant,
-        where: v.product_id == ^product_id and v.sku == ^seller_sku
+        where: v.product_id == ^product_id and v.sku == ^seller_sku,
+        limit: 1
       )
       |> Repo.one()
 
@@ -441,22 +516,44 @@ defmodule Pavoi.Workers.TiktokSyncWorker do
   end
 
   defp update_variant_with_tiktok_data(variant, tiktok_sku_id, tiktok_sku, count) do
-    tiktok_attrs = %{
-      tiktok_sku_id: tiktok_sku_id,
-      tiktok_price_cents: parse_tiktok_price(tiktok_sku["price"]),
-      tiktok_compare_at_price_cents: nil
-    }
+    # Skip if this variant already has this TikTok SKU ID assigned
+    if variant.tiktok_sku_id == tiktok_sku_id do
+      count + 1
+    else
+      # Check if another variant already has this TikTok SKU ID (avoid unique constraint error)
+      existing =
+        from(v in Pavoi.Catalog.ProductVariant,
+          where: v.tiktok_sku_id == ^tiktok_sku_id and v.id != ^variant.id,
+          limit: 1
+        )
+        |> Repo.one()
 
-    case Catalog.update_product_variant(variant, tiktok_attrs) do
-      {:ok, _} ->
-        count + 1
-
-      {:error, changeset} ->
-        Logger.error(
-          "Failed to update variant #{variant.id} with TikTok SKU data: #{inspect(changeset.errors)}"
+      if existing do
+        Logger.debug(
+          "TikTok SKU ID #{tiktok_sku_id} already assigned to variant #{existing.id}, skipping"
         )
 
         count
+      else
+        tiktok_attrs = %{
+          tiktok_sku_id: tiktok_sku_id,
+          tiktok_price_cents: parse_tiktok_price(tiktok_sku["price"]),
+          tiktok_compare_at_price_cents: nil
+        }
+
+        case Catalog.update_product_variant(variant, tiktok_attrs) do
+          {:ok, _} ->
+            count + 1
+
+          {:error, changeset} ->
+            Logger.warning(
+              "Skipping variant #{variant.id} TikTok SKU update: #{inspect(changeset.errors)}"
+            )
+
+            # Continue without incrementing - don't fail the sync
+            count
+        end
+      end
     end
   end
 

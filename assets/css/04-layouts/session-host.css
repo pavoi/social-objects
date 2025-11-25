@@ -27,6 +27,7 @@
 .session-left-column {
   display: flex;
   flex-direction: column;
+  justify-content: flex-start;                      /* Align items to top, avoid gaps */
   gap: var(--space-3);
   min-height: 0;
   overflow: hidden;
@@ -61,21 +62,22 @@
   display: flex;
   flex-direction: column;
   gap: var(--space-3);
-  flex: 1;                                            /* Fill remaining space in column */
+  flex: 0 1 auto;                                     /* Size to content, can shrink, won't stretch */
   min-height: 0;                                      /* Allow shrinking */
+  max-height: 100%;                                   /* Don't exceed parent */
   overflow: hidden;
 }
 
 /* Hero Image (Key Image) */
 .hero-image-wrapper {
-  flex: 1;
-  min-height: 100px;
+  flex: 1 1 auto;                                     /* Grow to fill available space */
+  min-height: 120px;
   border-radius: var(--radius-lg);
   overflow: hidden;
   background-color: var(--color-bg-tertiary);
   display: flex;
-  align-items: center;
-  justify-content: center;
+  align-items: flex-start;                            /* Align image to top */
+  justify-content: center;                            /* Center image horizontally in wide viewport */
 }
 
 .hero-image {
@@ -84,22 +86,23 @@
   width: auto;
   height: auto;
   object-fit: contain;
+  border-radius: inherit;                             /* Match parent's rounded corners */
 }
 
 /* Thumbnail Gallery */
 .thumbnail-gallery {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(60px, 1fr));
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;                            /* Center thumbnails in wide viewport */
   gap: var(--space-2);
-  max-height: 160px;
-  overflow-y: auto;
-  overflow-x: hidden;
   padding: var(--space-1);
   flex-shrink: 0;
 }
 
 .thumbnail-item {
-  aspect-ratio: 1;
+  width: 60px;                                        /* Fixed size - always smaller than hero */
+  height: 60px;
+  flex-shrink: 0;
   border: 2px solid transparent;
   border-radius: var(--radius-md);
   overflow: hidden;
@@ -125,53 +128,6 @@
   object-fit: cover;
 }
 
-/* Scrollbar styling for thumbnail gallery */
-.thumbnail-gallery::-webkit-scrollbar {
-  width: 6px;
-}
-
-.thumbnail-gallery::-webkit-scrollbar-track {
-  background: var(--color-surface-secondary);
-  border-radius: var(--radius-full);
-}
-
-.thumbnail-gallery::-webkit-scrollbar-thumb {
-  background: var(--color-border-primary);
-  border-radius: var(--radius-full);
-}
-
-.thumbnail-gallery::-webkit-scrollbar-thumb:hover {
-  background: var(--color-text-tertiary);
-}
-
-/* Legacy classes for backwards compatibility */
-.image-wrapper {
-  flex: 1;
-  min-height: 150px;
-  max-height: 100%;
-  border-radius: var(--radius-lg);
-  overflow: hidden;
-  background-color: var(--color-bg-tertiary);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.product-image {
-  max-width: 100%;
-  max-height: 100%;
-  width: auto;
-  height: auto;
-  object-fit: contain;
-}
-
-.image-indicator {
-  text-align: center;
-  font-size: var(--text-lg);
-  color: var(--color-text-secondary);
-  font-weight: var(--font-medium);
-}
-
 .no-images {
   display: flex;
   align-items: center;
@@ -190,9 +146,10 @@
 .product-details {
   display: flex;
   flex-direction: column;
+  justify-content: flex-start;                        /* Align items to top, avoid gaps */
   gap: clamp(var(--space-4), 1.5vw, var(--space-6));
   min-height: 0;                                      /* Critical for flex shrinking */
-  overflow: hidden;
+  overflow-y: auto;                                   /* Scroll when content exceeds space */
 }
 
 .product-header {
@@ -285,7 +242,7 @@
 
 .talking-points-wrapper {
   position: relative;
-  flex: 1;                                            /* Take remaining space */
+  flex: 0 1 auto;                                     /* Size to content, can shrink, won't add gaps */
   min-height: 0;                                      /* Allow shrinking */
   display: flex;
   flex-direction: column;
@@ -295,29 +252,14 @@
   font-size: clamp(var(--text-base), 1.5vw, var(--text-xl));
   line-height: var(--leading-relaxed);
   color: var(--color-text-primary);
-  flex: 1;
+  flex: 0 1 auto;                                     /* Size to content, can shrink */
   min-height: 0;
-  overflow-y: scroll;                                 /* Always show scrollbar */
+  overflow-y: auto;                                   /* Scroll only when content overflows */
   padding-right: var(--space-6);                      /* Space for scrollbar */
-  padding-bottom: var(--space-8);                     /* Space for fade gradient */
+  padding-bottom: var(--space-4);                     /* Reduced bottom padding */
   /* Firefox scrollbar - more visible */
   scrollbar-width: auto;
   scrollbar-color: var(--color-text-tertiary) var(--color-surface-secondary);
-}
-
-/* Gradient fade at bottom - indicates more content */
-.talking-points-fade {
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  right: var(--space-6);                              /* Don't cover scrollbar */
-  height: 60px;
-  background: linear-gradient(
-    to bottom,
-    transparent 0%,
-    var(--color-bg-primary) 100%
-  );
-  pointer-events: none;                               /* Allow clicking through */
 }
 
 /* Persistent scrollbar styling (WebKit) - more visible */
@@ -382,11 +324,6 @@
   color: var(--color-accent-gold);
 }
 
-.no-talking-points {
-  color: var(--color-text-tertiary);
-  font-style: italic;
-}
-
 /* ===========================================================================
    HOST MESSAGE BANNER
    Floating notification from producer to host
@@ -405,30 +342,7 @@
   overflow: hidden;
 }
 
-/* Color variants */
-.host-message-banner--amber {
-  background-color: var(--color-accent-amber);
-}
-
-.host-message-banner--blue {
-  background-color: var(--color-accent-blue);
-}
-
-.host-message-banner--green {
-  background-color: var(--color-accent-green);
-}
-
-.host-message-banner--red {
-  background-color: var(--color-accent-red);
-}
-
-.host-message-banner--purple {
-  background-color: var(--color-accent-purple);
-}
-
-.host-message-banner--gray {
-  background-color: var(--color-text-secondary);
-}
+/* Color variants defined in 05-components/host-message.css */
 
 .host-message-content {
   font-size: clamp(var(--text-lg), 2vw, var(--text-2xl));
@@ -437,17 +351,6 @@
   max-width: 1200px;
   margin: 0 auto;
   line-height: var(--leading-normal);
-}
-
-@keyframes slideDown {
-  from {
-    transform: translateY(-100%);
-    opacity: 0;
-  }
-  to {
-    transform: translateY(0);
-    opacity: 1;
-  }
 }
 
 @keyframes slideDownPulse {
@@ -525,106 +428,80 @@
   animation: spin 1s linear infinite;
 }
 
-@keyframes spin {
-  to {
-    transform: rotate(360deg);
-  }
+/* ===========================================================================
+   EMPTY STATE
+   =========================================================================== */
+
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+  min-height: 0;
+  gap: var(--space-2);
+  text-align: center;
+  padding: var(--space-8);
+}
+
+.empty-state-title {
+  font-size: var(--text-xl);
+  font-weight: 600;
+  color: var(--color-text-primary);
+  margin: 0;
+}
+
+.empty-state-subtitle {
+  font-size: var(--text-base);
+  color: var(--color-text-secondary);
+  margin: 0;
 }
 
 /* ===========================================================================
    RESPONSIVE DESIGN - Host View
-   Supports both landscape and portrait orientations
-   All elements always visible - scale down, never hide
+   Simple breakpoint: wide (two-column) vs narrow (single-column, side-by-side header)
    =========================================================================== */
 
-/* Tablet/narrow landscape - stack vertically */
-@media (max-width: 1024px) {
+/* Narrow viewport OR portrait - single column with header beside image */
+@media (max-width: 1024px), (orientation: portrait) {
   .session-main {
     grid-template-columns: 1fr;
-    grid-template-rows: minmax(150px, 1fr) minmax(150px, 1fr);
+    grid-template-rows: auto minmax(0, 1fr);          /* Left column sizes to content, right column fills rest */
+    align-content: start;
     gap: clamp(var(--space-3), 1.5vw, var(--space-6));
   }
-}
 
-/* Portrait orientation - optimize for vertical layout */
-@media (orientation: portrait) {
-  .session-main {
-    grid-template-columns: 1fr;
-    grid-template-rows: minmax(25vh, 1fr) minmax(25vh, 1fr);
-  }
-
-  .product-name {
-    font-size: clamp(var(--text-xl), 4vw, var(--text-3xl));
-  }
-
-  .talking-points {
-    font-size: clamp(var(--text-sm), 2.5vw, var(--text-lg));
-  }
-
-  .price,
-  .sale-price {
-    font-size: clamp(var(--text-lg), 3vw, var(--text-2xl));
-  }
-
-  .host-message-content {
-    font-size: clamp(var(--text-base), 2.5vw, var(--text-xl));
-  }
-
-  .thumbnail-gallery {
-    grid-template-columns: repeat(auto-fill, minmax(50px, 1fr));
-    max-height: 120px;
-  }
-}
-
-/* Small viewport height - compact mode but all elements visible */
-@media (max-height: 700px) {
-  .session-container {
-    padding: clamp(var(--space-2), 1vw, var(--space-4));
-    gap: clamp(var(--space-2), 1vw, var(--space-4));
-  }
-
-  .product-name {
-    font-size: clamp(var(--text-lg), 2.5vw, var(--text-2xl));
-  }
-
-  .price,
-  .sale-price {
-    font-size: clamp(var(--text-base), 2vw, var(--text-xl));
+  /* Header and image side by side, capped height to ensure product details visible */
+  .session-left-column {
+    flex-direction: row;
+    align-items: stretch;
+    gap: var(--space-3);
+    max-height: 45vh;                                 /* Never more than ~half viewport */
   }
 
   .session-header {
-    font-size: var(--text-xs);
-    gap: var(--space-2);
-  }
-
-  .host-message-banner {
-    max-height: 12vh;
-    padding: var(--space-2) var(--space-4);
-  }
-
-  .thumbnail-gallery {
-    max-height: 100px;
-    gap: var(--space-1);
-    grid-template-columns: repeat(auto-fill, minmax(45px, 1fr));
-  }
-}
-
-/* Mobile width adjustments */
-@media (max-width: 768px) {
-  .product-image-container {
+    flex: 0 0 auto;
+    width: clamp(100px, 20%, 180px);
+    max-height: 100%;
     padding: var(--space-3);
+    background-color: var(--color-surface-secondary);
+    border-radius: var(--radius-md);
+    overflow-y: auto;
+    justify-content: flex-start;
   }
 
+  .product-image-container {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+
+  /* Left-align images when header is beside image container */
+  .hero-image-wrapper,
   .image-wrapper {
-    min-height: 100px;
-  }
-
-  .hero-image-wrapper {
-    min-height: 80px;
+    justify-content: flex-start;
   }
 
   .thumbnail-gallery {
-    grid-template-columns: repeat(auto-fill, minmax(40px, 1fr));
-    max-height: 80px;
+    justify-content: flex-start;
   }
 }

@@ -446,7 +446,8 @@ export default {
       this.toggleBtn.querySelector('.text').textContent = 'Stop';
       this.toggleBtn.disabled = false;
 
-      // Start waveform visualization immediately
+      // Update status and start waveform visualization immediately
+      this.updateStatus('listening', 'Listening...');
       this.startWaveformAnimation();
 
       console.log('[VoiceControl] Voice control started successfully');

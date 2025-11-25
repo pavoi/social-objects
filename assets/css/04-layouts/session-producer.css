@@ -480,15 +480,97 @@
    RESPONSIVE DESIGN - Producer View
    =========================================================================== */
 
-/* Tablet adjustments */
-@media (max-width: 1024px) {
+/* Medium screens - narrow the sidebar */
+@media (max-width: 1200px) {
   .producer-split-screen {
-    grid-template-columns: 1fr;
+    grid-template-columns: 320px 1fr;
+  }
+
+  .config-panel__top {
+    padding: var(--space-4);
     gap: var(--space-4);
   }
 
+  .message-input {
+    min-height: 60px;
+  }
+
+  .producer-product-item {
+    padding: var(--space-2);
+    gap: var(--space-2);
+  }
+
+  .producer-product-position {
+    width: 28px;
+    height: 28px;
+    font-size: var(--text-xs);
+  }
+
+  .producer-product-image {
+    width: 40px;
+    height: 40px;
+  }
+
+  .producer-product-name {
+    font-size: var(--text-xs);
+  }
+}
+
+/* Switch to single column layout - skip cramped intermediate widths */
+@media (max-width: 1000px) {
+  .producer-split-screen {
+    grid-template-columns: 1fr;
+    gap: var(--space-3);
+  }
+
   .config-panel {
-    max-height: 400px;
+    max-height: 45vh;
+  }
+
+  /* Compact message section to prioritize product list */
+  .config-panel__top {
+    padding: var(--space-3);
+    gap: var(--space-3);
+  }
+
+  .message-controls h3 {
+    font-size: var(--text-sm);
+  }
+
+  .message-input {
+    min-height: 44px;
+    padding: var(--space-2) var(--space-3);
+    font-size: var(--text-sm);
+  }
+
+  /* Ensure products section gets space */
+  .config-panel__middle {
+    padding: 0 var(--space-3);
+  }
+
+  .config-panel__middle h3 {
+    font-size: var(--text-sm);
+    padding-top: 0;
+  }
+
+  /* Horizontal shortcuts to save vertical space */
+  .config-panel__bottom {
+    padding: var(--space-2) var(--space-3);
+  }
+
+  .shortcuts-reference h3 {
+    display: none;
+  }
+
+  .shortcuts-reference ul {
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: var(--space-1) var(--space-4);
+  }
+
+  .shortcuts-reference li {
+    font-size: 10px;
+    white-space: nowrap;
   }
 }
 
@@ -537,58 +619,48 @@
   }
 
   .config-panel {
-    max-height: 50vh;
+    max-height: 40vh;
   }
 
   /* Reduce message section size */
   .config-panel__top {
-    padding: var(--space-3);
-    gap: var(--space-3);
+    padding: var(--space-2);
+    gap: var(--space-2);
   }
 
   .message-controls h3 {
-    font-size: var(--text-sm);
+    font-size: var(--text-xs);
   }
 
   .message-input {
-    min-height: 60px;
-    padding: var(--space-2) var(--space-3);
-    font-size: var(--text-sm);
+    min-height: 36px;
+    padding: var(--space-2);
+    font-size: var(--text-xs);
   }
 
   .message-buttons .btn-sm {
     font-size: var(--text-xs);
-    padding: var(--space-1) var(--space-3);
+    padding: var(--space-1) var(--space-2);
   }
 
   /* Give products section more space */
   .config-panel__middle {
-    padding: 0 var(--space-3);
+    padding: 0 var(--space-2);
     flex: 1;
-    min-height: 150px;
   }
 
   .config-panel__middle h3 {
-    font-size: var(--text-sm);
+    font-size: var(--text-xs);
     padding-top: 0;
   }
 
-  /* Compact shortcuts */
+  /* Compact horizontal shortcuts */
   .config-panel__bottom {
-    padding: var(--space-2) var(--space-3);
-  }
-
-  .shortcuts-reference h3 {
-    font-size: var(--text-xs);
-    margin-bottom: var(--space-1);
+    padding: var(--space-1) var(--space-2);
   }
 
   .shortcuts-reference ul {
-    gap: var(--space-1);
-  }
-
-  .shortcuts-reference li {
-    font-size: 10px;
+    gap: var(--space-1) var(--space-3);
   }
 
   /* Smaller product items */

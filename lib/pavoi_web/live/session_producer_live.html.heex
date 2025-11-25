@@ -4,17 +4,19 @@
   phx-hook="SessionHostKeyboard"
 >
   <%!-- Voice Control Panel --%>
-  <div
-    id="voice-control"
-    phx-hook="VoiceControl"
-    phx-update="ignore"
-    data-total-products={@total_products}
-    data-vad-worklet-url={@voice_assets.vad_worklet}
-    data-vad-model-url={@voice_assets.vad_model}
-    data-ort-wasm-url={@voice_assets.ort_wasm}
-    data-ort-jsep-url={@voice_assets.ort_wasm_jsep}
-  >
-  </div>
+  <%= if @voice_control_enabled do %>
+    <div
+      id="voice-control"
+      phx-hook="VoiceControl"
+      phx-update="ignore"
+      data-total-products={@total_products}
+      data-vad-worklet-url={@voice_assets.vad_worklet}
+      data-vad-model-url={@voice_assets.vad_model}
+      data-ort-wasm-url={@voice_assets.ort_wasm}
+      data-ort-jsep-url={@voice_assets.ort_wasm_jsep}
+    >
+    </div>
+  <% end %>
   
 <!-- Top Control Bar -->
   <div class="producer-control-bar">
