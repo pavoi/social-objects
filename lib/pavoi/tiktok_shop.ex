@@ -122,9 +122,9 @@ defmodule Pavoi.TiktokShop do
             shop = List.first(shops)
 
             attrs = %{
-              shop_id: shop["shop_id"],
+              shop_id: shop["id"],
               shop_cipher: shop["cipher"],
-              shop_name: shop["shop_name"],
+              shop_name: shop["name"],
               shop_code: shop["code"],
               region: shop["region"]
             }
@@ -281,9 +281,11 @@ defmodule Pavoi.TiktokShop do
       timestamp: timestamp
     }
 
-    # Add shop_cipher if available and not already in params
+    # Add shop_cipher if available, not already in params, and not an authorization endpoint
+    # (authorization endpoints don't accept shop_cipher since that's what they return)
     common_params =
-      if auth.shop_cipher && !Map.has_key?(params, :shop_cipher) do
+      if auth.shop_cipher && !Map.has_key?(params, :shop_cipher) &&
+           !String.starts_with?(path, "/authorization") do
         Map.put(common_params, :shop_cipher, auth.shop_cipher)
       else
         common_params
