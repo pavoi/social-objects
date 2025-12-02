@@ -43,6 +43,8 @@ defmodule Pavoi.Creators do
   def search_creators_paginated(opts \\ []) do
     page = Keyword.get(opts, :page, 1)
     per_page = Keyword.get(opts, :per_page, 50)
+    sort_by = Keyword.get(opts, :sort_by)
+    sort_dir = Keyword.get(opts, :sort_dir, "asc")
 
     query =
       from(c in Creator)
@@ -54,7 +56,7 @@ defmodule Pavoi.Creators do
 
     creators =
       query
-      |> order_by([c], asc: c.tiktok_username)
+      |> apply_creator_sort(sort_by, sort_dir)
       |> limit(^per_page)
       |> offset(^((page - 1) * per_page))
       |> Repo.all()
@@ -67,6 +69,48 @@ defmodule Pavoi.Creators do
       has_more: total > page * per_page
     }
   end
+
+  defp apply_creator_sort(query, "username", "asc"),
+    do: order_by(query, [c], asc: c.tiktok_username)
+
+  defp apply_creator_sort(query, "username", "desc"),
+    do: order_by(query, [c], desc: c.tiktok_username)
+
+  defp apply_creator_sort(query, "followers", "desc"),
+    do: order_by(query, [c], desc_nulls_last: c.follower_count)
+
+  defp apply_creator_sort(query, "followers", "asc"),
+    do: order_by(query, [c], asc_nulls_last: c.follower_count)
+
+  defp apply_creator_sort(query, "gmv", "desc"),
+    do: order_by(query, [c], desc_nulls_last: c.total_gmv_cents)
+
+  defp apply_creator_sort(query, "gmv", "asc"),
+    do: order_by(query, [c], asc_nulls_last: c.total_gmv_cents)
+
+  defp apply_creator_sort(query, "videos", "desc"),
+    do: order_by(query, [c], desc_nulls_last: c.total_videos)
+
+  defp apply_creator_sort(query, "videos", "asc"),
+    do: order_by(query, [c], asc_nulls_last: c.total_videos)
+
+  defp apply_creator_sort(query, "samples", dir) do
+    sample_counts =
+      from(cs in CreatorSample,
+        group_by: cs.creator_id,
+        select: %{creator_id: cs.creator_id, count: count(cs.id)}
+      )
+
+    query
+    |> join(:left, [c], sc in subquery(sample_counts), on: sc.creator_id == c.id)
+    |> order_by([c, sc], [{^sort_dir_atom(dir), coalesce(sc.count, 0)}])
+  end
+
+  defp apply_creator_sort(query, _, _),
+    do: order_by(query, [c], asc: c.tiktok_username)
+
+  defp sort_dir_atom("desc"), do: :desc
+  defp sort_dir_atom(_), do: :asc
 
   defp apply_creator_search_filter(query, ""), do: query
 
@@ -121,7 +165,7 @@ defmodule Pavoi.Creators do
     |> where([c], c.id == ^id)
     |> preload([
       :brands,
-      creator_samples: [:brand, :product],
+      creator_samples: [:brand, product: :product_images],
       creator_videos: :video_products,
       performance_snapshots: []
     ])

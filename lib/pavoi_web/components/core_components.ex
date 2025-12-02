@@ -432,6 +432,12 @@ defmodule PavoiWeb.CoreComponents do
         >
           Products
         </.link>
+        <.link
+          href={~p"/creators"}
+          class={["navbar__link", @current_page == :creators && "navbar__link--active"]}
+        >
+          Creators
+        </.link>
       </div>
       <div class="navbar__end">
         <.button

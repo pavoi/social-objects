@@ -1,0 +1,81 @@
+<.nav_tabs current_page={@current_page} />
+
+<div class="container container--xl region">
+  <div class="creator-detail-header">
+    <.link navigate={~p"/creators"} class="back-link">
+      <.icon name="hero-arrow-left" class="size-4" /> Back to Creators
+    </.link>
+    <div class="creator-detail-header__title-row">
+      <div>
+        <h1 class="page-title">@{@creator.tiktok_username}</h1>
+        <%= if @creator.tiktok_profile_url do %>
+          <a
+            href={@creator.tiktok_profile_url}
+            target="_blank"
+            rel="noopener"
+            class="link text-sm"
+          >
+            View TikTok Profile →
+          </a>
+        <% end %>
+        <.tag_pills tags={@creator.tags} />
+      </div>
+      <div class="creator-detail-header__badges">
+        <.whitelisted_badge is_whitelisted={@creator.is_whitelisted} />
+        <.badge_pill level={@creator.tiktok_badge_level} />
+      </div>
+    </div>
+  </div>
+
+  <div class="creator-detail-grid">
+    <div class="creator-detail-sidebar">
+      <.contact_info_card
+        creator={@creator}
+        editing={@editing_contact}
+        form={@contact_form}
+      />
+      <.stats_card creator={@creator} />
+      <.brands_card brands={@creator.brands} />
+    </div>
+
+    <div class="creator-detail-main">
+      <div class="tabs">
+        <button
+          type="button"
+          class={["tab", @active_tab == "samples" && "tab--active"]}
+          phx-click="change_tab"
+          phx-value-tab="samples"
+        >
+          Samples ({length(@creator.creator_samples)})
+        </button>
+        <button
+          type="button"
+          class={["tab", @active_tab == "videos" && "tab--active"]}
+          phx-click="change_tab"
+          phx-value-tab="videos"
+        >
+          Videos ({length(@creator.creator_videos)})
+        </button>
+        <button
+          type="button"
+          class={["tab", @active_tab == "performance" && "tab--active"]}
+          phx-click="change_tab"
+          phx-value-tab="performance"
+        >
+          Performance ({length(@creator.performance_snapshots)})
+        </button>
+      </div>
+
+      <div class="tab-content">
+        <%= case @active_tab do %>
+          <% "samples" -> %>
+            <.samples_table samples={@creator.creator_samples} />
+          <% "videos" -> %>
+            <.videos_table videos={@creator.creator_videos} username={@creator.tiktok_username} />
+          <% "performance" -> %>
+            <.performance_table snapshots={@creator.performance_snapshots} />
+        <% end %>
+      </div>
+    </div>
+  </div>
+</div>

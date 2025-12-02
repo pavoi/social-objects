@@ -27,6 +27,7 @@
 @import "./04-layouts/session-host.css";
 @import "./04-layouts/session-producer.css";
 @import "./04-layouts/products-index.css";
+@import "./04-layouts/creators-index.css";
 
 /* Components Layer - UI components */
 @import "./05-components/button.css";
@@ -43,6 +44,7 @@
 @import "./05-components/theme-toggle.css";
 @import "./05-components/host-message.css";
 @import "./05-components/voice-control.css";
+@import "./05-components/creator.css";
 
 /* Utilities Layer - Utility classes */
 @import "./06-utilities/utilities.css";

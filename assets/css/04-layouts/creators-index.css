@@ -1,0 +1,270 @@
+/**
+ * Creators Index Layout
+ * Page layout for the creator CRM list view
+ */
+
+/* Header - search and filters */
+.creators-header {
+  display: flex;
+  gap: var(--space-4);
+  margin-bottom: var(--space-4);
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.creators-header__search {
+  flex: 1;
+  min-width: 250px;
+  max-width: 400px;
+}
+
+.creators-header__filters {
+  display: flex;
+  gap: var(--space-2);
+}
+
+/* Table header with count */
+.creators-table-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--space-3);
+}
+
+.creators-count {
+  font-size: var(--text-sm);
+  color: var(--color-text-secondary);
+}
+
+.creator-table-wrapper {
+  overflow-x: auto;
+  border-radius: var(--rounded-lg);
+  border: 1px solid var(--color-border);
+  background: var(--color-surface-primary);
+}
+
+.creator-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--text-sm);
+  table-layout: fixed;
+}
+
+.creator-table th {
+  padding: var(--space-3) var(--space-4);
+  text-align: left;
+  font-weight: var(--font-semibold);
+  color: var(--color-text-secondary);
+  background: var(--color-surface-secondary);
+  border-bottom: 1px solid var(--color-border);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+
+/* Fixed column widths */
+.creator-table th:nth-child(1),
+.creator-table td:nth-child(1) { width: 130px; }  /* Username */
+.creator-table th:nth-child(2),
+.creator-table td:nth-child(2) { width: 130px; }  /* Name */
+.creator-table th:nth-child(3),
+.creator-table td:nth-child(3) { width: 170px; }  /* Email */
+.creator-table th:nth-child(4),
+.creator-table td:nth-child(4) { width: 110px; }  /* Phone */
+.creator-table th:nth-child(5),
+.creator-table td:nth-child(5) { width: 110px; }  /* Followers */
+.creator-table th:nth-child(6),
+.creator-table td:nth-child(6) { width: 90px; }   /* GMV */
+.creator-table th:nth-child(7),
+.creator-table td:nth-child(7) { width: 90px; }   /* Samples */
+.creator-table th:nth-child(8),
+.creator-table td:nth-child(8) { width: 90px; }   /* Videos */
+.creator-table th:nth-child(9),
+.creator-table td:nth-child(9) { width: 90px; }   /* Badge */
+
+/* Sortable headers */
+.sortable-header {
+  padding: 0;
+}
+
+.sortable-header__btn {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  width: 100%;
+  padding: var(--space-3) var(--space-4);
+  background: transparent;
+  border: none;
+  font: inherit;
+  font-weight: var(--font-semibold);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition: color 0.15s ease;
+}
+
+.sortable-header__btn:hover {
+  color: var(--color-text-primary);
+}
+
+.sortable-header__btn:hover .sortable-header__icon--inactive {
+  opacity: 0.5;
+}
+
+.sortable-header--active .sortable-header__btn {
+  color: var(--color-primary);
+}
+
+.sortable-header__icon {
+  display: flex;
+  flex-shrink: 0;
+}
+
+.sortable-header__icon .sort-icon {
+  width: 12px;
+  height: 12px;
+}
+
+.sortable-header__icon--inactive {
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+
+.sortable-header--active .sortable-header__icon {
+  opacity: 1;
+}
+
+.sortable-header.text-right .sortable-header__btn {
+  justify-content: flex-end;
+}
+
+.creator-table td {
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--color-border);
+  color: var(--color-text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.creator-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.creator-table tbody tr:hover {
+  background: var(--color-bg-hover);
+}
+
+.creator-table .text-right {
+  text-align: right;
+}
+
+.creator-table .text-secondary {
+  color: var(--color-text-secondary);
+}
+
+.creator-table .font-mono {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+}
+
+.creator-table .link {
+  color: var(--color-primary);
+  text-decoration: none;
+}
+
+.creator-table .link:hover {
+  text-decoration: underline;
+}
+
+.creator-table .cursor-pointer {
+  cursor: pointer;
+}
+
+/* Creator detail layout */
+.creator-detail-header {
+  margin-bottom: var(--space-6);
+}
+
+.creator-detail-header__title-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  margin-top: var(--space-2);
+}
+
+.creator-detail-grid {
+  display: grid;
+  grid-template-columns: 350px 1fr;
+  gap: var(--space-6);
+}
+
+@media (max-width: 1024px) {
+  .creator-detail-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.creator-detail-sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.creator-detail-main {
+  min-width: 0;
+}
+
+/* Back link */
+.back-link {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  color: var(--color-text-secondary);
+  text-decoration: none;
+  font-size: var(--text-sm);
+}
+
+.back-link:hover {
+  color: var(--color-text-primary);
+}
+
+/* Tabs */
+.tabs {
+  display: flex;
+  gap: var(--space-1);
+  border-bottom: 1px solid var(--color-border);
+  margin-bottom: var(--space-4);
+}
+
+.tab {
+  padding: var(--space-3) var(--space-4);
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: var(--color-text-secondary);
+  font-size: var(--text-sm);
+  font-weight: var(--font-medium);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.tab:hover {
+  color: var(--color-text-primary);
+}
+
+.tab--active {
+  color: var(--color-primary);
+  border-bottom-color: var(--color-primary);
+}
+
+.tab-content {
+  min-height: 300px;
+}
+
+/* Load more button container */
+.load-more {
+  display: flex;
+  justify-content: center;
+  padding: var(--space-6) 0;
+}

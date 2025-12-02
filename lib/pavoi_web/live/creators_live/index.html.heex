@@ -1,0 +1,67 @@
+<.nav_tabs current_page={@current_page} />
+
+<div class="container container--xl region">
+  <div class="creators-header">
+    <div class="creators-header__search">
+      <.search_input
+        value={@search_query}
+        on_change="search"
+        placeholder="Search by username, email, or name..."
+      />
+    </div>
+
+    <div class="creators-header__filters">
+      <form phx-change="filter_badge">
+        <select name="badge" class="input input--sm" value={@badge_filter}>
+          <option value="">All Badges</option>
+          <%= for level <- Pavoi.Creators.Creator.badge_levels() do %>
+            <option value={level} selected={@badge_filter == level}>
+              {String.capitalize(level)}
+            </option>
+          <% end %>
+        </select>
+      </form>
+
+      <form phx-change="filter_brand">
+        <select name="brand" class="input input--sm" value={@brand_filter}>
+          <option value="">All Brands</option>
+          <%= for brand <- @brands do %>
+            <option value={brand.id} selected={@brand_filter == to_string(brand.id)}>
+              {brand.name}
+            </option>
+          <% end %>
+        </select>
+      </form>
+    </div>
+  </div>
+
+  <%= if Enum.empty?(@creators) do %>
+    <div class="empty-state">
+      <.icon name="hero-users" class="empty-state__icon size-8" />
+      <p class="empty-state__title">No creators found</p>
+      <%= if @search_query != "" or @badge_filter != "" or @brand_filter != "" do %>
+        <p class="empty-state__description">Try adjusting your search or filters</p>
+      <% end %>
+    </div>
+  <% else %>
+    <div class="creators-table-header">
+      <span class="creators-count">{format_number(@total)} creators</span>
+    </div>
+
+    <.creator_table
+      creators={@creators}
+      on_row_click="navigate_to_creator"
+      sort_by={@sort_by}
+      sort_dir={@sort_dir}
+      on_sort="sort_column"
+    />
+
+    <%= if @has_more do %>
+      <div class="load-more">
+        <.button variant="outline" phx-click="load_more">
+          Load More
+        </.button>
+      </div>
+    <% end %>
+  <% end %>
+</div>
