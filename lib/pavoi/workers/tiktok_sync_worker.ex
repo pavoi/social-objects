@@ -242,7 +242,7 @@ defmodule Pavoi.Workers.TiktokSyncWorker do
     case transaction_result do
       {:ok, {product, is_matched, {variant_count, is_new, is_matched_result}}} ->
         # Determine if this product needs TikTok images (will be fetched in parallel later)
-        needs_images? = needs_tiktok_images?(product, is_matched)
+        needs_images? = needs_tiktok_details?(product, is_matched)
 
         {:ok,
          {product, tiktok_product_id, needs_images?, variant_count, is_new, is_matched_result}}
@@ -252,9 +252,14 @@ defmodule Pavoi.Workers.TiktokSyncWorker do
     end
   end
 
-  defp needs_tiktok_images?(product, is_matched) do
-    # Skip TikTok images if product is matched with Shopify AND has Shopify images
-    not (is_matched && has_shopify_images?(product))
+  defp needs_tiktok_details?(product, is_matched) do
+    # Fetch TikTok details if:
+    # 1. Product needs images (not matched with Shopify or no Shopify images)
+    # 2. OR product is missing description
+    needs_images = not (is_matched && has_shopify_images?(product))
+    missing_description = is_nil(product.description) or product.description == ""
+
+    needs_images or missing_description
   end
 
   defp sync_images_in_parallel(products_needing_images) do
@@ -302,6 +307,7 @@ defmodule Pavoi.Workers.TiktokSyncWorker do
     case fetch_product_details(tiktok_product_id) do
       {:ok, product_data} ->
         replace_tiktok_images(product, product_data)
+        sync_description_from_tiktok(product, product_data)
         :ok
 
       {:error, reason} ->
@@ -310,6 +316,25 @@ defmodule Pavoi.Workers.TiktokSyncWorker do
         )
 
         {:error, reason}
+    end
+  end
+
+  defp sync_description_from_tiktok(product, product_data) do
+    # Only update description if product doesn't have one
+    if is_nil(product.description) or product.description == "" do
+      description = get_in(product_data, ["description"])
+
+      if description && description != "" do
+        case Catalog.update_product(product, %{description: description}) do
+          {:ok, _updated} ->
+            Logger.debug("Updated description for product #{product.id}")
+
+          {:error, changeset} ->
+            Logger.warning(
+              "Failed to update description for product #{product.id}: #{inspect(changeset.errors)}"
+            )
+        end
+      end
     end
   end
 
@@ -600,19 +625,20 @@ defmodule Pavoi.Workers.TiktokSyncWorker do
   end
 
   defp get_or_create_tiktok_brand do
-    slug = "tiktok-shop"
+    # Use the PAVOI brand for all products (TikTok products are also PAVOI products)
+    slug = "pavoi"
 
     case Catalog.get_brand_by_slug(slug) do
       nil ->
-        Logger.info("Creating TikTok Shop brand")
+        Logger.info("Creating PAVOI brand for TikTok products")
 
-        case Catalog.create_brand(%{name: "TikTok Shop", slug: slug}) do
+        case Catalog.create_brand(%{name: "PAVOI", slug: slug}) do
           {:ok, brand} ->
             brand
 
           {:error, changeset} ->
-            Logger.error("Failed to create TikTok Shop brand: #{inspect(changeset.errors)}")
-            raise "Failed to create TikTok Shop brand"
+            Logger.error("Failed to create PAVOI brand: #{inspect(changeset.errors)}")
+            raise "Failed to create PAVOI brand"
         end
 
       brand ->
