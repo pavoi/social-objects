@@ -686,7 +686,7 @@ defmodule PavoiWeb.CreatorComponents do
           </div>
           <div class="creator-modal-stat">
             <span class="creator-modal-stat__label">Videos</span>
-            <span class="creator-modal-stat__value">{@creator.total_videos || 0}</span>
+            <span class="creator-modal-stat__value">{length(@creator.creator_videos)}</span>
           </div>
           <div class="creator-modal-stat">
             <span class="creator-modal-stat__label">Brands</span>

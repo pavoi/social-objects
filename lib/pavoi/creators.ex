@@ -115,7 +115,9 @@ defmodule Pavoi.Creators do
   defp apply_creator_search_filter(query, ""), do: query
 
   defp apply_creator_search_filter(query, search_query) do
-    pattern = "%#{search_query}%"
+    # Strip leading @ since usernames are stored without it
+    normalized_query = String.trim_leading(search_query, "@")
+    pattern = "%#{normalized_query}%"
 
     where(
       query,
