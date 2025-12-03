@@ -95,15 +95,21 @@ defmodule PavoiWeb.ViewHelpers do
   def shopify_thumbnail_url(nil, _size), do: nil
 
   def shopify_thumbnail_url(url, size) when is_binary(url) do
-    # Extract file extension
-    case Path.extname(url) do
-      "" ->
-        url
+    # TikTok CDN URLs already have sizing built into the filename and are signed,
+    # so return them unchanged to avoid breaking the URL
+    if String.contains?(url, "ttcdn") do
+      url
+    else
+      # Shopify CDN supports URL-based transformations
+      case Path.extname(url) do
+        "" ->
+          url
 
-      ext ->
-        base = String.replace_suffix(url, ext, "")
-        size_suffix = if is_atom(size), do: "_#{size}", else: "_#{size}"
-        "#{base}#{size_suffix}#{ext}"
+        ext ->
+          base = String.replace_suffix(url, ext, "")
+          size_suffix = if is_atom(size), do: "_#{size}", else: "_#{size}"
+          "#{base}#{size_suffix}#{ext}"
+      end
     end
   end
 
