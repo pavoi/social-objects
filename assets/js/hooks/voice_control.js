@@ -205,7 +205,6 @@ export default {
           </div>
           <div class="voice-control-actions">
             <button id="voice-toggle" class="voice-toggle-btn" disabled>
-              <span class="icon">🎤</span>
               <span class="text">Loading model...</span>
             </button>
           </div>
