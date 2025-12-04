@@ -15,8 +15,8 @@ defmodule PavoiWeb.NavHooks do
   defp get_current_page(PavoiWeb.SessionsLive.Index), do: :sessions
   defp get_current_page(PavoiWeb.ProductsLive.Index), do: :products
   defp get_current_page(PavoiWeb.CreatorsLive.Index), do: :creators
-  # Producer and host views return nil so navbar doesn't show
+  # Controller and host views return nil so navbar doesn't show
   defp get_current_page(PavoiWeb.SessionHostLive), do: nil
-  defp get_current_page(PavoiWeb.SessionProducerLive), do: nil
+  defp get_current_page(PavoiWeb.SessionControllerLive), do: nil
   defp get_current_page(_), do: nil
 end
