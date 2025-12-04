@@ -167,42 +167,30 @@ defmodule Pavoi.Workers.BigQueryOrderSyncWorker do
 
   defp find_or_create_creator(order) do
     normalized_phone = Creators.normalize_phone(order["phone_number"])
-    recipient_name = order["recipient_name"]
-    {first_name, last_name} = Creators.parse_name(recipient_name)
+    {first_name, last_name} = Creators.parse_name(order["recipient_name"])
+    usable_phone = get_usable_phone(normalized_phone)
 
-    # Only use phone for matching if it's not masked (no * characters)
-    usable_phone = if normalized_phone && !String.contains?(normalized_phone, "*"), do: normalized_phone, else: nil
-
-    # Step 1: Try to match by normalized phone number (only if unmasked)
-    creator_by_phone = if usable_phone, do: Creators.get_creator_by_phone(usable_phone), else: nil
-
-    case creator_by_phone do
+    with nil <- find_creator_by_phone(usable_phone),
+         nil <- find_creator_by_name(first_name, last_name) do
+      create_new_creator(order, normalized_phone)
+    else
       %{} = creator ->
-        # Update all missing contact info from this order
         update_creator_from_order_data(creator, order)
         {:ok, creator, :matched_creator}
-
-      nil ->
-        # Step 2: Fall back to name matching (only if we have both first and last name)
-        creator_by_name =
-          if first_name && last_name && String.length(first_name) > 1 && String.length(last_name) > 1 do
-            Creators.get_creator_by_name(first_name, last_name)
-          else
-            nil
-          end
-
-        case creator_by_name do
-          %{} = creator ->
-            # Update all missing contact info from this order
-            update_creator_from_order_data(creator, order)
-            {:ok, creator, :matched_creator}
-
-          nil ->
-            # Step 3: Create new creator with all available data
-            create_new_creator(order, normalized_phone)
-        end
     end
   end
+
+  defp get_usable_phone(nil), do: nil
+  defp get_usable_phone(phone), do: if(String.contains?(phone, "*"), do: nil, else: phone)
+
+  defp find_creator_by_phone(nil), do: nil
+  defp find_creator_by_phone(phone), do: Creators.get_creator_by_phone(phone)
+
+  defp find_creator_by_name(first, last)
+       when is_binary(first) and is_binary(last) and byte_size(first) > 1 and byte_size(last) > 1,
+       do: Creators.get_creator_by_name(first, last)
+
+  defp find_creator_by_name(_, _), do: nil
 
   # Comprehensive update of creator from order data - fills in missing OR masked fields
   # Masked data (containing *) is replaced with real data from BigQuery
@@ -210,40 +198,36 @@ defmodule Pavoi.Workers.BigQueryOrderSyncWorker do
     {first_name, last_name} = Creators.parse_name(order["recipient_name"])
     normalized_phone = Creators.normalize_phone(order["phone_number"])
     phone_is_valid = normalized_phone && !String.contains?(normalized_phone, "*")
-
-    # Parse address from order - prefer individual fields, fall back to full_address
     {address_line1, city, state} = parse_address_fields(order)
 
-    updates = %{}
-
-    # Name fields - replace if empty OR masked
-    updates = if needs_update?(creator.first_name) && first_name, do: Map.put(updates, :first_name, first_name), else: updates
-    updates = if needs_update?(creator.last_name) && last_name, do: Map.put(updates, :last_name, last_name), else: updates
-
-    # Phone - update if empty/masked AND we have valid (unmasked) phone from BigQuery
     updates =
-      if needs_update?(creator.phone) && phone_is_valid do
-        updates
-        |> Map.put(:phone, normalized_phone)
-        |> Map.put(:phone_verified, true)
-      else
-        updates
-      end
+      build_field_updates(creator, [
+        {:first_name, first_name},
+        {:last_name, last_name},
+        {:address_line_1, address_line1},
+        {:address_line_2, order["address_line2"]},
+        {:city, city},
+        {:state, state},
+        {:zipcode, order["zipcode"]},
+        {:country, order["country"]}
+      ])
 
-    # Address fields - replace if empty OR masked
-    updates = if needs_update?(creator.address_line_1) && address_line1, do: Map.put(updates, :address_line_1, address_line1), else: updates
-    updates = if needs_update?(creator.address_line_2) && order["address_line2"], do: Map.put(updates, :address_line_2, order["address_line2"]), else: updates
-    updates = if needs_update?(creator.city) && city, do: Map.put(updates, :city, city), else: updates
-    updates = if needs_update?(creator.state) && state, do: Map.put(updates, :state, state), else: updates
-    updates = if needs_update?(creator.zipcode) && order["zipcode"], do: Map.put(updates, :zipcode, order["zipcode"]), else: updates
-    updates = if needs_update?(creator.country) && order["country"], do: Map.put(updates, :country, order["country"]), else: updates
+    updates = maybe_add_phone_update(updates, creator, normalized_phone, phone_is_valid)
 
-    if map_size(updates) > 0 do
-      Creators.update_creator(creator, updates)
-    else
-      {:ok, creator}
-    end
+    if map_size(updates) > 0, do: Creators.update_creator(creator, updates), else: {:ok, creator}
   end
+
+  defp build_field_updates(creator, field_pairs) do
+    Enum.reduce(field_pairs, %{}, fn {field, value}, acc ->
+      if needs_update?(Map.get(creator, field)) && value, do: Map.put(acc, field, value), else: acc
+    end)
+  end
+
+  defp maybe_add_phone_update(updates, creator, phone, true = _valid) when not is_nil(phone) do
+    if needs_update?(creator.phone), do: Map.merge(updates, %{phone: phone, phone_verified: true}), else: updates
+  end
+
+  defp maybe_add_phone_update(updates, _creator, _phone, _valid), do: updates
 
   # Check if a field needs to be updated (empty or contains masked data)
   defp needs_update?(nil), do: true
@@ -484,23 +468,8 @@ defmodule Pavoi.Workers.BigQueryOrderSyncWorker do
       creators_to_fix
       |> Enum.with_index(1)
       |> Enum.reduce(%{updated: 0, skipped: 0, errors: 0}, fn {{creator, order_ids}, idx}, acc ->
-        if rem(idx, 100) == 0 do
-          Logger.info("Progress: #{idx}/#{total} (#{acc.updated} updated)")
-        end
-
-        # Find first order with phone info
-        order = Enum.find_value(order_ids, fn oid -> Map.get(order_map, oid) end)
-
-        case order do
-          nil ->
-            %{acc | skipped: acc.skipped + 1}
-
-          order ->
-            case update_creator_from_order(creator, order) do
-              {:ok, _} -> %{acc | updated: acc.updated + 1}
-              {:error, _} -> %{acc | errors: acc.errors + 1}
-            end
-        end
+        if rem(idx, 100) == 0, do: Logger.info("Progress: #{idx}/#{total} (#{acc.updated} updated)")
+        update_creator_from_orders(acc, creator, order_ids, order_map)
       end)
 
     Logger.info("""
@@ -513,20 +482,33 @@ defmodule Pavoi.Workers.BigQueryOrderSyncWorker do
     {:ok, stats}
   end
 
+  defp update_creator_from_orders(acc, creator, order_ids, order_map) do
+    order = Enum.find_value(order_ids, fn oid -> Map.get(order_map, oid) end)
+    do_update_creator(acc, creator, order)
+  end
+
+  defp do_update_creator(acc, _creator, nil), do: %{acc | skipped: acc.skipped + 1}
+
+  defp do_update_creator(acc, creator, order) do
+    case update_creator_from_order(creator, order) do
+      {:ok, _} -> %{acc | updated: acc.updated + 1}
+      {:error, _} -> %{acc | errors: acc.errors + 1}
+    end
+  end
+
   defp fetch_orders_in_batches(order_ids) do
     order_ids
     |> Enum.chunk_every(500)
-    |> Enum.reduce(%{}, fn batch, acc ->
-      case fetch_orders_batch(batch) do
-        {:ok, orders} ->
-          batch_map = Map.new(orders, fn o -> {o["order_id"], o} end)
-          Map.merge(acc, batch_map)
+    |> Enum.reduce(%{}, fn batch, acc -> merge_batch_results(acc, fetch_orders_batch(batch)) end)
+  end
 
-        {:error, reason} ->
-          Logger.error("Failed to fetch batch: #{inspect(reason)}")
-          acc
-      end
-    end)
+  defp merge_batch_results(acc, {:ok, orders}) do
+    Map.merge(acc, Map.new(orders, fn o -> {o["order_id"], o} end))
+  end
+
+  defp merge_batch_results(acc, {:error, reason}) do
+    Logger.error("Failed to fetch batch: #{inspect(reason)}")
+    acc
   end
 
   defp fetch_orders_batch(order_ids) do

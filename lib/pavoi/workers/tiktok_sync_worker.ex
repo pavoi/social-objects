@@ -319,22 +319,26 @@ defmodule Pavoi.Workers.TiktokSyncWorker do
     end
   end
 
+  defp sync_description_from_tiktok(%{description: desc}, _product_data)
+       when is_binary(desc) and desc != "",
+       do: :ok
+
   defp sync_description_from_tiktok(product, product_data) do
-    # Only update description if product doesn't have one
-    if is_nil(product.description) or product.description == "" do
-      description = get_in(product_data, ["description"])
+    case get_in(product_data, ["description"]) do
+      desc when is_binary(desc) and desc != "" -> do_update_description(product, desc)
+      _ -> :ok
+    end
+  end
 
-      if description && description != "" do
-        case Catalog.update_product(product, %{description: description}) do
-          {:ok, _updated} ->
-            Logger.debug("Updated description for product #{product.id}")
+  defp do_update_description(product, description) do
+    case Catalog.update_product(product, %{description: description}) do
+      {:ok, _updated} ->
+        Logger.debug("Updated description for product #{product.id}")
 
-          {:error, changeset} ->
-            Logger.warning(
-              "Failed to update description for product #{product.id}: #{inspect(changeset.errors)}"
-            )
-        end
-      end
+      {:error, changeset} ->
+        Logger.warning(
+          "Failed to update description for product #{product.id}: #{inspect(changeset.errors)}"
+        )
     end
   end
 
