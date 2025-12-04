@@ -25,7 +25,6 @@ defmodule PavoiWeb.CreatorsLive.Index do
       Phoenix.PubSub.subscribe(Pavoi.PubSub, "bigquery:sync")
     end
 
-    brands = Creators.list_brands_with_creators()
     bigquery_last_sync_at = Settings.get_bigquery_last_sync_at()
     bigquery_syncing = sync_job_active?(BigQueryOrderSyncWorker)
 
@@ -34,14 +33,13 @@ defmodule PavoiWeb.CreatorsLive.Index do
       |> assign(:creators, [])
       |> assign(:search_query, "")
       |> assign(:badge_filter, "")
-      |> assign(:brand_filter, "")
-      |> assign(:sort_by, nil)
-      |> assign(:sort_dir, "asc")
+      |> assign(:sort_by, "gmv")
+      |> assign(:sort_dir, "desc")
       |> assign(:page, 1)
       |> assign(:per_page, 50)
       |> assign(:total, 0)
       |> assign(:has_more, false)
-      |> assign(:brands, brands)
+      |> assign(:loading_creators, false)
       # Modal state
       |> assign(:selected_creator, nil)
       |> assign(:active_tab, "contact")
@@ -78,20 +76,8 @@ defmodule PavoiWeb.CreatorsLive.Index do
   end
 
   @impl true
-  def handle_event("filter_brand", %{"brand" => brand}, socket) do
-    params = build_query_params(socket, brand_filter: brand, page: 1)
-    {:noreply, push_patch(socket, to: ~p"/creators?#{params}")}
-  end
-
-  @impl true
   def handle_event("sort_column", %{"field" => field, "dir" => dir}, socket) do
     params = build_query_params(socket, sort_by: field, sort_dir: dir, page: 1)
-    {:noreply, push_patch(socket, to: ~p"/creators?#{params}")}
-  end
-
-  @impl true
-  def handle_event("load_more", _params, socket) do
-    params = build_query_params(socket, page: socket.assigns.page + 1)
     {:noreply, push_patch(socket, to: ~p"/creators?#{params}")}
   end
 
@@ -197,6 +183,43 @@ defmodule PavoiWeb.CreatorsLive.Index do
     {:noreply, socket}
   end
 
+  # =============================================================================
+  # INFINITE SCROLL IMPLEMENTATION
+  # =============================================================================
+  #
+  # Why this uses send(self(), ...) instead of loading directly:
+  #
+  # The template uses: phx-viewport-bottom={@has_more && !@loading_creators && "load_more"}
+  #
+  # WRONG approach (causes infinite loop):
+  #   def handle_event("load_more", _params, socket) do
+  #     socket
+  #     |> assign(:loading_creators, true)   # Set loading
+  #     |> assign(:page, socket.assigns.page + 1)
+  #     |> load_creators()                   # This sets loading_creators back to false!
+  #     |> then(&{:noreply, &1})
+  #   end
+  #
+  # Problem: LiveView only sends ONE diff to the client - the FINAL state.
+  # The client never sees loading_creators=true, only the final loading_creators=false.
+  # So the phx-viewport-bottom binding remains active, fires again, infinite loop.
+  #
+  # CORRECT approach (two-phase update):
+  #   1. handle_event sets loading_creators=true and returns immediately
+  #   2. Client receives diff with loading_creators=true → binding disabled
+  #   3. handle_info loads data and sets loading_creators=false
+  #   4. Client receives new data → user scrolls to see it → no longer at bottom
+  #
+  # =============================================================================
+
+  @impl true
+  def handle_event("load_more", _params, socket) do
+    # Phase 1: Disable the viewport binding immediately by setting loading=true
+    # The actual data loading happens in handle_info (Phase 2)
+    send(self(), :load_more_creators)
+    {:noreply, assign(socket, :loading_creators, true)}
+  end
+
   # BigQuery sync PubSub handlers
   @impl true
   def handle_info({:bigquery_sync_started}, socket) do
@@ -229,6 +252,17 @@ defmodule PavoiWeb.CreatorsLive.Index do
     {:noreply, socket}
   end
 
+  # Infinite scroll Phase 2 - see comment block above handle_event("load_more", ...)
+  @impl true
+  def handle_info(:load_more_creators, socket) do
+    socket =
+      socket
+      |> assign(:page, socket.assigns.page + 1)
+      |> load_creators()
+
+    {:noreply, socket}
+  end
+
   defp sync_job_active?(worker) do
     from(j in Oban.Job,
       where: j.worker == ^to_string(worker),
@@ -241,9 +275,8 @@ defmodule PavoiWeb.CreatorsLive.Index do
     socket
     |> assign(:search_query, params["q"] || "")
     |> assign(:badge_filter, params["badge"] || "")
-    |> assign(:brand_filter, params["brand"] || "")
-    |> assign(:sort_by, params["sort"])
-    |> assign(:sort_dir, params["dir"] || "asc")
+    |> assign(:sort_by, params["sort"] || "gmv")
+    |> assign(:sort_dir, params["dir"] || "desc")
     |> assign(:page, parse_page(params["page"]))
   end
 
@@ -255,7 +288,6 @@ defmodule PavoiWeb.CreatorsLive.Index do
     %{
       search_query: search_query,
       badge_filter: badge_filter,
-      brand_filter: brand_filter,
       sort_by: sort_by,
       sort_dir: sort_dir,
       page: page,
@@ -266,7 +298,6 @@ defmodule PavoiWeb.CreatorsLive.Index do
       [page: page, per_page: per_page]
       |> maybe_add_opt(:search_query, search_query)
       |> maybe_add_opt(:badge_level, badge_filter)
-      |> maybe_add_opt(:brand_id, parse_brand_id(brand_filter))
       |> maybe_add_opt(:sort_by, sort_by)
       |> maybe_add_opt(:sort_dir, sort_dir)
 
@@ -288,6 +319,7 @@ defmodule PavoiWeb.CreatorsLive.Index do
       end
 
     socket
+    |> assign(:loading_creators, false)
     |> assign(:creators, creators)
     |> assign(:total, result.total)
     |> assign(:has_more, result.has_more)
@@ -297,15 +329,9 @@ defmodule PavoiWeb.CreatorsLive.Index do
   defp maybe_add_opt(opts, _key, ""), do: opts
   defp maybe_add_opt(opts, key, value), do: Keyword.put(opts, key, value)
 
-  defp parse_brand_id(""), do: nil
-  defp parse_brand_id(nil), do: nil
-  defp parse_brand_id(id) when is_binary(id), do: String.to_integer(id)
-  defp parse_brand_id(id), do: id
-
   @override_key_mapping %{
     search_query: :q,
     badge_filter: :badge,
-    brand_filter: :brand,
     sort_by: :sort,
     sort_dir: :dir,
     page: :page,
@@ -317,7 +343,6 @@ defmodule PavoiWeb.CreatorsLive.Index do
     base = %{
       q: socket.assigns.search_query,
       badge: socket.assigns.badge_filter,
-      brand: socket.assigns.brand_filter,
       sort: socket.assigns.sort_by,
       dir: socket.assigns.sort_dir,
       page: socket.assigns.page,
@@ -344,7 +369,8 @@ defmodule PavoiWeb.CreatorsLive.Index do
   defp default_value?({_k, ""}), do: true
   defp default_value?({_k, nil}), do: true
   defp default_value?({:page, 1}), do: true
-  defp default_value?({:dir, "asc"}), do: true
+  defp default_value?({:sort, "gmv"}), do: true
+  defp default_value?({:dir, "desc"}), do: true
   defp default_value?({:tab, "contact"}), do: true
   defp default_value?(_), do: false
 

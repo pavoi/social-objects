@@ -14,25 +14,13 @@
       />
     </div>
 
-    <div class="page-header__filters">
-      <form phx-change="filter_brand">
-        <select name="brand" class="input input--sm" value={@brand_filter}>
-          <option value="">All Brands</option>
-          <%= for brand <- @brands do %>
-            <option value={brand.id} selected={@brand_filter == to_string(brand.id)}>
-              {brand.name}
-            </option>
-          <% end %>
-        </select>
-      </form>
-    </div>
   </div>
 
   <%= if Enum.empty?(@creators) do %>
     <div class="empty-state">
       <.icon name="hero-users" class="empty-state__icon size-8" />
       <p class="empty-state__title">No creators found</p>
-      <%= if @search_query != "" or @badge_filter != "" or @brand_filter != "" do %>
+      <%= if @search_query != "" or @badge_filter != "" do %>
         <p class="empty-state__description">Try adjusting your search or filters</p>
       <% end %>
     </div>
@@ -41,21 +29,27 @@
       <span class="creators-count">{format_number(@total)} creators</span>
     </div>
 
-    <.creator_table
-      creators={@creators}
-      on_row_click="navigate_to_creator"
-      sort_by={@sort_by}
-      sort_dir={@sort_dir}
-      on_sort="sort_column"
-    />
+    <%!-- Infinite scroll: see index.ex for why the two-phase loading pattern is required --%>
+    <div
+      id="creators-list"
+      class="creators-scroll-container"
+      phx-viewport-bottom={@has_more && !@loading_creators && "load_more"}
+    >
+      <.creator_table
+        creators={@creators}
+        on_row_click="navigate_to_creator"
+        sort_by={@sort_by}
+        sort_dir={@sort_dir}
+        on_sort="sort_column"
+      />
 
-    <%= if @has_more do %>
-      <div class="load-more">
-        <.button variant="outline" phx-click="load_more">
-          Load More
-        </.button>
-      </div>
-    <% end %>
+      <%= if @loading_creators do %>
+        <div class="creators-loading">
+          <div class="spinner"></div>
+          <span>Loading more creators...</span>
+        </div>
+      <% end %>
+    </div>
   <% end %>
 </div>
 
