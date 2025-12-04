@@ -26,6 +26,7 @@
 @import "./04-layouts/session-index.css";
 @import "./04-layouts/session-host.css";
 @import "./04-layouts/session-producer.css";
+@import "./04-layouts/session-controller.css";
 @import "./04-layouts/creators-index.css";
 
 /* Components Layer - UI components */

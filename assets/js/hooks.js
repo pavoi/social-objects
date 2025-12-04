@@ -9,6 +9,8 @@ import ThemeToggle from "./hooks/theme_toggle"
 import MessageInput from "./hooks/message_input"
 import VoiceControl from "./hooks/voice_control"
 import VariantOverflow from "./hooks/variant_overflow"
+import ControllerHaptic from "./hooks/controller_haptic"
+import ControllerKeyboard from "./hooks/controller_keyboard"
 
 const Hooks = {
   SessionHostKeyboard,
@@ -19,7 +21,9 @@ const Hooks = {
   ThemeToggle,
   MessageInput,
   VoiceControl,
-  VariantOverflow
+  VariantOverflow,
+  ControllerHaptic,
+  ControllerKeyboard
 }
 
 export default Hooks

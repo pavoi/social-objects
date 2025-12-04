@@ -56,6 +56,7 @@ defmodule PavoiWeb.Router do
     live "/sessions", SessionsLive.Index
     live "/sessions/:id/host", SessionHostLive
     live "/sessions/:id/producer", SessionProducerLive
+    live "/sessions/:id/controller", SessionControllerLive
 
     # Creator CRM
     live "/creators", CreatorsLive.Index
