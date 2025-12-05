@@ -5,8 +5,10 @@
  * Integrates Whisper (OpenAI's speech-to-text model) with Silero VAD
  * (Voice Activity Detection) for efficient, privacy-first voice control.
  *
- * Designed for continuous 4+ hour recording sessions where numbers may be
- * spoken at any time during natural conversation.
+ * Designed for continuous 4+ hour recording sessions where the host can
+ * say "show number [N]" at any time during natural conversation to switch
+ * to product N. Uses a specific trigger phrase to avoid false positives
+ * from numbers spoken in other contexts.
  *
  * @module VoiceControl
  * @requires @ricky0123/vad-web - Voice Activity Detection library
@@ -31,9 +33,12 @@
  *    - WebGPU accelerated (2-4x faster than CPU)
  *    - Automatic CPU/WASM fallback for unsupported browsers
  *
- * 5. **Number Extraction** - Converts spoken numbers to integers
- *    - Handles words: "twenty three" → 23, "five" → 5
- *    - Handles digits: "23" → 23
+ * 5. **Command Extraction** - Detects "show number [N]" voice commands
+ *    - Trigger phrase: "show number" followed by a number
+ *    - Handles words: "show number twenty three" → 23
+ *    - Handles digits: "show number 23" → 23
+ *    - Works mid-sentence: "...talking about show number 5 and then..." → 5
+ *    - Ignores numbers without the trigger phrase (reduces false positives)
  *    - Validates range: 1 to 99 (backend validates against actual product count)
  *    - 5-second deduplication window prevents repeated jumps
  *
@@ -112,9 +117,11 @@ export default {
     this.isCollapsed = localStorage.getItem('pavoi_voice_collapsed') === 'true';
     this.microphonesLoaded = false; // Track if microphones have been enumerated
 
-    // Rolling buffer for continuous speech processing
-    this.audioBuffer = [];              // Rolling buffer of audio samples
+    // Ring buffer for continuous speech processing (avoids GC pressure)
     this.bufferMaxSamples = 80000;      // ~5 seconds at 16kHz
+    this.audioBuffer = new Float32Array(this.bufferMaxSamples);
+    this.bufferWriteIndex = 0;          // Next write position in ring buffer
+    this.bufferLength = 0;              // Current number of valid samples
     this.processInterval = null;        // Timer for periodic processing
     this.processingIntervalMs = 2500;   // Process every 2.5 seconds
     this.speechActive = false;          // Track if speech is currently detected
@@ -131,6 +138,17 @@ export default {
     this.audioContext = null;
     this.analyser = null;
     this.waveformAnimationId = null;
+
+    // Mobile reliability: error recovery
+    this.consecutiveErrors = 0;
+    this.maxConsecutiveErrors = 3;
+
+    // Mobile reliability: periodic worker restart (mitigates WebGPU memory leak)
+    this.transcriptionCount = 0;
+    this.maxTranscriptionsBeforeRestart = 500; // ~20 min at 2.5s intervals
+
+    // Mobile reliability: wake lock
+    this.wakeLock = null;
 
     // Initialize components
     this.setupWorker();
@@ -185,13 +203,30 @@ export default {
           break;
 
         case 'transcript':
+          // Reset error counter on success
+          this.consecutiveErrors = 0;
+
+          // Track transcription count for periodic worker restart
+          this.transcriptionCount++;
+          if (this.transcriptionCount >= this.maxTranscriptionsBeforeRestart) {
+            console.log('[VoiceControl] Preventive worker restart for memory management');
+            this.restartWorker();
+          }
+
           this.handleTranscript(data.text);
           this.isProcessing = false;
           break;
 
         case 'error':
+          this.consecutiveErrors++;
           console.error('[VoiceControl] Worker error:', data.message);
-          this.handleError(data.message);
+
+          if (this.consecutiveErrors >= this.maxConsecutiveErrors) {
+            console.warn('[VoiceControl] Too many consecutive errors, attempting recovery...');
+            this.restartWorker();
+          } else {
+            this.handleError(data.message);
+          }
           this.isProcessing = false;
           break;
       }
@@ -332,6 +367,69 @@ export default {
     // Handle window resize for canvas
     this.resizeHandler = () => this.setupCanvas();
     window.addEventListener('resize', this.resizeHandler);
+
+    // Mobile reliability: handle visibility changes (iOS AudioContext recovery)
+    this.visibilityHandler = () => this.handleVisibilityChange();
+    document.addEventListener('visibilitychange', this.visibilityHandler);
+  },
+
+  /**
+   * Handle page visibility changes for mobile reliability
+   * iOS Safari: AudioContext enters "interrupted" state when backgrounded
+   * Wake Lock: auto-releases when page hidden, re-acquire when visible
+   */
+  handleVisibilityChange() {
+    if (document.visibilityState === 'visible' && this.isActive) {
+      console.log('[VoiceControl] Page became visible, checking state...');
+
+      // iOS Safari: AudioContext may be "interrupted" or "suspended" after returning
+      if (this.audioContext &&
+          (this.audioContext.state === 'interrupted' || this.audioContext.state === 'suspended')) {
+        console.log('[VoiceControl] AudioContext state:', this.audioContext.state, '- attempting resume');
+        this.audioContext.resume().then(() => {
+          console.log('[VoiceControl] AudioContext resumed successfully');
+        }).catch(err => {
+          console.warn('[VoiceControl] Failed to resume AudioContext:', err);
+          // Attempt full restart as fallback
+          this.restart();
+        });
+      }
+
+      // Re-acquire wake lock (it auto-releases when page hidden)
+      if (!this.wakeLock) {
+        this.requestWakeLock();
+      }
+    }
+  },
+
+  /**
+   * Request screen wake lock to prevent device sleep during recording
+   * Supported in all major browsers since May 2024
+   */
+  async requestWakeLock() {
+    if ('wakeLock' in navigator) {
+      try {
+        this.wakeLock = await navigator.wakeLock.request('screen');
+        this.wakeLock.addEventListener('release', () => {
+          console.log('[VoiceControl] Wake lock released');
+          this.wakeLock = null;
+        });
+        console.log('[VoiceControl] Wake lock acquired');
+      } catch (err) {
+        // Can fail if battery is low, power saver mode, or tab not visible
+        console.warn('[VoiceControl] Wake lock failed:', err.message);
+      }
+    }
+  },
+
+  /**
+   * Release screen wake lock
+   */
+  releaseWakeLock() {
+    if (this.wakeLock) {
+      this.wakeLock.release();
+      this.wakeLock = null;
+    }
   },
 
   /**
@@ -517,6 +615,9 @@ export default {
       this.updateStatus('listening', 'Listening...');
       this.startWaveformAnimation();
 
+      // Request wake lock to prevent screen sleep during recording
+      await this.requestWakeLock();
+
       console.log('[VoiceControl] Voice control started successfully');
 
     } catch (error) {
@@ -539,6 +640,9 @@ export default {
     this.stopWaveformAnimation();
     this.cleanupAudioAnalysis();
 
+    // Release wake lock
+    this.releaseWakeLock();
+
     if (this.vad) {
       // Destroy VAD to fully release microphone (not just pause)
       this.vad.destroy();
@@ -551,8 +655,9 @@ export default {
     this.speechActive = false;
     this.silenceFrameCount = 0;
 
-    // Clear rolling buffer
-    this.audioBuffer = [];
+    // Reset ring buffer (just reset indices, no allocation)
+    this.bufferWriteIndex = 0;
+    this.bufferLength = 0;
 
     // Reset deduplication (allow fresh detection on restart)
     this.lastDetectedNumber = null;
@@ -574,6 +679,43 @@ export default {
     this.stop();
     await new Promise(resolve => setTimeout(resolve, 100));
     await this.start();
+  },
+
+  /**
+   * Restart the Whisper worker to reclaim GPU memory
+   * Mitigates the WebGPU memory leak in Transformers.js v3
+   * Model reloads from IndexedDB cache (~1-2s)
+   */
+  async restartWorker() {
+    console.log('[VoiceControl] Restarting worker to reclaim GPU memory...');
+
+    // Terminate old worker
+    if (this.worker) {
+      this.worker.terminate();
+      this.worker = null;
+    }
+
+    // Reset state
+    this.modelReady = false;
+    this.transcriptionCount = 0;
+    this.consecutiveErrors = 0;
+
+    // Create new worker - model will reload from IndexedDB cache (fast)
+    this.setupWorker();
+
+    // Wait for model to be ready before continuing
+    await new Promise((resolve) => {
+      const checkReady = () => {
+        if (this.modelReady) {
+          resolve();
+        } else {
+          setTimeout(checkReady, 100);
+        }
+      };
+      checkReady();
+    });
+
+    console.log('[VoiceControl] Worker restarted successfully');
   },
 
   /**
@@ -602,18 +744,16 @@ export default {
   },
 
   /**
-   * Append audio frame to rolling buffer
-   * Maintains a fixed-size buffer of the last N samples
+   * Append audio frame to ring buffer
+   * Uses fixed-size Float32Array to avoid GC pressure over long sessions
    */
   appendToBuffer(frame) {
-    // Append new samples
     for (let i = 0; i < frame.length; i++) {
-      this.audioBuffer.push(frame[i]);
-    }
-
-    // Trim to max size (keep most recent samples)
-    if (this.audioBuffer.length > this.bufferMaxSamples) {
-      this.audioBuffer = this.audioBuffer.slice(-this.bufferMaxSamples);
+      this.audioBuffer[this.bufferWriteIndex] = frame[i];
+      this.bufferWriteIndex = (this.bufferWriteIndex + 1) % this.bufferMaxSamples;
+      if (this.bufferLength < this.bufferMaxSamples) {
+        this.bufferLength++;
+      }
     }
   },
 
@@ -651,7 +791,7 @@ export default {
           this.stopPeriodicProcessing();
 
           // Process any remaining buffer one final time
-          if (this.audioBuffer.length > 8000) {
+          if (this.bufferLength > 8000) {
             this.processBufferedAudio();
           }
         }
@@ -669,7 +809,7 @@ export default {
     console.log(`[VoiceControl] Starting periodic processing every ${this.processingIntervalMs}ms`);
 
     this.processInterval = setInterval(() => {
-      if (this.audioBuffer.length < 8000) {
+      if (this.bufferLength < 8000) {
         // Skip if less than 0.5 seconds of audio
         return;
       }
@@ -692,12 +832,21 @@ export default {
    * Process the current audio buffer through Whisper
    */
   processBufferedAudio() {
-    if (this.isProcessing) {
-      console.log('[VoiceControl] Already processing, skipping buffer');
+    if (this.isProcessing || this.bufferLength < 8000) {
+      if (this.isProcessing) {
+        console.log('[VoiceControl] Already processing, skipping buffer');
+      }
       return;
     }
 
-    const audioData = new Float32Array(this.audioBuffer);
+    // Extract samples from ring buffer in correct order
+    const audioData = new Float32Array(this.bufferLength);
+    const startIndex = (this.bufferWriteIndex - this.bufferLength + this.bufferMaxSamples) % this.bufferMaxSamples;
+
+    for (let i = 0; i < this.bufferLength; i++) {
+      audioData[i] = this.audioBuffer[(startIndex + i) % this.bufferMaxSamples];
+    }
+
     console.log(`[VoiceControl] Processing buffer: ${audioData.length} samples (~${(audioData.length / 16000).toFixed(1)}s)`);
 
     this.isProcessing = true;
@@ -779,44 +928,98 @@ export default {
   },
 
   /**
-   * Extract product number from transcript
+   * Extract product number from "show number [N]" command in transcript
+   *
+   * Only triggers on the specific phrase "show number" followed by a number.
+   * This allows the command to be embedded in continuous speech without
+   * false positives from numbers spoken in other contexts.
+   *
    * Handles:
-   * - Direct numbers: "23" → 23
-   * - Word numbers: "twenty three" → 23
-   * - With prefixes: "product twelve" → 12
-   * - Mixed: "go to number five" → 5
+   * - "show number 5" → 5
+   * - "show number twenty three" → 23
+   * - "...talking about something show number 12 and then more talking..." → 12
+   * - "show number five" → 5
+   *
+   * Does NOT trigger on:
+   * - "the price is 5 dollars" (no "show number" prefix)
+   * - "I have 23 items" (no "show number" prefix)
+   * - "show me the product" (no number following)
    */
   extractNumber(text) {
     if (!text) return null;
 
-    // Clean transcript - remove common prefixes and Whisper artifacts
-    const cleaned = text.toLowerCase()
-      .trim()
-      .replace(/^[>\s]+/g, '')  // Remove leading >> or whitespace
-      .replace(/[.,!?;:]+$/g, '')  // Remove trailing punctuation
-      .replace(/^(product|number|item|go to|goto|show|display|jump to|jump)\s+/i, '')
-      .replace(/\s+/g, ' ');
+    // Normalize the text for pattern matching
+    const normalized = text.toLowerCase()
+      .replace(/[.,!?;:]+/g, ' ')  // Replace punctuation with spaces
+      .replace(/\s+/g, ' ')        // Normalize whitespace
+      .trim();
 
-    // Try direct integer parsing first
-    const directNumber = parseInt(cleaned);
-    if (!isNaN(directNumber) && directNumber > 0) {
-      return directNumber;
-    }
+    // Pattern: "show number" followed by digits or number words
+    // The (?:^|\\s) ensures we match "show" as a word boundary
+    // Looking for: "show number 5" or "show number five" or "show number twenty three"
 
-    // Try finding digits in the text
-    const digitMatch = text.match(/\d+/);
+    // First, try to find "show number" followed by digits
+    const digitPattern = /(?:^|\s)show\s+number\s+(\d+)/i;
+    const digitMatch = normalized.match(digitPattern);
     if (digitMatch) {
-      const num = parseInt(digitMatch[0]);
-      if (num > 0) return num;
+      const num = parseInt(digitMatch[1]);
+      if (num > 0) {
+        console.log(`[VoiceControl] Matched "show number ${num}" (digit)`);
+        return num;
+      }
     }
 
-    // Convert spoken numbers to digits
-    const converted = this.wordsToNumber(cleaned);
-    if (converted !== null && converted > 0) {
-      return converted;
+    // Next, try to find "show number" followed by word numbers
+    // We need to extract the text after "show number" and parse it
+    const wordPattern = /(?:^|\s)show\s+number\s+([a-z][a-z\s]*)/i;
+    const wordMatch = normalized.match(wordPattern);
+    if (wordMatch) {
+      // Extract just the number words (stop at non-number words)
+      const afterShowNumber = wordMatch[1].trim();
+      const numberWords = this.extractNumberWords(afterShowNumber);
+
+      if (numberWords) {
+        const num = this.wordsToNumber(numberWords);
+        if (num !== null && num > 0) {
+          console.log(`[VoiceControl] Matched "show number ${numberWords}" → ${num}`);
+          return num;
+        }
+      }
     }
 
     return null;
+  },
+
+  /**
+   * Extract number words from the beginning of a string
+   * Stops when encountering non-number words
+   *
+   * "twenty three and then" → "twenty three"
+   * "five more things" → "five"
+   * "hello world" → null
+   */
+  extractNumberWords(text) {
+    const numberWordSet = new Set([
+      'zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine',
+      'ten', 'eleven', 'twelve', 'thirteen', 'fourteen', 'fifteen', 'sixteen',
+      'seventeen', 'eighteen', 'nineteen',
+      'twenty', 'thirty', 'forty', 'fifty', 'sixty', 'seventy', 'eighty', 'ninety',
+      'hundred'
+    ]);
+
+    const words = text.split(/\s+/);
+    const numberWords = [];
+
+    for (const word of words) {
+      if (numberWordSet.has(word)) {
+        numberWords.push(word);
+      } else {
+        // Stop at first non-number word
+        break;
+      }
+    }
+
+    return numberWords.length > 0 ? numberWords.join(' ') : null;
   },
 
   /**
@@ -835,10 +1038,6 @@ export default {
     const tens = {
       'twenty': 20, 'thirty': 30, 'forty': 40, 'fifty': 50,
       'sixty': 60, 'seventy': 70, 'eighty': 80, 'ninety': 90
-    };
-
-    const scales = {
-      'hundred': 100
     };
 
     // Check direct match first
@@ -1120,12 +1319,18 @@ export default {
       this.worker.terminate();
     }
 
+    // Release wake lock
+    this.releaseWakeLock();
+
     // Remove event listeners
     if (this.keyboardHandler) {
       document.removeEventListener('keydown', this.keyboardHandler);
     }
     if (this.resizeHandler) {
       window.removeEventListener('resize', this.resizeHandler);
+    }
+    if (this.visibilityHandler) {
+      document.removeEventListener('visibilitychange', this.visibilityHandler);
     }
   }
 }
