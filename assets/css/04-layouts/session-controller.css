@@ -372,6 +372,7 @@
   grid-template-columns: repeat(2, 1fr);
   gap: var(--space-2);
   align-content: start;
+  align-items: start; /* CRITICAL: Don't stretch grid items vertically - breaks aspect-ratio */
 
   /* Smooth scrolling */
   -webkit-overflow-scrolling: touch;
@@ -392,10 +393,8 @@
   background: none;
   margin: 0;
 
-  /* Use flex to give children proper layout context */
-  display: flex;
-  flex-direction: column;
-  align-items: stretch;
+  /* Block display - NOT flex, to avoid align-items:stretch breaking aspect-ratio */
+  display: block;
 
   position: relative;
   background-color: var(--color-surface-primary);
@@ -420,13 +419,12 @@
   box-shadow: 0 0 0 2px var(--color-accent-blue);
 }
 
-/* Image container - guaranteed square with multiple fallbacks */
+/* Image container - guaranteed square */
 .controller-product-card__image-container {
   display: block;
   position: relative;
   width: 100%;
   aspect-ratio: 1 / 1;
-  flex-shrink: 0; /* Never compress the image area */
   background-color: var(--color-bg-tertiary);
   overflow: hidden;
 }
