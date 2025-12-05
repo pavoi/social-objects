@@ -53,6 +53,8 @@
           rows="2"
           class="controller-message-input"
           phx-change="update_message_draft"
+          phx-hook="MessageInput"
+          id="controller-message-input"
         ><%= @message_draft %></textarea>
 
         <div class="controller-message-actions">

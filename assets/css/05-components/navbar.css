@@ -7,6 +7,7 @@
   display: flex;
   align-items: center;
   gap: var(--space-6);
+  min-height: 80px;
   padding: var(--space-4) var(--space-6);
   background-color: var(--color-surface-primary);
   border-bottom: 1px solid var(--color-border-secondary);
@@ -137,6 +138,7 @@
 /* Mobile responsive */
 @media (max-width: 768px) {
   .navbar {
+    min-height: 60px;
     padding: var(--space-3) var(--space-4);
     gap: var(--space-3);
   }

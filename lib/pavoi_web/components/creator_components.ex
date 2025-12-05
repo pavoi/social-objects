@@ -673,57 +673,57 @@ defmodule PavoiWeb.CreatorComponents do
           </div>
         </div>
 
-        <div class="creator-modal-stats">
-          <div class="creator-modal-stat">
-            <span class="creator-modal-stat__label">Followers</span>
-            <span class="creator-modal-stat__value">{format_number(@creator.follower_count)}</span>
-          </div>
-          <div class="creator-modal-stat">
-            <span class="creator-modal-stat__label">GMV</span>
-            <span class="creator-modal-stat__value">{format_gmv(@creator.total_gmv_cents)}</span>
-          </div>
-          <div class="creator-modal-stat">
-            <span class="creator-modal-stat__label">Videos</span>
-            <span class="creator-modal-stat__value">{length(@creator.creator_videos)}</span>
-          </div>
-        </div>
-
-        <div class="creator-modal-tabs">
-          <button
-            type="button"
-            class={["tab", @active_tab == "contact" && "tab--active"]}
-            phx-click="change_tab"
-            phx-value-tab="contact"
-          >
-            Contact
-          </button>
-          <button
-            type="button"
-            class={["tab", @active_tab == "samples" && "tab--active"]}
-            phx-click="change_tab"
-            phx-value-tab="samples"
-          >
-            Samples ({length(@creator.creator_samples)})
-          </button>
-          <button
-            type="button"
-            class={["tab", @active_tab == "videos" && "tab--active"]}
-            phx-click="change_tab"
-            phx-value-tab="videos"
-          >
-            Videos ({length(@creator.creator_videos)})
-          </button>
-          <button
-            type="button"
-            class={["tab", @active_tab == "performance" && "tab--active"]}
-            phx-click="change_tab"
-            phx-value-tab="performance"
-          >
-            Performance ({length(@creator.performance_snapshots)})
-          </button>
-        </div>
-
         <div class="modal__body">
+          <div class="creator-modal-stats">
+            <div class="creator-modal-stat">
+              <span class="creator-modal-stat__label">Followers</span>
+              <span class="creator-modal-stat__value">{format_number(@creator.follower_count)}</span>
+            </div>
+            <div class="creator-modal-stat">
+              <span class="creator-modal-stat__label">GMV</span>
+              <span class="creator-modal-stat__value">{format_gmv(@creator.total_gmv_cents)}</span>
+            </div>
+            <div class="creator-modal-stat">
+              <span class="creator-modal-stat__label">Videos</span>
+              <span class="creator-modal-stat__value">{length(@creator.creator_videos)}</span>
+            </div>
+          </div>
+
+          <div class="creator-modal-tabs">
+            <button
+              type="button"
+              class={["tab", @active_tab == "contact" && "tab--active"]}
+              phx-click="change_tab"
+              phx-value-tab="contact"
+            >
+              Contact
+            </button>
+            <button
+              type="button"
+              class={["tab", @active_tab == "samples" && "tab--active"]}
+              phx-click="change_tab"
+              phx-value-tab="samples"
+            >
+              Samples ({length(@creator.creator_samples)})
+            </button>
+            <button
+              type="button"
+              class={["tab", @active_tab == "videos" && "tab--active"]}
+              phx-click="change_tab"
+              phx-value-tab="videos"
+            >
+              Videos ({length(@creator.creator_videos)})
+            </button>
+            <button
+              type="button"
+              class={["tab", @active_tab == "performance" && "tab--active"]}
+              phx-click="change_tab"
+              phx-value-tab="performance"
+            >
+              Performance ({length(@creator.performance_snapshots)})
+            </button>
+          </div>
+
           <div class="creator-modal-content">
             <%= case @active_tab do %>
               <% "contact" -> %>

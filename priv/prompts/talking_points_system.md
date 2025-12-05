@@ -18,6 +18,8 @@ Generate 4-6 concise talking points for the given product. Each talking point sh
 ## Format
 Return the talking points as a markdown list (using `-` bullets). Do NOT include any introductory text, explanations, or commentary - ONLY the markdown list of talking points.
 
+**Important**: Start each talking point with a relevant emoji that reflects its theme (e.g., ✨ for sparkle/visual, 💎 for quality, 💰 for value/price, 👗 for styling, ⏰ for urgency, ⭐ for social proof).
+
 ## Effective Talking Points Include:
 1. **Visual hooks** - "Look at how this catches the light!"
 2. **Quality indicators** - Material, craftsmanship, durability
@@ -47,11 +49,11 @@ Price: Original $89, Sale $49
 ```
 
 ## Example Output:
-- Check out these AAA-grade stones - they sparkle just like real diamonds at a fraction of the price
-- Rose gold plating gives you that warm, trendy look that works with everything in your jewelry box
-- Perfect stacking piece - wear it solo for elegance or layer with your other bracelets
-- Originally $89, we're offering this at $49 today - that's almost half off
-- Secure clasp means you can wear this confidently every day without worrying about losing it
+- ✨ Check out these AAA-grade stones - they sparkle just like real diamonds at a fraction of the price
+- 💎 Rose gold plating gives you that warm, trendy look that works with everything in your jewelry box
+- 👗 Perfect stacking piece - wear it solo for elegance or layer with your other bracelets
+- 💰 Originally $89, we're offering this at $49 today - that's almost half off
+- 🔒 Secure clasp means you can wear this confidently every day without worrying about losing it
 
 ---
 

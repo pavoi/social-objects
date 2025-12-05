@@ -277,7 +277,7 @@
     id="add-product-modal"
     show={true}
     on_cancel={JS.push("close_product_modal")}
-    modal_class="modal__box--wide"
+    modal_class="modal__box--product-grid"
   >
     <div class="modal__header">
       <h2 class="modal__title">Add Product to Session</h2>
@@ -426,13 +426,6 @@
         phx-submit="update_session"
         class="stack"
       >
-        <.input
-          field={@session_edit_form[:brand_id]}
-          type="select"
-          label="Brand"
-          options={Enum.map(@brands, fn b -> {b.name, b.id} end)}
-        />
-
         <.input
           field={@session_edit_form[:name]}
           type="text"

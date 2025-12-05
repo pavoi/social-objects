@@ -46,6 +46,7 @@ defmodule PavoiWeb.HostViewComponents do
   attr :total_products, :integer, required: true
   attr :show_header, :boolean, default: false
   attr :id_prefix, :string, default: "host"
+  attr :products_panel_collapsed, :boolean, default: true
 
   def host_content(assigns) do
     ~H"""
@@ -94,6 +95,13 @@ defmodule PavoiWeb.HostViewComponents do
         <%!-- Talking Points (primary content area) --%>
         <.talking_points_section talking_points_html={@talking_points_html} />
       </div>
+
+      <%!-- Products Panel (bottom, collapsible) --%>
+      <.products_panel
+        session={@session}
+        current_session_product={@current_session_product}
+        collapsed={@products_panel_collapsed}
+      />
     <% else %>
       <%= if @total_products == 0 do %>
         <.empty_session_state />
@@ -330,6 +338,70 @@ defmodule PavoiWeb.HostViewComponents do
   end
 
   @doc """
+  Collapsible products panel with horizontal scrolling product cards.
+  Displays at the bottom of the host view for quick product navigation.
+  """
+  attr :session, :map, required: true
+  attr :current_session_product, :map, default: nil
+  attr :collapsed, :boolean, default: true
+
+  def products_panel(assigns) do
+    ~H"""
+    <div class={["host-products-panel", @collapsed && "host-products-panel--collapsed"]}>
+      <div class="host-products-panel__header" phx-click="toggle_products_panel">
+        <span class="host-products-panel__title">Products</span>
+        <svg
+          class="host-products-panel__chevron"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+        >
+          <polyline points="6 9 12 15 18 9"></polyline>
+        </svg>
+      </div>
+
+      <div class="host-products-panel__body">
+        <div
+          class="host-products-panel__scroll"
+          id="host-products-scroll"
+          phx-hook="HostProductsScroll"
+          data-current-position={@current_session_product && @current_session_product.position}
+        >
+          <%= for sp <- Enum.sort_by(@session.session_products, & &1.position) do %>
+            <button
+              type="button"
+              class={[
+                "host-product-card",
+                @current_session_product && @current_session_product.id == sp.id &&
+                  "host-product-card--active"
+              ]}
+              phx-click="select_product_from_panel"
+              phx-value-position={sp.position}
+            >
+              <div class="host-product-card__image-container">
+                <span class="host-product-card__position"><%= sp.position %></span>
+                <%= if image = primary_image(sp.product) do %>
+                  <img
+                    src={public_image_url(image.thumbnail_path || image.path)}
+                    alt=""
+                    class="host-product-card__image"
+                    loading="lazy"
+                  />
+                <% else %>
+                  <div class="host-product-card__placeholder"></div>
+                <% end %>
+              </div>
+              <span class="host-product-card__name"><%= sp.featured_name || sp.product.name %></span>
+            </button>
+          <% end %>
+        </div>
+      </div>
+    </div>
+    """
+  end
+
+  @doc """
   Loading state component.
   """
   def loading_state(assigns) do
@@ -365,5 +437,14 @@ defmodule PavoiWeb.HostViewComponents do
 
   defp get_effective_prices(session_product) do
     SessionProduct.effective_prices(session_product)
+  end
+
+  defp primary_image(product) do
+    product.product_images
+    |> Enum.find(& &1.is_primary)
+    |> case do
+      nil -> List.first(product.product_images)
+      image -> image
+    end
   end
 end

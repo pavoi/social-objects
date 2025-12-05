@@ -332,7 +332,7 @@
 
 /* Modal content area */
 .creator-modal-content {
-  min-height: 200px;
+  /* Allow natural sizing - no min-height constraint */
 }
 
 /* Contact tab */
@@ -415,30 +415,35 @@
   color: var(--color-text-primary);
 }
 
-/* Compact table styling for modal - override fixed layout from main table */
+/* Table wrapper for horizontal scrolling in modal */
+.creator-modal-content {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Compact table styling for modal */
 .creator-modal-content .creator-table {
   font-size: var(--text-sm);
   table-layout: auto;
+  min-width: 100%;
 }
 
 .creator-modal-content .creator-table th,
 .creator-modal-content .creator-table td {
   padding: var(--space-2) var(--space-3);
-  width: auto;
   white-space: nowrap;
 }
 
-/* First column (Product/Video) should expand to fill available space */
+/* First column (Product/Video) should have min-width for readability */
 .creator-modal-content .creator-table th:first-child,
 .creator-modal-content .creator-table td:first-child {
-  width: 100%;
+  min-width: 200px;
   white-space: normal;
-  max-width: none;
 }
 
-/* Sample product name can wrap */
+/* Sample product name can wrap but has min-width */
 .creator-modal-content .sample-product {
-  min-width: 0;
+  min-width: 180px;
 }
 
 .creator-modal-content .sample-product span {

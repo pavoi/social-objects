@@ -4,6 +4,8 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="color-scheme" content="light dark" />
+    <meta name="theme-color" content="#FFFFFF" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#1A1A1A" media="(prefers-color-scheme: dark)" />
     <meta name="csrf-token" content={get_csrf_token()} />
     <.live_title default="Pavoi" suffix=" · Live Session Controller">
       {assigns[:page_title]}
@@ -22,6 +24,9 @@
         const theme = getTheme();
         document.documentElement.classList.add(theme);
         document.documentElement.setAttribute('data-theme', theme);
+        // Set theme-color for browser chrome (iOS Safari status bar, etc.)
+        const themeColor = theme === 'dark' ? '#1A1A1A' : '#FFFFFF';
+        document.querySelector('meta[name="theme-color"]')?.setAttribute('content', themeColor);
       })();
     </script>
     <link phx-track-static rel="stylesheet" href={~p"/assets/js/app.css"} />

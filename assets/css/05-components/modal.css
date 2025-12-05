@@ -71,6 +71,11 @@
   max-width: 900px;
 }
 
+/* Modifier for product grid modals - sized for ~5 columns of products */
+.modal__box--product-grid {
+  max-width: 820px;
+}
+
 /* Also support modal__content for consistency */
 .modal__content {
   position: relative;

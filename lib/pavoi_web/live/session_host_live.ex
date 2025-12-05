@@ -33,7 +33,8 @@ defmodule PavoiWeb.SessionHostLive do
         talking_points_html: nil,
         product_images: [],
         total_products: length(session.session_products),
-        host_message: nil
+        host_message: nil,
+        products_panel_collapsed: true
       )
 
     # Subscribe to PubSub ONLY after WebSocket connection
@@ -149,6 +150,32 @@ defmodule PavoiWeb.SessionHostLive do
     case Sessions.set_image_index(socket.assigns.session_id, index) do
       {:ok, _state} -> {:noreply, socket}
       {:error, _} -> {:noreply, socket}
+    end
+  end
+
+  @impl true
+  def handle_event("toggle_products_panel", _params, socket) do
+    {:noreply, update(socket, :products_panel_collapsed, &(!&1))}
+  end
+
+  @impl true
+  def handle_event("select_product_from_panel", %{"position" => position}, socket) do
+    position = String.to_integer(position)
+
+    case Sessions.jump_to_product(socket.assigns.session_id, position) do
+      {:ok, new_state} ->
+        socket =
+          socket
+          |> assign(:products_panel_collapsed, true)
+          |> push_patch(
+            to:
+              ~p"/sessions/#{socket.assigns.session_id}/host?sp=#{new_state.current_session_product_id}&img=0"
+          )
+
+        {:noreply, socket}
+
+      {:error, _} ->
+        {:noreply, socket}
     end
   end
 

@@ -11,6 +11,7 @@ import VoiceControl from "./hooks/voice_control"
 import VariantOverflow from "./hooks/variant_overflow"
 import ControllerHaptic from "./hooks/controller_haptic"
 import ControllerKeyboard from "./hooks/controller_keyboard"
+import HostProductsScroll from "./hooks/host_products_scroll"
 
 const Hooks = {
   SessionHostKeyboard,
@@ -23,7 +24,8 @@ const Hooks = {
   VoiceControl,
   VariantOverflow,
   ControllerHaptic,
-  ControllerKeyboard
+  ControllerKeyboard,
+  HostProductsScroll
 }
 
 export default Hooks
