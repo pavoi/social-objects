@@ -384,8 +384,7 @@
 
 .controller-product-card {
   position: relative;
-  display: flex;
-  flex-direction: column;
+  display: block;
   background-color: var(--color-surface-primary);
   border: 2px solid var(--color-border-secondary);
   border-radius: var(--radius-md);
@@ -394,10 +393,8 @@
   padding: 0;
   transition: all var(--transition-fast);
   -webkit-tap-highlight-color: transparent;
-
-  /* Touch target - card itself is the button */
-  min-height: 44px;
-  min-width: 44px;
+  width: 100%;
+  text-align: left;
 }
 
 .controller-product-card:active {
@@ -409,12 +406,19 @@
   box-shadow: 0 0 0 2px var(--color-accent-blue);
 }
 
-/* Image container - uses padding trick for reliable square aspect ratio */
+/* Image container - square via padding trick (works everywhere) */
 .controller-product-card__image-container {
+  display: block;
   position: relative;
   width: 100%;
-  padding-bottom: 100%; /* Creates 1:1 aspect ratio */
   background-color: var(--color-bg-tertiary);
+  overflow: hidden;
+}
+
+.controller-product-card__image-container::before {
+  content: "";
+  display: block;
+  padding-top: 100%; /* Creates 1:1 aspect ratio */
 }
 
 /* Position Badge */
