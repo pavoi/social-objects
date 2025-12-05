@@ -153,3 +153,82 @@
     transform: translateY(0);
   }
 }
+
+/* ==========================================================================
+   MODAL - MOBILE RESPONSIVE
+   ========================================================================== */
+
+/* Mobile screens - account for safe areas and bottom navbar */
+@media (max-width: 640px) {
+  .modal__centering {
+    padding: var(--space-3);
+    /* Account for safe areas (notch, home indicator) */
+    padding-top: max(var(--space-3), env(safe-area-inset-top));
+    /* Extra padding at bottom for navbar + safe area */
+    padding-bottom: calc(var(--space-16) + env(safe-area-inset-bottom));
+    /* Align to top on small screens for better content visibility */
+    align-items: flex-start;
+    padding-top: max(var(--space-6), env(safe-area-inset-top));
+  }
+
+  .modal__box {
+    /* Use dynamic viewport height for better iOS behavior */
+    max-height: calc(100dvh - var(--space-16) - var(--space-6) - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+    padding: var(--space-4);
+    border-radius: var(--radius-md);
+  }
+
+  .modal__header {
+    padding-bottom: var(--space-4);
+    margin-bottom: var(--space-4);
+  }
+
+  .modal__title {
+    font-size: var(--text-lg);
+    padding-right: var(--space-6);
+  }
+
+  .modal__close {
+    top: var(--space-3);
+    right: var(--space-3);
+  }
+
+  .modal__footer {
+    padding-top: var(--space-4);
+    margin-top: var(--space-4);
+  }
+
+  /* Wide modals should still respect screen width */
+  .modal__box--wide {
+    max-width: 100%;
+  }
+}
+
+/* Very small screens - even tighter spacing */
+@media (max-width: 400px) {
+  .modal__centering {
+    padding: var(--space-2);
+    padding-top: max(var(--space-4), env(safe-area-inset-top));
+    padding-bottom: calc(var(--space-14) + env(safe-area-inset-bottom));
+  }
+
+  .modal__box {
+    max-height: calc(100dvh - var(--space-14) - var(--space-4) - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+    padding: var(--space-3);
+  }
+
+  .modal__header {
+    padding-bottom: var(--space-3);
+    margin-bottom: var(--space-3);
+  }
+
+  .modal__title {
+    font-size: var(--text-base);
+  }
+
+  .modal__footer {
+    padding-top: var(--space-3);
+    margin-top: var(--space-3);
+    flex-wrap: wrap;
+  }
+}

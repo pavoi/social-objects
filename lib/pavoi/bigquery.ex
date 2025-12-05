@@ -89,7 +89,8 @@ defmodule Pavoi.BigQuery do
     private_key_pem = private_key()
 
     if is_nil(email) or is_nil(private_key_pem) do
-      {:error, "BigQuery credentials not configured. Set BIGQUERY_SERVICE_ACCOUNT_EMAIL and BIGQUERY_PRIVATE_KEY environment variables."}
+      {:error,
+       "BigQuery credentials not configured. Set BIGQUERY_SERVICE_ACCOUNT_EMAIL and BIGQUERY_PRIVATE_KEY environment variables."}
     else
       now = System.system_time(:second)
 
@@ -133,10 +134,11 @@ defmodule Pavoi.BigQuery do
   end
 
   defp exchange_jwt_for_token(jwt) do
-    body = URI.encode_query(%{
-      "grant_type" => "urn:ietf:params:oauth:grant-type:jwt-bearer",
-      "assertion" => jwt
-    })
+    body =
+      URI.encode_query(%{
+        "grant_type" => "urn:ietf:params:oauth:grant-type:jwt-bearer",
+        "assertion" => jwt
+      })
 
     case Req.post(@oauth_url,
            body: body,

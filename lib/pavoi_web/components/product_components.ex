@@ -141,7 +141,10 @@ defmodule PavoiWeb.ProductComponents do
               <% end %>
 
               <%= if @has_more do %>
-                <div id={"#{@variant_id}-more"} class="product-variants__more product-variants__more--hidden">
+                <div
+                  id={"#{@variant_id}-more"}
+                  class="product-variants__more product-variants__more--hidden"
+                >
                   <%= for variant <- @remaining_variants do %>
                     <.variant_chip variant={variant} />
                   <% end %>
@@ -261,11 +264,15 @@ defmodule PavoiWeb.ProductComponents do
     <!-- Product details -->
           <div class="stack" style="gap: var(--space-3);">
             <div style="color: var(--color-text-secondary);">
-              <strong style="font-weight: var(--font-semibold); color: var(--color-text-primary);">Original Price:</strong>
+              <strong style="font-weight: var(--font-semibold); color: var(--color-text-primary);">
+                Original Price:
+              </strong>
               ${format_price_cents(@editing_product.original_price_cents)}
               <%= if @editing_product.sale_price_cents do %>
                 <span style="margin-left: var(--space-4);">
-                  <strong style="font-weight: var(--font-semibold); color: var(--color-text-primary);">Sale Price:</strong>
+                  <strong style="font-weight: var(--font-semibold); color: var(--color-text-primary);">
+                    Sale Price:
+                  </strong>
                   ${format_price_cents(@editing_product.sale_price_cents)}
                 </span>
               <% end %>

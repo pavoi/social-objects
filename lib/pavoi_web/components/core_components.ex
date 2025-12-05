@@ -459,7 +459,9 @@ defmodule PavoiWeb.CoreComponents do
             :if={@current_page == :sessions}
             variant="primary"
             size="sm"
-            phx-click={JS.push("show_new_session_modal") |> JS.hide(to: "#navbar-menu", transition: "fade-out")}
+            phx-click={
+              JS.push("show_new_session_modal") |> JS.hide(to: "#navbar-menu", transition: "fade-out")
+            }
           >
             New Session
           </.button>
@@ -489,7 +491,9 @@ defmodule PavoiWeb.CoreComponents do
                 {if @tiktok_syncing, do: "Syncing TikTok...", else: "Sync TikTok Shop"}
               </.button>
               <div class="navbar__sync-meta">
-                Synced: {if @tiktok_last_sync_at, do: format_relative_time(@tiktok_last_sync_at), else: "Never"}
+                Synced: {if @tiktok_last_sync_at,
+                  do: format_relative_time(@tiktok_last_sync_at),
+                  else: "Never"}
               </div>
             </div>
           <% end %>
@@ -505,7 +509,9 @@ defmodule PavoiWeb.CoreComponents do
                 {if @bigquery_syncing, do: "Syncing Orders...", else: "Sync TikTok Orders"}
               </.button>
               <div class="navbar__sync-meta">
-                Synced: {if @bigquery_last_sync_at, do: format_relative_time(@bigquery_last_sync_at), else: "Never"}
+                Synced: {if @bigquery_last_sync_at,
+                  do: format_relative_time(@bigquery_last_sync_at),
+                  else: "Never"}
               </div>
             </div>
           <% end %>

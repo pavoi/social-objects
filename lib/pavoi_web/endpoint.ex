@@ -9,7 +9,8 @@ defmodule PavoiWeb.Endpoint do
     key: "_pavoi_key",
     signing_salt: "au5rncnT",
     same_site: "Lax",
-    max_age: 30 * 24 * 60 * 60  # 30 days
+    # 30 days
+    max_age: 30 * 24 * 60 * 60
   ]
 
   socket "/live", Phoenix.LiveView.Socket,

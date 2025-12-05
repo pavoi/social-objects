@@ -70,7 +70,11 @@ defmodule Pavoi.Workers.BigQueryOrderSyncWorker do
       Logger.info("Found #{MapSet.size(existing_order_ids)} existing orders in local DB")
 
       # Filter to only new orders
-      new_orders = Enum.reject(bq_orders, fn order -> MapSet.member?(existing_order_ids, order["order_id"]) end)
+      new_orders =
+        Enum.reject(bq_orders, fn order ->
+          MapSet.member?(existing_order_ids, order["order_id"])
+        end)
+
       Logger.info("Processing #{length(new_orders)} new orders")
 
       stats = process_orders(new_orders, brand.id)
@@ -128,15 +132,24 @@ defmodule Pavoi.Workers.BigQueryOrderSyncWorker do
       try do
         case process_single_order(order, brand_id) do
           {:ok, :created_creator} ->
-            %{acc | samples_created: acc.samples_created + 1, creators_created: acc.creators_created + 1}
+            %{
+              acc
+              | samples_created: acc.samples_created + 1,
+                creators_created: acc.creators_created + 1
+            }
 
           {:ok, :matched_creator} ->
-            %{acc | samples_created: acc.samples_created + 1, creators_matched: acc.creators_matched + 1}
+            %{
+              acc
+              | samples_created: acc.samples_created + 1,
+                creators_matched: acc.creators_matched + 1
+            }
 
           {:error, reason} ->
             if acc.errors < 5 do
               Logger.warning("Failed to process order #{order["order_id"]}: #{inspect(reason)}")
             end
+
             %{acc | errors: acc.errors + 1}
         end
       rescue
@@ -148,7 +161,9 @@ defmodule Pavoi.Workers.BigQueryOrderSyncWorker do
   end
 
   defp log_progress(index, total, stats) when rem(index, 100) == 0 do
-    Logger.info("Progress: #{index}/#{total} (#{stats.samples_created} samples, #{stats.creators_created} new creators, #{stats.errors} errors)")
+    Logger.info(
+      "Progress: #{index}/#{total} (#{stats.samples_created} samples, #{stats.creators_created} new creators, #{stats.errors} errors)"
+    )
   end
 
   defp log_progress(_index, _total, _stats), do: :ok
@@ -219,12 +234,16 @@ defmodule Pavoi.Workers.BigQueryOrderSyncWorker do
 
   defp build_field_updates(creator, field_pairs) do
     Enum.reduce(field_pairs, %{}, fn {field, value}, acc ->
-      if needs_update?(Map.get(creator, field)) && value, do: Map.put(acc, field, value), else: acc
+      if needs_update?(Map.get(creator, field)) && value,
+        do: Map.put(acc, field, value),
+        else: acc
     end)
   end
 
   defp maybe_add_phone_update(updates, creator, phone, true = _valid) when not is_nil(phone) do
-    if needs_update?(creator.phone), do: Map.merge(updates, %{phone: phone, phone_verified: true}), else: updates
+    if needs_update?(creator.phone),
+      do: Map.merge(updates, %{phone: phone, phone_verified: true}),
+      else: updates
   end
 
   defp maybe_add_phone_update(updates, _creator, _phone, _valid), do: updates
@@ -254,14 +273,17 @@ defmodule Pavoi.Workers.BigQueryOrderSyncWorker do
     state = if empty?(order["state"]), do: parsed_state, else: order["state"]
 
     # Build complete address_line1 from components if needed
-    final_address = cond do
-      !empty?(address_line1) && !empty?(address_line2) ->
-        "#{address_line1}, #{address_line2}"
-      !empty?(address_line1) ->
-        address_line1
-      true ->
-        nil
-    end
+    final_address =
+      cond do
+        !empty?(address_line1) && !empty?(address_line2) ->
+          "#{address_line1}, #{address_line2}"
+
+        !empty?(address_line1) ->
+          address_line1
+
+        true ->
+          nil
+      end
 
     {final_address, city, state}
   end
@@ -273,10 +295,11 @@ defmodule Pavoi.Workers.BigQueryOrderSyncWorker do
 
   defp parse_city_state_from_full_address(full_address) do
     # Split by comma, handling the case where there's no space after comma
-    parts = full_address
-    |> String.split(",")
-    |> Enum.map(&String.trim/1)
-    |> Enum.reject(&(&1 == ""))
+    parts =
+      full_address
+      |> String.split(",")
+      |> Enum.map(&String.trim/1)
+      |> Enum.reject(&(&1 == ""))
 
     case parts do
       # "United States, California, Los Angeles, Santa Monica, 1033 3rd St"
@@ -302,21 +325,22 @@ defmodule Pavoi.Workers.BigQueryOrderSyncWorker do
     # Only store phone if valid (not masked)
     phone_is_valid = normalized_phone && !String.contains?(normalized_phone, "*")
 
-    attrs = %{
-      tiktok_username: username,
-      first_name: first_name,
-      last_name: last_name,
-      phone: if(phone_is_valid, do: normalized_phone, else: nil),
-      phone_verified: phone_is_valid,
-      address_line_1: address_line1,
-      address_line_2: order["address_line2"],
-      city: city,
-      state: state,
-      zipcode: order["zipcode"],
-      country: order["country"] || "US"
-    }
-    |> Enum.reject(fn {_k, v} -> is_nil(v) end)
-    |> Map.new()
+    attrs =
+      %{
+        tiktok_username: username,
+        first_name: first_name,
+        last_name: last_name,
+        phone: if(phone_is_valid, do: normalized_phone, else: nil),
+        phone_verified: phone_is_valid,
+        address_line_1: address_line1,
+        address_line_2: order["address_line2"],
+        city: city,
+        state: state,
+        zipcode: order["zipcode"],
+        country: order["country"] || "US"
+      }
+      |> Enum.reject(fn {_k, v} -> is_nil(v) end)
+      |> Map.new()
 
     case Creators.create_creator(attrs) do
       {:ok, creator} -> {:ok, creator, :created_creator}
@@ -437,16 +461,19 @@ defmodule Pavoi.Workers.BigQueryOrderSyncWorker do
     # - No phone, OR masked phone (contains *)
     # - No first_name, OR masked first_name (contains *)
     # This will catch creators that need any contact info updated
-    creators_to_fix = Repo.all(
-      from c in Pavoi.Creators.Creator,
-      join: s in Pavoi.Creators.CreatorSample, on: s.creator_id == c.id,
-      where: not is_nil(s.tiktok_order_id) and
-        (is_nil(c.phone) or like(c.phone, "%*%") or
-         is_nil(c.first_name) or like(c.first_name, "%*%") or
-         like(c.address_line_1, "%*%")),
-      group_by: [c.id],
-      select: {c, fragment("array_agg(?)", s.tiktok_order_id)}
-    )
+    creators_to_fix =
+      Repo.all(
+        from c in Pavoi.Creators.Creator,
+          join: s in Pavoi.Creators.CreatorSample,
+          on: s.creator_id == c.id,
+          where:
+            not is_nil(s.tiktok_order_id) and
+              (is_nil(c.phone) or like(c.phone, "%*%") or
+                 is_nil(c.first_name) or like(c.first_name, "%*%") or
+                 like(c.address_line_1, "%*%")),
+          group_by: [c.id],
+          select: {c, fragment("array_agg(?)", s.tiktok_order_id)}
+      )
 
     total = length(creators_to_fix)
     Logger.info("Found #{total} creators to backfill")
@@ -468,7 +495,9 @@ defmodule Pavoi.Workers.BigQueryOrderSyncWorker do
       creators_to_fix
       |> Enum.with_index(1)
       |> Enum.reduce(%{updated: 0, skipped: 0, errors: 0}, fn {{creator, order_ids}, idx}, acc ->
-        if rem(idx, 100) == 0, do: Logger.info("Progress: #{idx}/#{total} (#{acc.updated} updated)")
+        if rem(idx, 100) == 0,
+          do: Logger.info("Progress: #{idx}/#{total} (#{acc.updated} updated)")
+
         update_creator_from_orders(acc, creator, order_ids, order_map)
       end)
 

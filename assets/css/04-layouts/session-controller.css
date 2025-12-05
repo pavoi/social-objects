@@ -590,73 +590,12 @@ body:has(.controller-container) .app-navbar {
 }
 
 /* ===========================================================================
-   MESSAGE PRESET MODAL
+   MESSAGE PRESET MODAL CONTENT
+   Uses base modal component, these are preset-specific content styles
    =========================================================================== */
 
-.preset-modal-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background-color: rgba(0, 0, 0, 0.7);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1000;
-  padding: var(--space-4);
-}
-
-.preset-modal {
-  background-color: var(--color-bg-primary);
-  border-radius: var(--radius-lg);
-  width: 100%;
-  max-width: 600px;
-  max-height: 90vh;
-  display: flex;
-  flex-direction: column;
-  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3);
-}
-
-.preset-modal__header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: var(--space-6);
-  border-bottom: 1px solid var(--color-border-primary);
-}
-
-.preset-modal__header h2 {
-  font-size: var(--text-2xl);
-  font-weight: var(--font-bold);
-  color: var(--color-text-primary);
-  margin: 0;
-}
-
-.btn-close {
-  background: none;
-  border: none;
-  font-size: var(--text-3xl);
-  color: var(--color-text-tertiary);
-  cursor: pointer;
-  padding: 0;
-  width: 32px;
-  height: 32px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: var(--radius-md);
-  transition: all var(--transition-fast);
-}
-
-.btn-close:hover {
-  background-color: var(--color-bg-hover);
-  color: var(--color-text-primary);
-}
-
-.preset-modal__content {
-  padding: var(--space-6);
-  overflow-y: auto;
+/* Content spacing within modal body */
+.preset-modal-body {
   display: flex;
   flex-direction: column;
   gap: var(--space-6);
@@ -763,40 +702,9 @@ body:has(.controller-container) .app-navbar {
   margin: 0 0 var(--space-4) 0;
 }
 
-.form-field {
-  margin-bottom: var(--space-4);
-}
-
-.form-field label {
-  display: block;
-  font-size: var(--text-sm);
-  font-weight: var(--font-medium);
-  color: var(--color-text-primary);
-  margin-bottom: var(--space-2);
-}
-
-.form-field input[type="text"],
-.form-field textarea {
-  width: 100%;
-  padding: var(--space-3) var(--space-4);
-  background-color: var(--color-surface-secondary);
-  border: 1px solid var(--color-border-primary);
-  border-radius: var(--radius-md);
-  color: var(--color-text-primary);
-  font-size: var(--text-base);
-  font-family: inherit;
-  transition: border-color var(--transition-fast);
-}
-
-.form-field input[type="text"]:focus,
-.form-field textarea:focus {
-  outline: none;
-  border-color: var(--color-border-focus);
-}
-
-.form-field textarea {
-  resize: vertical;
-  line-height: var(--leading-normal);
+/* Preset textarea doesn't need large min-height */
+.preset-create .textarea {
+  min-height: auto;
 }
 
 /* Color Selector */
@@ -866,19 +774,57 @@ body:has(.controller-container) .app-navbar {
   margin-top: var(--space-4);
 }
 
-/* btn-primary for modal - uses controller style */
-.preset-modal .btn-primary {
-  padding: var(--space-3) var(--space-6);
-  background-color: var(--color-accent-blue);
-  color: var(--color-text-inverse);
-  border: none;
-  border-radius: var(--radius-md);
-  font-size: var(--text-base);
-  font-weight: var(--font-medium);
-  cursor: pointer;
-  transition: all var(--transition-fast);
-}
+/* ==========================================================================
+   PRESET MODAL CONTENT - MOBILE RESPONSIVE
+   ========================================================================== */
 
-.preset-modal .btn-primary:hover {
-  background-color: var(--color-accent-blue-hover);
+@media (max-width: 400px) {
+  .preset-modal-body {
+    gap: var(--space-4);
+  }
+
+  /* Color selector: 2 columns on very small screens */
+  .color-selector {
+    grid-template-columns: repeat(2, 1fr);
+    gap: var(--space-2);
+  }
+
+  .color-option {
+    padding: var(--space-2);
+  }
+
+  .color-swatch {
+    width: 32px;
+    height: 32px;
+  }
+
+  .preset-create {
+    padding-top: var(--space-4);
+  }
+
+  .preset-create h3 {
+    font-size: var(--text-base);
+  }
+
+  .form-group {
+    margin-bottom: var(--space-3);
+  }
+
+  .preset-empty {
+    padding: var(--space-4);
+  }
+
+  .preset-item__select {
+    padding: var(--space-3);
+    gap: var(--space-2);
+  }
+
+  .preset-item__text {
+    font-size: var(--text-sm);
+  }
+
+  .preset-item__delete {
+    padding: 0 var(--space-3);
+    font-size: var(--text-xl);
+  }
 }

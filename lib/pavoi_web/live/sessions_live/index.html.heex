@@ -343,7 +343,11 @@
         phx-submit="save_session"
         class="stack"
       >
-        <input type="hidden" name={@session_form[:brand_id].name} value={@session_form[:brand_id].value} />
+        <input
+          type="hidden"
+          name={@session_form[:brand_id].name}
+          value={@session_form[:brand_id].value}
+        />
 
         <.input
           field={@session_form[:name]}
@@ -359,7 +363,7 @@
           placeholder="Any additional notes about this session"
         />
       </.form>
-
+      
 <!-- Product Selection Section (outside the form) -->
       <div class="product-selection-section">
         <.product_grid
