@@ -361,7 +361,8 @@
 }
 
 .controller-products__grid {
-  height: 100%;
+  flex: 1;
+  min-height: 0; /* Allow flex item to shrink below content size */
   overflow-y: auto;
   overflow-x: hidden;
   padding: var(--space-3);
@@ -383,13 +384,20 @@
    ========================================================================== */
 
 .controller-product-card {
-  /* Reset button defaults */
+  /* Reset button defaults aggressively for iOS */
   -webkit-appearance: none;
   appearance: none;
   font: inherit;
+  border: none;
+  background: none;
+  margin: 0;
+
+  /* Use flex to give children proper layout context */
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
 
   position: relative;
-  display: block;
   background-color: var(--color-surface-primary);
   border: 2px solid var(--color-border-secondary);
   border-radius: var(--radius-md);
@@ -412,12 +420,13 @@
   box-shadow: 0 0 0 2px var(--color-accent-blue);
 }
 
-/* Image container - aspect-ratio for guaranteed square */
+/* Image container - guaranteed square with multiple fallbacks */
 .controller-product-card__image-container {
   display: block;
   position: relative;
   width: 100%;
-  aspect-ratio: 1;
+  aspect-ratio: 1 / 1;
+  flex-shrink: 0; /* Never compress the image area */
   background-color: var(--color-bg-tertiary);
   overflow: hidden;
 }
