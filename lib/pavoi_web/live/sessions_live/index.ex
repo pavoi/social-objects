@@ -616,7 +616,10 @@ defmodule PavoiWeb.SessionsLive.Index do
           |> assign(:add_product_selected_ids, MapSet.new())
           |> stream(:add_product_products, [], reset: true)
           |> assign(:add_product_has_more, false)
-          |> put_flash(:warning, "Added #{added} product(s). #{skipped} already in session (skipped).")
+          |> put_flash(
+            :warning,
+            "Added #{added} product(s). #{skipped} already in session (skipped)."
+          )
 
         {:noreply, socket}
 
@@ -672,18 +675,25 @@ defmodule PavoiWeb.SessionsLive.Index do
     # Detect if input looks like product IDs (contains commas or is numeric-like)
     if looks_like_product_ids?(query) do
       # ID-based lookup mode - select all displayed products
-      socket = select_all_displayed_products(
-        socket,
-        :add_product_selected_ids,
-        :add_product_products,
-        :add_product_products_map,
-        :show_add_product_enter_hint
-      )
+      socket =
+        select_all_displayed_products(
+          socket,
+          :add_product_selected_ids,
+          :add_product_products,
+          :add_product_products_map,
+          :show_add_product_enter_hint
+        )
 
       {:noreply, socket}
     else
       # Normal text search mode - auto-select if single result
-      socket = maybe_auto_select_single_product(socket, :add_product_products_map, :add_product_selected_ids, :add_product_products)
+      socket =
+        maybe_auto_select_single_product(
+          socket,
+          :add_product_products_map,
+          :add_product_selected_ids,
+          :add_product_products
+        )
 
       {:noreply, socket}
     end
@@ -1084,18 +1094,25 @@ defmodule PavoiWeb.SessionsLive.Index do
     # Detect if input looks like product IDs (contains commas or is numeric-like)
     if looks_like_product_ids?(query) do
       # ID-based lookup mode - select all displayed products
-      socket = select_all_displayed_products(
-        socket,
-        :selected_product_ids,
-        :new_session_products,
-        :new_session_products_map,
-        :show_product_enter_hint
-      )
+      socket =
+        select_all_displayed_products(
+          socket,
+          :selected_product_ids,
+          :new_session_products,
+          :new_session_products_map,
+          :show_product_enter_hint
+        )
 
       {:noreply, socket}
     else
       # Normal text search mode - auto-select if single result
-      socket = maybe_auto_select_single_product(socket, :new_session_products_map, :selected_product_ids, :new_session_products)
+      socket =
+        maybe_auto_select_single_product(
+          socket,
+          :new_session_products_map,
+          :selected_product_ids,
+          :new_session_products
+        )
 
       {:noreply, socket}
     end
@@ -1504,7 +1521,16 @@ defmodule PavoiWeb.SessionsLive.Index do
 
   # Display products by ID without selecting them (called on input change)
   # Shows found products in the grid, preserving existing selections
-  defp display_products_by_id(socket, ids_input, brand_id, selected_ids_key, stream_key, products_map_key, total_count_key, enter_hint_key) do
+  defp display_products_by_id(
+         socket,
+         ids_input,
+         brand_id,
+         selected_ids_key,
+         stream_key,
+         products_map_key,
+         total_count_key,
+         enter_hint_key
+       ) do
     # Parse input: split by comma, newline, or whitespace
     product_ids =
       ids_input
@@ -1548,7 +1574,13 @@ defmodule PavoiWeb.SessionsLive.Index do
 
   # Select all products currently displayed in the grid (called on Enter)
   # Shows flash feedback about what was found/selected
-  defp select_all_displayed_products(socket, selected_ids_key, stream_key, products_map_key, enter_hint_key) do
+  defp select_all_displayed_products(
+         socket,
+         selected_ids_key,
+         stream_key,
+         products_map_key,
+         enter_hint_key
+       ) do
     products_map = socket.assigns[products_map_key]
 
     if map_size(products_map) == 0 do
@@ -1574,7 +1606,10 @@ defmodule PavoiWeb.SessionsLive.Index do
         end)
 
       # Count for feedback
-      newly_selected = MapSet.size(displayed_product_ids) - MapSet.size(MapSet.intersection(current_selected, displayed_product_ids))
+      newly_selected =
+        MapSet.size(displayed_product_ids) -
+          MapSet.size(MapSet.intersection(current_selected, displayed_product_ids))
+
       total_displayed = map_size(products_map)
 
       socket =
@@ -1595,8 +1630,12 @@ defmodule PavoiWeb.SessionsLive.Index do
           put_flash(socket, :info, "#{total_displayed} product(s) selected")
 
         true ->
-          put_flash(socket, :info, "#{newly_selected} new product(s) selected (#{total_displayed - newly_selected} already selected)")
-        end
+          put_flash(
+            socket,
+            :info,
+            "#{newly_selected} new product(s) selected (#{total_displayed - newly_selected} already selected)"
+          )
+      end
 
       socket
     end

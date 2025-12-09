@@ -46,7 +46,8 @@ defmodule Pavoi.Communications.Mailgun do
     url = "#{@base_url}/#{config.domain}/messages"
 
     headers = [
-      {~c"Authorization", ~c"Basic " ++ String.to_charlist(Base.encode64("api:#{config.api_key}"))},
+      {~c"Authorization",
+       ~c"Basic " ++ String.to_charlist(Base.encode64("api:#{config.api_key}"))},
       {~c"Content-Type", ~c"application/x-www-form-urlencoded"}
     ]
 

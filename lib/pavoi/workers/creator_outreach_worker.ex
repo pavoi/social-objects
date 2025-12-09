@@ -36,7 +36,9 @@ defmodule Pavoi.Workers.CreatorOutreachWorker do
   alias Pavoi.Outreach
 
   @impl Oban.Worker
-  def perform(%Oban.Job{args: %{"creator_id" => creator_id, "lark_invite_url" => lark_invite_url}}) do
+  def perform(%Oban.Job{
+        args: %{"creator_id" => creator_id, "lark_invite_url" => lark_invite_url}
+      }) do
     Logger.info("Starting outreach for creator #{creator_id}")
 
     creator = Creators.get_creator!(creator_id)

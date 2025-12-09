@@ -54,7 +54,8 @@ defmodule Pavoi.Communications.Twilio do
 
     headers = [
       {~c"Authorization",
-       ~c"Basic " ++ String.to_charlist(Base.encode64("#{config.account_sid}:#{config.auth_token}"))},
+       ~c"Basic " ++
+         String.to_charlist(Base.encode64("#{config.account_sid}:#{config.auth_token}"))},
       {~c"Content-Type", ~c"application/x-www-form-urlencoded"}
     ]
 

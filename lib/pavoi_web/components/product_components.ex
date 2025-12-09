@@ -443,7 +443,11 @@ defmodule PavoiWeb.ProductComponents do
   attr :has_more, :boolean, default: false, doc: "Whether more products are available"
   attr :on_product_click, :string, required: true, doc: "Event to trigger on product click"
   attr :on_search, :string, default: nil, doc: "Event to trigger on search"
-  attr :on_search_submit, :string, default: nil, doc: "Event to trigger on search submit (Enter key)"
+
+  attr :on_search_submit, :string,
+    default: nil,
+    doc: "Event to trigger on search submit (Enter key)"
+
   attr :on_load_more, :string, default: nil, doc: "Event to trigger on load more"
   attr :selected_ids, :any, default: MapSet.new(), doc: "Selected product IDs (for select mode)"
   attr :show_prices, :boolean, default: false, doc: "Whether to show prices"

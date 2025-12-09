@@ -70,9 +70,12 @@
       <.icon name="hero-envelope" class="empty-state__icon size-8" />
       <p class="empty-state__title">
         <%= case @tab do %>
-          <% "pending" -> %>No pending creators
-          <% "sent" -> %>No sent outreach yet
-          <% "skipped" -> %>No skipped creators
+          <% "pending" -> %>
+            No pending creators
+          <% "sent" -> %>
+            No sent outreach yet
+          <% "skipped" -> %>
+            No skipped creators
         <% end %>
       </p>
       <%= if @tab == "pending" do %>
@@ -195,7 +198,8 @@
       </div>
       <div class="modal__body">
         <p class="modal__description">
-          You're about to send welcome emails to <strong>{MapSet.size(@selected_ids)}</strong> creators.
+          You're about to send welcome emails to <strong>{MapSet.size(@selected_ids)}</strong>
+          creators.
         </p>
 
         <div class="form-group">
@@ -216,7 +220,10 @@
         <div class="modal__preview">
           <h4>Message Preview:</h4>
           <div class="preview-box">
-            <p><strong>Email:</strong> Welcome to the Pavoi Creator Community! Includes Lark invite link.</p>
+            <p>
+              <strong>Email:</strong>
+              Welcome to the Pavoi Creator Community! Includes Lark invite link.
+            </p>
             <p><strong>SMS:</strong> Only sent to creators who have opted in.</p>
           </div>
         </div>

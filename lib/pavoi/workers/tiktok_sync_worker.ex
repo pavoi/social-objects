@@ -261,7 +261,10 @@ defmodule Pavoi.Workers.TiktokSyncWorker do
         {:error, reason}
 
       other ->
-        Logger.error("Unexpected transaction result for product #{tiktok_product_id}: #{inspect(other)}")
+        Logger.error(
+          "Unexpected transaction result for product #{tiktok_product_id}: #{inspect(other)}"
+        )
+
         {:error, {:unexpected_result, other}}
     end
   rescue
@@ -370,7 +373,8 @@ defmodule Pavoi.Workers.TiktokSyncWorker do
        ) do
     cond do
       # Case 1: SKU match found AND it's the same product that has this tiktok_product_id (or no product has it yet)
-      matching_product && (is_nil(existing_tiktok_product) || existing_tiktok_product.id == matching_product.id) ->
+      matching_product &&
+          (is_nil(existing_tiktok_product) || existing_tiktok_product.id == matching_product.id) ->
         result =
           update_existing_product(matching_product, tiktok_product_id, tiktok_skus, is_matched)
 
@@ -379,7 +383,8 @@ defmodule Pavoi.Workers.TiktokSyncWorker do
       # Case 2: SKU match found but a DIFFERENT product already has this tiktok_product_id
       # This is a data conflict - the SKU-matched product and tiktok_product_id belong to different products
       # Prioritize the existing tiktok_product_id assignment to avoid breaking existing links
-      matching_product && existing_tiktok_product && existing_tiktok_product.id != matching_product.id ->
+      matching_product && existing_tiktok_product &&
+          existing_tiktok_product.id != matching_product.id ->
         Logger.warning(
           "SKU match (product #{matching_product.id}) differs from TikTok ID match (product #{existing_tiktok_product.id}) for tiktok_product_id #{tiktok_product_id}. Using existing TikTok link."
         )

@@ -197,8 +197,7 @@ defmodule Pavoi.Outreach do
       sent: Map.get(status_counts, "sent", 0),
       skipped: Map.get(status_counts, "skipped", 0),
       no_status: no_status_count,
-      total:
-        Enum.sum(Map.values(status_counts)) + no_status_count
+      total: Enum.sum(Map.values(status_counts)) + no_status_count
     }
   end
 
