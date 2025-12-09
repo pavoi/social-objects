@@ -487,9 +487,21 @@ defmodule PavoiWeb.SessionsLive.Index do
       |> Session.changeset(params)
       |> Map.put(:action, :validate)
 
-    # Check if brand_id actually changed
-    current_brand_id = get_in(socket.assigns.session_form.params, ["brand_id"])
-    new_brand_id = params["brand_id"]
+    # Check for duplicate session name
+    name = params["name"]
+    brand_id = params["brand_id"]
+    brand_id_int = if brand_id && brand_id != "", do: normalize_id(brand_id), else: nil
+
+    changeset =
+      if name && name != "" && brand_id_int && Sessions.session_name_exists?(name, brand_id_int) do
+        Ecto.Changeset.add_error(changeset, :name, "already exists for this brand")
+      else
+        changeset
+      end
+
+    # Check if brand_id actually changed (normalize to strings for comparison)
+    current_brand_id = get_in(socket.assigns.session_form.params, ["brand_id"]) |> to_string()
+    new_brand_id = params["brand_id"] |> to_string()
     brand_changed = current_brand_id != new_brand_id
 
     socket = assign(socket, :session_form, to_form(changeset))

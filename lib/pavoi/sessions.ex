@@ -140,6 +140,20 @@ defmodule Pavoi.Sessions do
   end
 
   @doc """
+  Checks if a session with the given name already exists for a brand.
+  """
+  def session_name_exists?(name, brand_id) when is_binary(name) and not is_nil(brand_id) do
+    slug = slugify(name)
+
+    Repo.exists?(
+      from s in Session,
+        where: s.brand_id == ^brand_id and s.slug == ^slug
+    )
+  end
+
+  def session_name_exists?(_, _), do: false
+
+  @doc """
   Creates a session.
   """
   def create_session(attrs \\ %{}) do
