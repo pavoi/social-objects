@@ -15,7 +15,9 @@ end
 # Feature flags (read from environment variables, applies to all environments)
 # Must be after Dotenvy loads .env in dev
 config :pavoi, :features,
-  voice_control_enabled: System.get_env("VOICE_CONTROL_ENABLED", "true") == "true"
+  voice_control_enabled: System.get_env("VOICE_CONTROL_ENABLED", "true") == "true",
+  outreach_email_enabled: System.get_env("OUTREACH_EMAIL_ENABLED", "true") == "true",
+  outreach_email_override: System.get_env("OUTREACH_EMAIL_OVERRIDE")
 
 # Shopify configuration for development (after .env is loaded)
 # Note: SHOPIFY_ACCESS_TOKEN is NOT needed here - tokens are generated dynamically

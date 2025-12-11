@@ -30,6 +30,7 @@ defmodule PavoiWeb.CreatorsLive.Index do
 
     bigquery_last_sync_at = Settings.get_bigquery_last_sync_at()
     bigquery_syncing = sync_job_active?(BigQueryOrderSyncWorker)
+    features = Application.get_env(:pavoi, :features, [])
 
     socket =
       socket
@@ -55,6 +56,8 @@ defmodule PavoiWeb.CreatorsLive.Index do
       |> assign(:outreach_stats, %{pending: 0, sent: 0, skipped: 0})
       |> assign(:sent_today, 0)
       |> assign(:lark_invite_url, "")
+      |> assign(:outreach_email_override, Keyword.get(features, :outreach_email_override))
+      |> assign(:outreach_email_enabled, Keyword.get(features, :outreach_email_enabled, true))
       |> assign(:show_send_modal, false)
       # Sync state
       |> assign(:bigquery_syncing, bigquery_syncing)

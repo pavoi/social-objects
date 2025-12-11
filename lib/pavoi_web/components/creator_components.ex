@@ -144,12 +144,12 @@ defmodule PavoiWeb.CreatorComponents do
   # format_number/1 is now imported from PavoiWeb.ViewHelpers
 
   @doc """
-  Returns the creator's display name (full name or username).
+  Returns the creator's display name (full name, or "-" if none).
   """
   def display_name(creator) do
     case Creator.full_name(creator) do
-      nil -> "@#{creator.tiktok_username}"
-      "" -> "@#{creator.tiktok_username}"
+      nil -> "-"
+      "" -> "-"
       name -> name
     end
   end
@@ -278,19 +278,22 @@ defmodule PavoiWeb.CreatorComponents do
                 </td>
               <% end %>
 
-              <td>
-                <%= if creator.tiktok_profile_url do %>
-                  <a
-                    href={creator.tiktok_profile_url}
-                    target="_blank"
-                    rel="noopener"
-                    class="link"
-                    phx-click="stop_propagation"
-                  >
+              <td class="text-secondary">
+                <%= cond do %>
+                  <% creator.tiktok_username && creator.tiktok_profile_url -> %>
+                    <a
+                      href={creator.tiktok_profile_url}
+                      target="_blank"
+                      rel="noopener"
+                      class="link"
+                      phx-click="stop_propagation"
+                    >
+                      @{creator.tiktok_username}
+                    </a>
+                  <% creator.tiktok_username -> %>
                     @{creator.tiktok_username}
-                  </a>
-                <% else %>
-                  @{creator.tiktok_username}
+                  <% true -> %>
+                    -
                 <% end %>
               </td>
               <td>{display_name(creator)}</td>
@@ -492,14 +495,18 @@ defmodule PavoiWeb.CreatorComponents do
           <%= for video <- @videos do %>
             <tr>
               <td>
-                <a
-                  href={video_tiktok_url(video, @username)}
-                  target="_blank"
-                  rel="noopener"
-                  class="link"
-                >
+                <%= if url = video_tiktok_url(video, @username) do %>
+                  <a
+                    href={url}
+                    target="_blank"
+                    rel="noopener"
+                    class="link"
+                  >
+                    {String.slice(video.tiktok_video_id || "Video", 0, 16)}...
+                  </a>
+                <% else %>
                   {String.slice(video.tiktok_video_id || "Video", 0, 16)}...
-                </a>
+                <% end %>
               </td>
               <td class="text-right">{format_gmv(video.gmv_cents)}</td>
               <td class="text-right">{video.items_sold || 0}</td>
@@ -516,7 +523,11 @@ defmodule PavoiWeb.CreatorComponents do
   end
 
   defp video_tiktok_url(video, username) do
-    video.video_url || "https://www.tiktok.com/@#{username}/video/#{video.tiktok_video_id}"
+    cond do
+      video.video_url -> video.video_url
+      username -> "https://www.tiktok.com/@#{username}/video/#{video.tiktok_video_id}"
+      true -> nil
+    end
   end
 
   @doc """
@@ -589,7 +600,13 @@ defmodule PavoiWeb.CreatorComponents do
         <div class="modal__header">
           <div class="creator-modal-header">
             <div class="creator-modal-header__title">
-              <h2 class="modal__title">@{@creator.tiktok_username}</h2>
+              <h2 class="modal__title">
+                <%= if @creator.tiktok_username do %>
+                  @{@creator.tiktok_username}
+                <% else %>
+                  {Creator.full_name(@creator) || "Creator"}
+                <% end %>
+              </h2>
               <%= if @creator.tiktok_profile_url do %>
                 <a
                   href={@creator.tiktok_profile_url}

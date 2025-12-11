@@ -157,6 +157,35 @@
         creators.
       </p>
 
+      <%= unless @outreach_email_enabled do %>
+        <div
+          style="
+            margin: 0 0 var(--space-3) 0;
+            padding: var(--space-3);
+            border: 1px solid #f97316;
+            background: #fff7ed;
+            border-radius: 8px;
+          "
+        >
+          Email sending is currently in Mailgun test mode. Messages will not deliver to recipients.
+        </div>
+      <% end %>
+
+      <%= if @outreach_email_override && @outreach_email_override != "" do %>
+        <div
+          style="
+            margin: 0 0 var(--space-3) 0;
+            padding: var(--space-3);
+            border: 1px solid #38bdf8;
+            background: #ecfeff;
+            border-radius: 8px;
+          "
+        >
+          All welcome emails will be routed to {@outreach_email_override} (original recipient is
+          still logged).
+        </div>
+      <% end %>
+
       <div style="margin-bottom: var(--space-3);">
         <label class="label">Lark Community Invite URL</label>
         <input

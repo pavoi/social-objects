@@ -101,7 +101,7 @@ defmodule Pavoi.Creators.Creator do
       :sms_consent,
       :sms_consent_at
     ])
-    |> validate_required([:tiktok_username])
+    |> validate_required([])
     |> normalize_username()
     |> validate_inclusion(:tiktok_badge_level, @badge_levels,
       message: "must be a valid badge level"

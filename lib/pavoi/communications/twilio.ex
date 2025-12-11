@@ -42,44 +42,31 @@ defmodule Pavoi.Communications.Twilio do
 
     to_phone = normalize_to_e164(creator.phone)
     message_body = Templates.welcome_sms_body(creator, lark_invite_url)
-
-    body =
-      URI.encode_query(%{
-        "To" => to_phone,
-        "From" => config.from_number,
-        "Body" => message_body
-      })
-
     url = "#{@base_url}/Accounts/#{config.account_sid}/Messages.json"
 
-    headers = [
-      {~c"Authorization",
-       ~c"Basic " ++
-         String.to_charlist(Base.encode64("#{config.account_sid}:#{config.auth_token}"))},
-      {~c"Content-Type", ~c"application/x-www-form-urlencoded"}
+    req_opts = [
+      url: url,
+      auth: {:basic, {config.account_sid, config.auth_token}},
+      finch: Pavoi.Finch,
+      form: %{"To" => to_phone, "From" => config.from_number, "Body" => message_body},
+      receive_timeout: @timeout,
+      connect_options: [timeout: @timeout]
     ]
 
-    case :httpc.request(
-           :post,
-           {String.to_charlist(url), headers, ~c"application/x-www-form-urlencoded",
-            String.to_charlist(body)},
-           [{:timeout, @timeout}, {:connect_timeout, @timeout}],
-           []
-         ) do
-      {:ok, {{_, status, _}, _headers, response_body}} when status in 200..299 ->
-        response = Jason.decode!(List.to_string(response_body))
-        message_sid = response["sid"]
+    case Req.post(req_opts) do
+      {:ok, %{status: status, body: response_body}} when status in 200..299 ->
+        message_sid = parse_message_sid(response_body)
         Logger.info("Twilio SMS sent to #{to_phone}, sid: #{message_sid}")
         {:ok, message_sid}
 
-      {:ok, {{_, status, _}, _headers, response_body}} ->
-        error = List.to_string(response_body)
+      {:ok, %{status: status, body: response_body}} ->
+        error = normalize_body(response_body)
         Logger.error("Twilio error (#{status}) for #{to_phone}: #{error}")
         {:error, "Twilio API error: #{status} - #{error}"}
 
-      {:error, reason} ->
-        Logger.error("Twilio request failed for #{to_phone}: #{inspect(reason)}")
-        {:error, "Request failed: #{inspect(reason)}"}
+      {:error, exception} ->
+        Logger.error("Twilio request failed for #{to_phone}: #{Exception.message(exception)}")
+        {:error, "Request failed: #{Exception.message(exception)}"}
     end
   end
 
@@ -135,4 +122,16 @@ defmodule Pavoi.Communications.Twilio do
         "+1#{digits}"
     end
   end
+
+  defp parse_message_sid(body) when is_binary(body) do
+    case Jason.decode(body) do
+      {:ok, %{"sid" => sid}} when is_binary(sid) -> sid
+      _ -> "unknown"
+    end
+  end
+
+  defp parse_message_sid(body), do: normalize_body(body)
+
+  defp normalize_body(body) when is_binary(body), do: body
+  defp normalize_body(body), do: inspect(body)
 end

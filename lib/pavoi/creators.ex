@@ -521,24 +521,4 @@ defmodule Pavoi.Creators do
       _ -> {full_name, nil}
     end
   end
-
-  @doc """
-  Generates a placeholder TikTok username for creators without one.
-  Uses name + random suffix to ensure uniqueness.
-  """
-  def generate_placeholder_username(first_name, last_name) do
-    base =
-      [first_name, last_name]
-      |> Enum.filter(& &1)
-      |> Enum.join("_")
-      |> String.downcase()
-      |> String.replace(~r/[^a-z0-9_]/, "")
-      |> case do
-        "" -> "unknown"
-        name -> name
-      end
-
-    suffix = :crypto.strong_rand_bytes(4) |> Base.encode16(case: :lower)
-    "#{base}_#{suffix}"
-  end
 end

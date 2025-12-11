@@ -363,6 +363,59 @@
   }
 }
 
+/* Narrow mobile: shrink header elements to fit in one row */
+@media (max-width: 640px) {
+  .creators-index .page-header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: var(--space-2);
+  }
+
+  .creators-index .page-header__left {
+    gap: var(--space-2);
+  }
+
+  .creators-index .page-header__search-wrapper {
+    flex: 1 1 100%;
+    max-width: 100%;
+    min-width: 0;
+  }
+
+  /* Keep view toggle and filter tabs on same row */
+  .creators-index .page-header__right {
+    display: contents;
+  }
+
+  .view-toggle {
+    flex-shrink: 0;
+  }
+
+  .view-toggle__btn {
+    padding: 0 var(--space-2);
+    height: 28px;
+    font-size: var(--text-xs);
+  }
+
+  .filter-tabs--inline {
+    flex-shrink: 1;
+    min-width: 0;
+  }
+
+  .filter-tab--compact {
+    padding: 0 var(--space-1-5);
+    height: 28px;
+    font-size: var(--text-xs);
+    gap: var(--space-1);
+  }
+
+  .filter-tab__badge {
+    min-width: 14px;
+    height: 14px;
+    padding: 0 3px;
+    font-size: 9px;
+  }
+}
+
 /* ============================================
    OUTREACH MODE STYLES
    ============================================ */

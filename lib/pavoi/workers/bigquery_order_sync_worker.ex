@@ -8,7 +8,7 @@ defmodule Pavoi.Workers.BigQueryOrderSyncWorker do
   Orders are matched to creators using a phone-first strategy:
   1. Match by normalized phone number (most reliable)
   2. Fall back to name matching (first + last name)
-  3. Create new creator with placeholder username if no match found
+  3. Create new creator if no match found
 
   ## Data Flow
 
@@ -327,9 +327,6 @@ defmodule Pavoi.Workers.BigQueryOrderSyncWorker do
     {first_name, last_name} = Creators.parse_name(order["recipient_name"])
     {address_line1, city, state} = parse_address_fields(order)
 
-    # Generate a placeholder username
-    username = Creators.generate_placeholder_username(first_name, last_name)
-
     # Only store phone if valid (not masked)
     phone_is_valid = normalized_phone && !String.contains?(normalized_phone, "*")
 
@@ -339,7 +336,6 @@ defmodule Pavoi.Workers.BigQueryOrderSyncWorker do
 
     attrs =
       %{
-        tiktok_username: username,
         first_name: first_name,
         last_name: last_name,
         phone: if(phone_is_valid, do: normalized_phone, else: nil),

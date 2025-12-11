@@ -12,7 +12,10 @@ config :pavoi,
   generators: [timestamp_type: :utc_datetime]
 
 # Feature flags (defaults - can be overridden via env vars in runtime.exs)
-config :pavoi, :features, voice_control_enabled: true
+config :pavoi, :features,
+  voice_control_enabled: true,
+  outreach_email_enabled: true,
+  outreach_email_override: nil
 
 # Configures the endpoint
 config :pavoi, PavoiWeb.Endpoint,
