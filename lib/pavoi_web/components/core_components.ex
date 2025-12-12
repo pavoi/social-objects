@@ -455,17 +455,7 @@ defmodule PavoiWeb.CoreComponents do
           class="navbar__menu"
           phx-click-away={JS.hide(to: "#navbar-menu", transition: "fade-out")}
         >
-          <.button
-            :if={@current_page == :sessions}
-            variant="primary"
-            size="sm"
-            phx-click={
-              JS.push("show_new_session_modal") |> JS.hide(to: "#navbar-menu", transition: "fade-out")
-            }
-          >
-            New Session
-          </.button>
-          <%= if @current_page == :products do %>
+<%= if @current_page == :products do %>
             <div class="navbar__sync-group">
               <.button
                 variant="primary"

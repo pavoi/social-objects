@@ -5,6 +5,14 @@
  * Uses shared .controller-panel styles for the panel chrome (header, body, collapse).
  */
 
+/* Voice control hint text in header */
+.voice-control-hint {
+  font-size: 12px;
+  color: var(--color-text-tertiary);
+  font-style: italic;
+  margin-right: auto;
+}
+
 /* Voice control actions in header */
 .voice-control-actions {
   display: flex;

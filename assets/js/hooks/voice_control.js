@@ -285,6 +285,7 @@ export default {
       <div class="voice-control-panel${this.isCollapsed ? ' controller-panel--collapsed' : ''}">
         <div class="controller-panel__header" id="voice-header">
           <span class="controller-panel__title">Voice Control</span>
+          <span class="voice-control-hint">Say "show number ..." to jump to a product</span>
           <div class="voice-control-actions">
             <button type="button" id="voice-toggle" class="voice-toggle-btn" disabled>
               <span class="text">Loading model...</span>

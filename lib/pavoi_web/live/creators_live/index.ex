@@ -382,14 +382,6 @@ defmodule PavoiWeb.CreatorsLive.Index do
     {:noreply, socket}
   end
 
-  defp maybe_show_dev_mailbox_flash(socket) do
-    if Application.get_env(:pavoi, :dev_routes) do
-      put_flash(socket, :info, "Email sent! View it at /dev/mailbox")
-    else
-      socket
-    end
-  end
-
   # Infinite scroll Phase 2 - see comment block above handle_event("load_more", ...)
   @impl true
   def handle_info(:load_more_creators, socket) do
@@ -399,6 +391,14 @@ defmodule PavoiWeb.CreatorsLive.Index do
       |> load_creators()
 
     {:noreply, socket}
+  end
+
+  defp maybe_show_dev_mailbox_flash(socket) do
+    if Application.get_env(:pavoi, :dev_routes) do
+      put_flash(socket, :info, "Email sent! View it at /dev/mailbox")
+    else
+      socket
+    end
   end
 
   defp sync_job_active?(worker) do
