@@ -21,7 +21,7 @@
 
 /* ==========================================================================
    TOP SECTION: Session Info + Product Image side by side
-   Takes ~40% of viewport height
+   Takes ~30% of viewport height (compact to maximize content space)
    ========================================================================== */
 
 .host-top-section {
@@ -30,25 +30,20 @@
   gap: var(--space-4);
   flex-shrink: 0;
   align-items: stretch;
-  max-height: 40vh;
+  max-height: 30vh;
 }
 
-/* Session Info Panel - left side, distinct background */
+/* Session Info Panel - left side, matches description/talking points style */
 .host-session-panel {
   display: flex;
   flex-direction: column;
   overflow: hidden;
   min-height: 0;
-  background-color: var(--color-panel-bg);
-  border: 1px solid var(--color-panel-border);
-  border-radius: var(--radius-lg);
-  padding: var(--space-3);
 }
 
 .host-session-info {
   display: flex;
   flex-direction: column;
-  gap: var(--space-2);
   height: 100%;
   overflow: hidden;
 }
@@ -56,43 +51,39 @@
 .host-session-info__header {
   display: flex;
   align-items: center;
-  gap: var(--space-3);
+  gap: var(--space-2);
   flex-wrap: wrap;
   flex-shrink: 0;
-}
-
-/* Only show border when followed by notes */
-.host-session-info__header:has(+ .host-session-info__notes) {
-  padding-bottom: var(--space-2);
-  border-bottom: 1px solid var(--color-border-secondary);
   margin-bottom: var(--space-2);
 }
 
 .host-session-info__title {
-  font-size: clamp(var(--text-xl), 2vw, 2.5rem);
+  font-size: var(--text-base);
   font-weight: var(--font-bold);
-  color: var(--color-text-primary);
+  color: var(--color-text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
 }
 
 .host-session-info__count {
   font-size: var(--text-sm);
   font-weight: var(--font-semibold);
-  color: var(--color-text-secondary);
-  background-color: var(--color-bg-tertiary);
-  padding: var(--space-1) var(--space-2);
-  border-radius: var(--radius-sm);
+  color: var(--color-text-tertiary);
   white-space: nowrap;
 }
 
 .host-session-info__notes {
-  font-size: clamp(var(--text-base), 1.6vw, 1.75rem);
-  color: var(--color-text-primary);
-  line-height: var(--leading-relaxed);
-  white-space: pre-line;
-  overflow-y: auto;
   flex: 1;
   min-height: 0;
-  max-height: 35vh;
+  background-color: var(--color-panel-bg);
+  border: 1px solid var(--color-panel-border);
+  border-radius: var(--radius-md);
+  padding: var(--space-3) var(--space-4);
+  font-size: clamp(var(--text-base), 2vh, 1.5rem);
+  line-height: var(--leading-relaxed);
+  color: var(--color-text-primary);
+  white-space: pre-line;
+  overflow-y: auto;
 }
 
 /* Image Panel - right side */
@@ -188,8 +179,8 @@
 }
 
 .host-thumbnail {
-  width: 48px;
-  height: 48px;
+  width: 56px;
+  height: 56px;
   padding: 0;
   border: 2px solid transparent;
   border-radius: var(--radius-sm);
@@ -221,13 +212,13 @@
   justify-content: center;
   flex: 1;
   color: var(--color-text-tertiary);
-  font-size: var(--text-sm);
+  font-size: var(--text-lg);
   background-color: var(--color-bg-primary);
   border-radius: var(--radius-md);
 }
 
 /* ==========================================================================
-   PRODUCT SECTION: Takes remaining ~65-70% of viewport
+   PRODUCT SECTION: Takes remaining ~70% of viewport
    ========================================================================== */
 
 .host-product-section {
@@ -325,7 +316,7 @@
   border: none;
   border-radius: var(--radius-md);
   color: white;
-  font-size: var(--text-sm);
+  font-size: var(--text-base);
   font-weight: var(--font-semibold);
   cursor: pointer;
   transition: all var(--transition-fast);
@@ -383,11 +374,11 @@
   display: inline-flex;
   align-items: center;
   gap: var(--space-1);
-  padding: var(--space-1) var(--space-2);
+  padding: var(--space-2) var(--space-3);
   background: var(--color-panel-bg);
   border: 1px solid var(--color-panel-border);
   border-radius: var(--radius-md);
-  font-size: var(--text-sm);
+  font-size: var(--text-base);
 }
 
 .host-variant-chip__title {
@@ -406,7 +397,7 @@
 .host-variant-chip__price-original {
   color: var(--color-text-tertiary);
   text-decoration: line-through;
-  font-size: var(--text-xs);
+  font-size: var(--text-sm);
 }
 
 /* ==========================================================================
@@ -414,7 +405,7 @@
    ========================================================================== */
 
 .host-section-label {
-  font-size: var(--text-xs);
+  font-size: var(--text-base);
   font-weight: var(--font-bold);
   color: var(--color-text-tertiary);
   text-transform: uppercase;
@@ -425,24 +416,31 @@
 
 /* ==========================================================================
    DESCRIPTION SECTION
-   Compact, flexible sizing
+   Flexible sizing - expands to fill available space when no talking points
    ========================================================================== */
 
 .host-description {
   display: flex;
   flex-direction: column;
-  flex-shrink: 1;
+  flex: 0 1 auto;
   min-height: 0;
-  max-height: 20vh;
+  max-height: 25vh;
+}
+
+/* When description is the only content (no talking points), expand to fill */
+.host-description:last-child {
+  flex: 1;
+  max-height: none;
 }
 
 .host-description__label {
-  font-size: var(--text-xs);
+  font-size: var(--text-base);
   font-weight: var(--font-bold);
   color: var(--color-text-tertiary);
   text-transform: uppercase;
   letter-spacing: 0.05em;
   margin-bottom: var(--space-2);
+  flex-shrink: 0;
 }
 
 .host-description__content {
@@ -451,10 +449,10 @@
   background-color: var(--color-panel-bg);
   border: 1px solid var(--color-panel-border);
   border-radius: var(--radius-md);
-  padding: var(--space-2) var(--space-3);
-  /* Font scales with viewport height - smaller on short viewports */
-  font-size: clamp(var(--text-xs), 1.5vh, 1.25rem);
-  line-height: var(--leading-normal);
+  padding: var(--space-3) var(--space-4);
+  /* Larger font for utilitarian legibility */
+  font-size: clamp(var(--text-base), 2vh, 1.5rem);
+  line-height: var(--leading-relaxed);
   color: var(--color-text-primary);
   overflow-y: auto;
 }
@@ -469,10 +467,11 @@
   flex-direction: column;
   flex: 1;
   min-height: 0;
+  overflow: hidden;
 }
 
 .host-talking-points__label {
-  font-size: var(--text-xs);
+  font-size: var(--text-base);
   font-weight: var(--font-bold);
   color: var(--color-text-tertiary);
   text-transform: uppercase;
@@ -484,9 +483,10 @@
 .host-talking-points__content {
   flex: 1;
   min-height: 0;
-  /* Font scales with viewport height */
-  font-size: clamp(var(--text-sm), 1.8vh, 1.5rem);
-  line-height: var(--leading-normal);
+  overflow-y: auto;
+  /* Larger font for utilitarian legibility */
+  font-size: clamp(var(--text-lg), 2.2vh, 1.75rem);
+  line-height: var(--leading-relaxed);
   color: var(--color-text-primary);
 }
 
@@ -498,9 +498,9 @@
   padding: 0;
   margin: 0;
   display: grid;
-  /* Auto-fit columns: min 375px, grow to fill space */
-  grid-template-columns: repeat(auto-fit, minmax(375px, 1fr));
-  gap: var(--space-2);
+  /* Auto-fit columns: min 350px, grow to fill space */
+  grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+  gap: var(--space-3);
   align-content: start;
 }
 
@@ -509,9 +509,9 @@
   background-color: var(--color-panel-bg);
   border: 1px solid var(--color-panel-border);
   border-radius: var(--radius-md);
-  padding: var(--space-2) var(--space-3);
-  /* Limit individual item height for very long text */
-  max-height: 20vh;
+  padding: var(--space-3) var(--space-4);
+  /* Allow items to grow but limit extreme heights */
+  max-height: 25vh;
   overflow: hidden;
 }
 
@@ -615,14 +615,14 @@
 }
 
 .host-empty__title {
-  font-size: var(--text-lg);
+  font-size: var(--text-xl);
   font-weight: var(--font-semibold);
   color: var(--color-text-primary);
   margin: 0;
 }
 
 .host-empty__subtitle {
-  font-size: var(--text-base);
+  font-size: var(--text-lg);
   color: var(--color-text-secondary);
   margin: 0;
 }
@@ -635,8 +635,8 @@
   .host-top-section {
     /* Keep 50/50 split even on narrow viewports */
     grid-template-columns: 1fr 1fr;
-    height: 30vh;
-    min-height: 150px;
+    max-height: 25vh;
+    min-height: 120px;
   }
 
   .host-product-header__main {
@@ -691,7 +691,7 @@
 
 .host-products-panel__title {
   flex: 1;
-  font-size: var(--text-sm);
+  font-size: var(--text-base);
   font-weight: var(--font-semibold);
   color: var(--color-text-primary);
   text-transform: uppercase;
@@ -801,15 +801,15 @@
   position: absolute;
   top: var(--space-1);
   left: var(--space-1);
-  min-width: 22px;
-  height: 22px;
+  min-width: 24px;
+  height: 24px;
   padding: 0 var(--space-1);
   display: flex;
   align-items: center;
   justify-content: center;
   background-color: rgba(0, 0, 0, 0.7);
   color: white;
-  font-size: var(--text-xs);
+  font-size: var(--text-sm);
   font-weight: var(--font-bold);
   border-radius: var(--radius-sm);
   z-index: 1;
@@ -831,7 +831,7 @@
 .host-product-card__name {
   display: block;
   padding: var(--space-1) var(--space-2);
-  font-size: var(--text-xs);
+  font-size: var(--text-sm);
   font-weight: var(--font-medium);
   color: var(--color-text-primary);
   line-height: 1.3;
@@ -845,7 +845,7 @@
   overflow: hidden;
   text-overflow: ellipsis;
 
-  min-height: calc(var(--text-xs) * 1.3 * 2 + var(--space-1) * 2);
+  min-height: calc(var(--text-sm) * 1.3 * 2 + var(--space-1) * 2);
 }
 
 /* ==========================================================================
