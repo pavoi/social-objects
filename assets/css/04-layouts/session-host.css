@@ -122,119 +122,70 @@
    IMAGE PANEL
    ========================================================================== */
 
-/* Image Panel - full width */
+/* Image Panel - full width, compact */
 .host-image-panel {
   display: flex;
   flex-direction: column;
   min-height: 0;
-  max-height: 30vh;
+  max-height: 20vh;
   overflow: hidden;
   background-color: var(--color-panel-bg);
   border: 1px solid var(--color-panel-border);
   border-radius: var(--radius-lg);
-  padding: var(--space-3);
+  padding: var(--space-2);
   flex-shrink: 0;
 }
 
 /* ==========================================================================
    IMAGES (inside image panel)
-   Horizontal layout: hero image + thumbnails side by side
+   Horizontal scrolling carousel of equal-sized thumbnails
    ========================================================================== */
 
 .host-images {
   display: flex;
-  flex-direction: row;
-  gap: var(--space-2);
   height: 100%;
   min-height: 0;
 }
 
-.host-hero-wrapper {
-  flex: 1;
-  min-height: 0;
-  min-width: 0;
+.host-thumbnail-carousel {
   display: flex;
-  align-items: center;
-  justify-content: center;
-  background-color: var(--color-bg-primary);
-  border-radius: var(--radius-md);
-  overflow: hidden;
-  border: 2px solid transparent;
-  transition: border-color var(--transition-fast);
-}
-
-.host-hero-image {
-  max-width: 100%;
-  max-height: 100%;
-  width: auto;
-  height: auto;
-  object-fit: contain;
-}
-
-/* Highlight wrapper of active hero image */
-.host-hero-wrapper:has(.host-hero-image--active) {
-  border-color: var(--color-accent-blue);
-}
-
-/* Responsive: Show only 1 hero image on narrow viewports */
-@media (max-width: 1024px) {
-  .host-hero-wrapper:not(:first-child) {
-    display: none;
-  }
-}
-
-.host-thumbnails {
-  display: flex;
-  flex-direction: column;
-  flex-wrap: nowrap;
-  gap: var(--space-1);
-  flex-shrink: 0;
-  overflow-y: auto;
-  overflow-x: hidden;
+  gap: var(--space-2);
+  overflow-x: auto;
+  overflow-y: hidden;
   scroll-behavior: smooth;
   -webkit-overflow-scrolling: touch;
+  height: 100%;
+  align-items: center;
+  padding: var(--space-1) 0;
 
   /* Thin scrollbar styling */
   scrollbar-width: thin;
   scrollbar-color: var(--color-border-primary) transparent;
 }
 
-.host-thumbnails::-webkit-scrollbar {
-  width: 4px;
+.host-thumbnail-carousel::-webkit-scrollbar {
+  height: 4px;
 }
 
-.host-thumbnails::-webkit-scrollbar-track {
+.host-thumbnail-carousel::-webkit-scrollbar-track {
   background: transparent;
 }
 
-.host-thumbnails::-webkit-scrollbar-thumb {
+.host-thumbnail-carousel::-webkit-scrollbar-thumb {
   background-color: var(--color-border-primary);
   border-radius: 2px;
 }
 
-.host-thumbnail {
-  width: 56px;
-  height: 56px;
-  padding: 0;
-  border: 2px solid transparent;
-  border-radius: var(--radius-sm);
-  background-color: var(--color-bg-tertiary);
-  cursor: pointer;
-  overflow: hidden;
-  transition: all var(--transition-fast);
+.host-carousel-thumb {
   flex-shrink: 0;
+  width: 160px;
+  height: 160px;
+  border-radius: var(--radius-md);
+  background-color: var(--color-bg-tertiary);
+  overflow: hidden;
 }
 
-.host-thumbnail:hover {
-  border-color: var(--color-border-focus);
-}
-
-.host-thumbnail--active {
-  border-color: var(--color-accent-blue);
-  box-shadow: 0 0 0 2px var(--color-accent-blue);
-}
-
-.host-thumbnail__img {
+.host-carousel-thumb__img {
   width: 100%;
   height: 100%;
   object-fit: cover;

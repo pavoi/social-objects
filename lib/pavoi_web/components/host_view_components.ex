@@ -27,25 +27,21 @@ defmodule PavoiWeb.HostViewComponents do
   - `current_session_product` - Current SessionProduct
   - `current_product` - Current Product
   - `product_images` - List of ProductImage structs
-  - `current_image_index` - Current image index (0-based)
   - `talking_points_html` - Rendered markdown HTML
   - `host_message` - Optional host message struct
   - `current_position` - Display position (1-based)
   - `total_products` - Total number of products
   - `show_header` - Whether to show session header (default: false)
-  - `id_prefix` - Prefix for image IDs (default: "host")
   """
   attr :session, :map, required: true
   attr :current_session_product, :map, default: nil
   attr :current_product, :map, default: nil
   attr :product_images, :list, default: []
-  attr :current_image_index, :integer, default: 0
   attr :talking_points_html, :any, default: nil
   attr :host_message, :map, default: nil
   attr :current_position, :integer, default: nil
   attr :total_products, :integer, required: true
   attr :show_header, :boolean, default: false
-  attr :id_prefix, :string, default: "host"
   attr :products_panel_collapsed, :boolean, default: true
   attr :session_panel_collapsed, :boolean, default: true
 
@@ -79,9 +75,7 @@ defmodule PavoiWeb.HostViewComponents do
       <div class="host-image-panel">
         <.product_image_display
           product_images={@product_images}
-          current_image_index={@current_image_index}
           current_product={@current_product}
-          id_prefix={@id_prefix}
         />
       </div>
 
@@ -182,100 +176,34 @@ defmodule PavoiWeb.HostViewComponents do
   end
 
   @doc """
-  Compact product image display with hero image and thumbnail strip.
-  Designed to take less space while remaining functional.
+  Horizontal scrolling thumbnail carousel for product images.
+  Compact display showing equal-sized thumbnails that scroll horizontally.
   """
   attr :product_images, :list, required: true
-  attr :current_image_index, :integer, required: true
   attr :current_product, :map, required: true
-  attr :id_prefix, :string, required: true
 
   def product_image_display(assigns) do
-    # Get up to 3 images to display as heroes, starting from current index
-    assigns =
-      assign(
-        assigns,
-        :hero_images,
-        get_hero_images(assigns.product_images, assigns.current_image_index)
-      )
-
     ~H"""
     <div class="host-images">
       <%= if @product_images && length(@product_images) > 0 do %>
-        <%!-- Hero Images (show 2-3 images side by side) --%>
-        <%= for {image, index} <- @hero_images do %>
-          <div class="host-hero-wrapper">
-            <img
-              id={"#{@id_prefix}-hero-img-#{index}"}
-              src={image.path}
-              alt={image.alt_text || @current_product.name}
-              class={["host-hero-image", index == @current_image_index && "host-hero-image--active"]}
-              loading="lazy"
-            />
-          </div>
-        <% end %>
-
-        <%!-- Thumbnail Strip (only show if more than 1 image) --%>
-        <%= if length(@product_images) > 1 do %>
-          <div class="host-thumbnails">
-            <%= for {image, index} <- Enum.with_index(@product_images) do %>
-              <button
-                type="button"
-                class={["host-thumbnail", @current_image_index == index && "host-thumbnail--active"]}
-                phx-click="goto_image"
-                phx-value-index={index}
-              >
-                <img
-                  src={image.thumbnail_path || image.path}
-                  alt={image.alt_text || "Image #{index + 1}"}
-                  class="host-thumbnail__img"
-                  loading="lazy"
-                />
-              </button>
-            <% end %>
-          </div>
-        <% end %>
+        <div class="host-thumbnail-carousel">
+          <%= for {image, index} <- Enum.with_index(@product_images) do %>
+            <div class="host-carousel-thumb">
+              <img
+                src={image.thumbnail_path || image.path}
+                alt={image.alt_text || "Image #{index + 1}"}
+                class="host-carousel-thumb__img"
+                loading="lazy"
+              />
+            </div>
+          <% end %>
+        </div>
       <% else %>
         <div class="host-no-images">No images</div>
       <% end %>
     </div>
     """
   end
-
-  # Get 2-3 hero images to display, starting from current index
-  defp get_hero_images(images, current_index) when is_list(images) do
-    total = length(images)
-
-    cond do
-      total == 0 ->
-        []
-
-      total == 1 ->
-        # Only 1 image, show it
-        [{Enum.at(images, 0), 0}]
-
-      total == 2 ->
-        # 2 images, show both
-        Enum.with_index(images)
-
-      true ->
-        # 3+ images, show current + next 2 (up to 3 total)
-        images
-        |> Enum.with_index()
-        |> Enum.slice(current_index, 3)
-        |> case do
-          # If we got less than 3, wrap around to start
-          result when length(result) < 3 ->
-            remaining = 3 - length(result)
-            result ++ Enum.slice(Enum.with_index(images), 0, remaining)
-
-          result ->
-            result
-        end
-    end
-  end
-
-  defp get_hero_images(_images, _current_index), do: []
 
   @doc """
   Product header with position number block, name, pricing, and variants.
