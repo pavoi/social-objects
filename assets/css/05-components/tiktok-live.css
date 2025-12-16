@@ -1,0 +1,422 @@
+/**
+ * TikTok Live Components
+ * Styles for TikTok Live stream browser UI
+ */
+
+/* =============================================================================
+   STREAM STATUS BADGES
+   ============================================================================= */
+
+.status-badge--live {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  background: rgba(239, 68, 68, 0.15);
+  color: var(--color-accent-red);
+  font-weight: var(--font-semibold);
+}
+
+.status-badge__pulse {
+  width: 8px;
+  height: 8px;
+  background: var(--color-accent-red);
+  border-radius: 50%;
+  animation: pulse-live 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse-live {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.5;
+    transform: scale(0.85);
+  }
+}
+
+.status-badge--ended {
+  background: var(--color-surface-secondary);
+  color: var(--color-text-secondary);
+}
+
+.status-badge--failed {
+  background: rgba(239, 68, 68, 0.1);
+  color: var(--color-accent-red);
+}
+
+.status-badge--unknown {
+  background: var(--color-surface-secondary);
+  color: var(--color-text-tertiary);
+}
+
+/* =============================================================================
+   STREAMS TABLE
+   ============================================================================= */
+
+.streams-table-wrapper {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.streams-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--text-sm);
+}
+
+.streams-table th,
+.streams-table td {
+  padding: var(--space-3) var(--space-4);
+  text-align: left;
+  border-bottom: 1px solid var(--color-border-secondary);
+}
+
+.streams-table th {
+  font-size: var(--text-xs);
+  font-weight: var(--font-medium);
+  color: var(--color-text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  background: var(--color-surface-secondary);
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+
+.streams-table tbody tr {
+  transition: background-color 0.15s ease;
+}
+
+.streams-table tbody tr:hover {
+  background: var(--color-surface-secondary);
+}
+
+.streams-table__title {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.streams-table__title-text {
+  font-weight: var(--font-medium);
+  color: var(--color-text-primary);
+}
+
+.streams-table__username {
+  font-size: var(--text-xs);
+  color: var(--color-text-tertiary);
+}
+
+/* =============================================================================
+   PAGE LAYOUT
+   ============================================================================= */
+
+.tiktok-live-index .page-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  margin-bottom: var(--space-4);
+}
+
+.tiktok-live-index .page-header__left {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-3);
+}
+
+.tiktok-live-index .page-title {
+  font-size: var(--text-xl);
+  font-weight: var(--font-semibold);
+  color: var(--color-text-primary);
+  margin: 0;
+}
+
+.streams-count {
+  font-size: var(--text-sm);
+  color: var(--color-text-secondary);
+}
+
+.tiktok-live-index .page-header__filters {
+  display: flex;
+  gap: var(--space-2);
+}
+
+/* Infinite scroll container */
+.streams-scroll-container {
+  max-height: calc(100vh - 200px);
+  overflow-y: auto;
+}
+
+.streams-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-3);
+  padding: var(--space-6);
+  color: var(--color-text-secondary);
+}
+
+/* =============================================================================
+   STREAM DETAIL MODAL
+   ============================================================================= */
+
+.stream-modal-header {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.stream-modal-header__title {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.stream-modal-header__status {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+/* Stats bar */
+.stream-modal-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-6);
+  padding: var(--space-4);
+  background: var(--color-surface-secondary);
+  border-radius: var(--radius-md);
+  margin-bottom: var(--space-4);
+}
+
+.stream-modal-stat {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-width: 80px;
+}
+
+.stream-modal-stat__label {
+  font-size: var(--text-xs);
+  color: var(--color-text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.stream-modal-stat__value {
+  font-size: var(--text-lg);
+  font-weight: var(--font-semibold);
+  color: var(--color-text-primary);
+}
+
+/* Tabs */
+.stream-modal-tabs {
+  display: flex;
+  gap: var(--space-1);
+  margin-bottom: var(--space-4);
+  border-bottom: 1px solid var(--color-border-secondary);
+  padding-bottom: var(--space-2);
+}
+
+/* Modal content */
+.stream-modal-content {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* =============================================================================
+   COMMENTS TAB
+   ============================================================================= */
+
+.comments-tab {
+  padding: var(--space-2) 0;
+}
+
+.comments-tab__search {
+  margin-bottom: var(--space-4);
+}
+
+.comments-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.comment-item {
+  padding: var(--space-3);
+  background: var(--color-surface-secondary);
+  border-radius: var(--radius-md);
+}
+
+.comment-item__header {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-bottom: var(--space-2);
+}
+
+.comment-item__username {
+  font-weight: var(--font-semibold);
+  color: var(--color-primary);
+  font-size: var(--text-sm);
+}
+
+.comment-item__nickname {
+  font-size: var(--text-xs);
+  color: var(--color-text-tertiary);
+}
+
+.comment-item__time {
+  font-size: var(--text-xs);
+  color: var(--color-text-tertiary);
+  margin-left: auto;
+}
+
+.comment-item__text {
+  font-size: var(--text-sm);
+  color: var(--color-text-primary);
+  line-height: 1.5;
+  word-break: break-word;
+}
+
+.comments-tab__load-more {
+  display: flex;
+  justify-content: center;
+  padding-top: var(--space-4);
+}
+
+/* =============================================================================
+   STATS TAB
+   ============================================================================= */
+
+.stats-tab {
+  padding: var(--space-2) 0;
+}
+
+.stats-chart-container {
+  position: relative;
+  height: 300px;
+  padding: var(--space-4);
+  background: var(--color-surface-secondary);
+  border-radius: var(--radius-md);
+}
+
+.stats-summary {
+  margin-top: var(--space-3);
+  text-align: center;
+}
+
+/* =============================================================================
+   RAW DATA TAB
+   ============================================================================= */
+
+.raw-data-tab {
+  padding: var(--space-2) 0;
+}
+
+.json-viewer {
+  background: var(--color-surface-secondary);
+  border-radius: var(--radius-md);
+  padding: var(--space-4);
+  overflow-x: auto;
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.json-viewer code {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--color-text-primary);
+  white-space: pre;
+}
+
+/* =============================================================================
+   RESPONSIVE
+   ============================================================================= */
+
+@media (max-width: 768px) {
+  .tiktok-live-index .page-header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .tiktok-live-index .page-header__left {
+    justify-content: space-between;
+  }
+
+  .tiktok-live-index .page-header__filters {
+    width: 100%;
+  }
+
+  .tiktok-live-index .page-header__filters select {
+    flex: 1;
+  }
+
+  .stream-modal-stats {
+    gap: var(--space-3);
+    padding: var(--space-3);
+  }
+
+  .stream-modal-stat {
+    min-width: 60px;
+  }
+
+  .stream-modal-stat__label {
+    font-size: 10px;
+  }
+
+  .stream-modal-stat__value {
+    font-size: var(--text-base);
+  }
+
+  .stream-modal-tabs {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+
+  .stream-modal-tabs::-webkit-scrollbar {
+    display: none;
+  }
+
+  .stats-chart-container {
+    height: 200px;
+  }
+
+  .comments-list {
+    max-height: 300px;
+  }
+
+  .json-viewer {
+    max-height: 300px;
+  }
+}
+
+@media (max-width: 480px) {
+  .streams-table th:nth-child(4),
+  .streams-table td:nth-child(4),
+  .streams-table th:nth-child(5),
+  .streams-table td:nth-child(5) {
+    display: none;
+  }
+
+  .stream-modal-stats {
+    gap: var(--space-2);
+    padding: var(--space-2);
+  }
+
+  .stream-modal-stat {
+    min-width: 50px;
+  }
+
+  .stream-modal-stat__value {
+    font-size: var(--text-sm);
+  }
+}

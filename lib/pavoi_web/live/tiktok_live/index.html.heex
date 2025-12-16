@@ -1,0 +1,71 @@
+<.nav_tabs current_page={@current_page} />
+
+<div class="container container--xl region tiktok-live-index">
+  <div class="page-header">
+    <div class="page-header__left">
+      <h1 class="page-title">Live Streams</h1>
+      <span class="streams-count">{format_number(@total)} streams</span>
+    </div>
+
+    <div class="page-header__filters">
+      <form phx-change="filter_status">
+        <select name="status" class="input input--sm" value={@status_filter}>
+          <option value="all" selected={@status_filter == "all"}>All Status</option>
+          <option value="capturing" selected={@status_filter == "capturing"}>Live Now</option>
+          <option value="ended" selected={@status_filter == "ended"}>Ended</option>
+          <option value="failed" selected={@status_filter == "failed"}>Failed</option>
+        </select>
+      </form>
+
+      <form phx-change="filter_date">
+        <select name="date" class="input input--sm" value={@date_filter}>
+          <option value="all" selected={@date_filter == "all"}>All Time</option>
+          <option value="today" selected={@date_filter == "today"}>Today</option>
+          <option value="week" selected={@date_filter == "week"}>Last 7 Days</option>
+          <option value="month" selected={@date_filter == "month"}>Last 30 Days</option>
+        </select>
+      </form>
+    </div>
+  </div>
+
+  <%= if Enum.empty?(@live_streams) do %>
+    <div class="empty-state">
+      <.icon name="hero-video-camera" class="empty-state__icon size-12" />
+      <p class="empty-state__title">No streams found</p>
+      <p class="empty-state__description">
+        <%= if @status_filter != "all" or @date_filter != "all" do %>
+          Try adjusting your filters
+        <% else %>
+          Live streams will appear here when captured
+        <% end %>
+      </p>
+    </div>
+  <% else %>
+    <div
+      id="streams-list"
+      class="streams-scroll-container"
+      phx-viewport-bottom={@has_more && !@loading_streams && "load_more"}
+    >
+      <.streams_table streams={@live_streams} on_row_click="navigate_to_stream" />
+
+      <%= if @loading_streams do %>
+        <div class="streams-loading">
+          <div class="spinner"></div>
+          <span>Loading more streams...</span>
+        </div>
+      <% end %>
+    </div>
+  <% end %>
+</div>
+
+<.stream_detail_modal
+  stream={@selected_stream}
+  summary={@stream_summary}
+  active_tab={@active_tab}
+  comments={@comments}
+  comments_page={@comments_page}
+  comments_has_more={@comments_has_more}
+  comment_search_query={@comment_search_query}
+  loading_comments={@loading_comments}
+  stream_stats={@stream_stats}
+/>

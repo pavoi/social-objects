@@ -296,6 +296,8 @@ defmodule Pavoi.TiktokLive do
     Enum.reduce(opts, query, fn
       {:status, status}, q -> where(q, [s], s.status == ^status)
       {:unique_id, unique_id}, q -> where(q, [s], s.unique_id == ^unique_id)
+      {:started_after, datetime}, q -> where(q, [s], s.started_at >= ^datetime)
+      {:started_before, datetime}, q -> where(q, [s], s.started_at <= ^datetime)
       {:limit, limit}, q -> limit(q, ^limit)
       {:offset, offset}, q -> offset(q, ^offset)
       _, q -> q

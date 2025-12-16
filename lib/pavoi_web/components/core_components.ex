@@ -440,6 +440,7 @@ defmodule PavoiWeb.CoreComponents do
         >
           Creators
         </.link>
+        <%!-- Live Streams nav link hidden during testing - route still accessible at /live-streams --%>
       </div>
       <div class="navbar__end">
         <button

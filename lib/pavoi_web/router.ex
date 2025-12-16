@@ -59,6 +59,9 @@ defmodule PavoiWeb.Router do
 
     # Creator CRM (includes outreach mode via ?view=outreach)
     live "/creators", CreatorsLive.Index
+
+    # TikTok Live stream data browser
+    live "/live-streams", TiktokLive.Index
   end
 
   # Other scopes may use custom stacks.

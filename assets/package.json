@@ -6,6 +6,7 @@
   "dependencies": {
     "@huggingface/transformers": "^3.2.0",
     "@ricky0123/vad-web": "^0.0.19",
+    "chart.js": "^4.5.1",
     "onnxruntime-web": "^1.20.0"
   }
 }
