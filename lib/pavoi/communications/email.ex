@@ -3,7 +3,7 @@ defmodule Pavoi.Communications.Email do
   Email composition using Swoosh for creator outreach.
 
   Uses Swoosh.Adapters.Local in development (viewable at /dev/mailbox)
-  and Swoosh.Adapters.Mailgun in production.
+  and Swoosh.Adapters.Sendgrid in production.
   """
 
   import Swoosh.Email
@@ -45,26 +45,26 @@ defmodule Pavoi.Communications.Email do
   Checks if the mailer is properly configured for production use.
 
   In development with Local adapter, always returns true.
-  In production with Mailgun adapter, checks for required env vars.
+  In production with SendGrid adapter, checks for required env vars.
   """
   def configured? do
     case Application.get_env(:pavoi, Mailer)[:adapter] do
       Swoosh.Adapters.Local -> true
-      Swoosh.Adapters.Mailgun -> mailgun_configured?()
+      Swoosh.Adapters.Sendgrid -> sendgrid_configured?()
       _ -> false
     end
   end
 
-  defp mailgun_configured? do
+  defp sendgrid_configured? do
     config = Application.get_env(:pavoi, Mailer, [])
-    config[:api_key] && config[:api_key] != "" && config[:domain] && config[:domain] != ""
+    config[:api_key] && config[:api_key] != ""
   end
 
   defp from_address do
-    from_name = non_empty_string(Application.get_env(:pavoi, :mailgun_from_name), "Pavoi")
+    from_name = non_empty_string(Application.get_env(:pavoi, :sendgrid_from_name), "Pavoi")
 
     from_email =
-      non_empty_string(Application.get_env(:pavoi, :mailgun_from_email), "noreply@pavoi.com")
+      non_empty_string(Application.get_env(:pavoi, :sendgrid_from_email), "noreply@pavoi.com")
 
     {from_name, from_email}
   end

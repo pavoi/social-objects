@@ -2,7 +2,7 @@ defmodule Pavoi.Outreach.OutreachLog do
   @moduledoc """
   Logs outreach communications sent to creators.
 
-  Tracks email and SMS messages sent via Mailgun and Twilio,
+  Tracks email and SMS messages sent via SendGrid and Twilio,
   including delivery status and any errors.
   """
   use Ecto.Schema
@@ -20,7 +20,7 @@ defmodule Pavoi.Outreach.OutreachLog do
     # Status: "sent", "failed", "bounced", "delivered"
     field :status, :string
 
-    # Provider message ID (Mailgun message ID or Twilio SID)
+    # Provider message ID (SendGrid message ID or Twilio SID)
     field :provider_id, :string
 
     # Error details if failed

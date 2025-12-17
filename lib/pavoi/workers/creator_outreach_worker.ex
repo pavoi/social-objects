@@ -5,7 +5,7 @@ defmodule Pavoi.Workers.CreatorOutreachWorker do
   ## Workflow
 
   1. Receives creator_id and lark_invite_url
-  2. Sends welcome email via Swoosh (Local in dev, Mailgun in prod)
+  2. Sends welcome email via Swoosh (Local in dev, SendGrid in prod)
   3. If creator has sms_consent=true and valid phone, sends SMS via Twilio
   4. Logs results to outreach_logs
   5. Updates creator.outreach_status to "sent"

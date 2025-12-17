@@ -32,11 +32,10 @@ if config_env() == :dev do
     bigquery_project_id: System.get_env("BIGQUERY_PROJECT_ID"),
     bigquery_service_account_email: System.get_env("BIGQUERY_SERVICE_ACCOUNT_EMAIL"),
     bigquery_private_key: System.get_env("BIGQUERY_PRIVATE_KEY"),
-    # Mailgun configuration for creator outreach emails
-    mailgun_api_key: System.get_env("MAILGUN_API_KEY"),
-    mailgun_domain: System.get_env("MAILGUN_DOMAIN"),
-    mailgun_from_email: System.get_env("MAILGUN_FROM_EMAIL"),
-    mailgun_from_name: System.get_env("MAILGUN_FROM_NAME", "Pavoi"),
+    # SendGrid configuration for creator outreach emails
+    sendgrid_api_key: System.get_env("SENDGRID_API_KEY"),
+    sendgrid_from_email: System.get_env("SENDGRID_FROM_EMAIL"),
+    sendgrid_from_name: System.get_env("SENDGRID_FROM_NAME", "Pavoi"),
     # Twilio configuration for creator outreach SMS
     twilio_account_sid: System.get_env("TWILIO_ACCOUNT_SID"),
     twilio_auth_token: System.get_env("TWILIO_AUTH_TOKEN"),
@@ -110,11 +109,10 @@ if config_env() == :prod do
     bigquery_project_id: System.get_env("BIGQUERY_PROJECT_ID"),
     bigquery_service_account_email: System.get_env("BIGQUERY_SERVICE_ACCOUNT_EMAIL"),
     bigquery_private_key: System.get_env("BIGQUERY_PRIVATE_KEY"),
-    # Mailgun configuration for creator outreach emails
-    mailgun_api_key: System.get_env("MAILGUN_API_KEY"),
-    mailgun_domain: System.get_env("MAILGUN_DOMAIN"),
-    mailgun_from_email: System.get_env("MAILGUN_FROM_EMAIL"),
-    mailgun_from_name: System.get_env("MAILGUN_FROM_NAME", "Pavoi"),
+    # SendGrid configuration for creator outreach emails
+    sendgrid_api_key: System.get_env("SENDGRID_API_KEY"),
+    sendgrid_from_email: System.get_env("SENDGRID_FROM_EMAIL"),
+    sendgrid_from_name: System.get_env("SENDGRID_FROM_NAME", "Pavoi"),
     # Twilio configuration for creator outreach SMS
     twilio_account_sid: System.get_env("TWILIO_ACCOUNT_SID"),
     twilio_auth_token: System.get_env("TWILIO_AUTH_TOKEN"),
@@ -174,9 +172,8 @@ if config_env() == :prod do
   #
   # Check `Plug.SSL` for all available options in `force_ssl`.
 
-  # Configure Swoosh Mailer with Mailgun adapter for production
+  # Configure Swoosh Mailer with SendGrid adapter for production
   config :pavoi, Pavoi.Mailer,
-    adapter: Swoosh.Adapters.Mailgun,
-    api_key: System.get_env("MAILGUN_API_KEY"),
-    domain: System.get_env("MAILGUN_DOMAIN")
+    adapter: Swoosh.Adapters.Sendgrid,
+    api_key: System.get_env("SENDGRID_API_KEY")
 end

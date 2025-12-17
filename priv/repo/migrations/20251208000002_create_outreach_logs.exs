@@ -11,7 +11,7 @@ defmodule Pavoi.Repo.Migrations.CreateOutreachLogs do
       # Status: "sent", "failed", "bounced", "delivered"
       add :status, :string, null: false
 
-      # Provider reference (Mailgun message ID or Twilio SID)
+      # Provider reference (SendGrid message ID or Twilio SID)
       add :provider_id, :string
 
       # Error details if failed

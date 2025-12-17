@@ -92,7 +92,7 @@ config :phoenix_live_view,
   # Enable helpful, but potentially expensive runtime checks
   enable_expensive_runtime_checks: true
 
-# Disable swoosh api client as it is only required for production adapters.
-config :swoosh, :api_client, false
+# Enable Swoosh API client for SendGrid (also works with Local adapter)
+config :swoosh, :api_client, Swoosh.ApiClient.Req
 
 # Shopify configuration is set in config/runtime.exs after loading .env
