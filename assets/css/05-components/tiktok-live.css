@@ -241,17 +241,17 @@
 
 .comments-list {
   display: flex;
-  flex-direction: column;
+  flex-direction: column-reverse;
   gap: var(--space-3);
   max-height: 400px;
   overflow-y: auto;
 }
 
-/* Comment entry animation */
+/* Comment entry animation - slides up from below */
 @keyframes comment-slide-in {
   from {
     opacity: 0;
-    transform: translateY(-12px);
+    transform: translateY(12px);
   }
   to {
     opacity: 1;
