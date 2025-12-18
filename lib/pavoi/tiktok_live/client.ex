@@ -123,15 +123,14 @@ defmodule Pavoi.TiktokLive.Client do
   end
 
   defp extract_live_status(html) do
-    # Check positive indicators first - "LIVE has ended" can appear as static UI text
-    # even while the stream is live, so we prioritize active stream indicators
+    # Require positive evidence of live status to avoid false positives.
+    # TikTok can return a 200 page with room_id even when not live (from previous streams).
     cond do
       String.contains?(html, "\"isLive\":true") -> {:ok, true}
       String.contains?(html, "\"liveRoomMode\":") -> {:ok, true}
       String.contains?(html, "\"status\":4") -> {:ok, true}
-      String.contains?(html, "LIVE has ended") and not String.contains?(html, "\"liveRoomMode\":") -> {:ok, false}
-      # If we got a 200 response with room data, assume live
-      true -> {:ok, true}
+      # No positive live indicators found - user is not live
+      true -> {:ok, false}
     end
   end
 

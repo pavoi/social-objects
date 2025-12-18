@@ -34,7 +34,12 @@ config :pavoi, PavoiWeb.Endpoint,
   debug_errors: true,
   secret_key_base: "cbp7vzcpMcH98t9a7NIO3LrSWzXeN5nccqZdEFe2QWydund6F2h5TvtuAdvhv1dz",
   watchers: [
-    esbuild: {Esbuild, :install_and_run, [:pavoi, ~w(--sourcemap=inline --watch)]}
+    esbuild: {Esbuild, :install_and_run, [:pavoi, ~w(--sourcemap=inline --watch)]},
+    node: [
+      "server.js",
+      cd: Path.expand("../services/tiktok-bridge", __DIR__),
+      env: %{"PORT" => "8080"}
+    ]
   ]
 
 # ## SSL Support
