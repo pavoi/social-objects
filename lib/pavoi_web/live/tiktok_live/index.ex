@@ -155,9 +155,11 @@ defmodule PavoiWeb.TiktokLive.Index do
         |> assign(:capture_loading, true)
         |> assign(:capture_error, nil)
 
+      pid = self()
+
       Task.start(fn ->
         result = TiktokLiveContext.start_capture(unique_id)
-        send(self(), {:capture_result, result})
+        send(pid, {:capture_result, result})
       end)
 
       {:noreply, socket}
