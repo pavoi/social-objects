@@ -61,7 +61,7 @@ defmodule PavoiWeb.TiktokLiveComponents do
             <th>Status</th>
             <th>Started</th>
             <th class="text-right">Duration</th>
-            <th class="text-right">Peak Viewers</th>
+            <th class="text-right">Viewers</th>
             <th class="text-right">Comments</th>
           </tr>
         </thead>
@@ -85,7 +85,13 @@ defmodule PavoiWeb.TiktokLiveComponents do
               <td class="text-right text-secondary">
                 {format_duration(stream.started_at, stream.ended_at)}
               </td>
-              <td class="text-right">{format_number(stream.viewer_count_peak)}</td>
+              <td class="text-right">
+                <%= if stream.status == :capturing do %>
+                  <span class="text-live">{format_number(stream.viewer_count_current)}</span>
+                <% else %>
+                  {format_number(stream.viewer_count_peak)}
+                <% end %>
+              </td>
               <td class="text-right">{format_number(stream.total_comments)}</td>
             </tr>
           <% end %>

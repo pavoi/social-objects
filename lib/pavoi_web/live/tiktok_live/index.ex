@@ -209,6 +209,22 @@ defmodule PavoiWeb.TiktokLive.Index do
     end
   end
 
+  @impl true
+  def handle_info({:tiktok_live_event, stream_id, %{type: :viewer_count} = event}, socket) do
+    # Update the viewer count for this stream in the list
+    updated_streams =
+      Enum.map(socket.assigns.live_streams, fn stream ->
+        if stream.id == stream_id do
+          viewer_count = event.viewer_count || 0
+          %{stream | viewer_count_current: viewer_count}
+        else
+          stream
+        end
+      end)
+
+    {:noreply, assign(socket, :live_streams, updated_streams)}
+  end
+
   # Catch-all for other global events we don't need to handle
   @impl true
   def handle_info({:tiktok_live_event, _stream_id, _event}, socket) do
@@ -219,14 +235,23 @@ defmodule PavoiWeb.TiktokLive.Index do
   # Format: {:tiktok_live_stream_event, {event_type, event_data}}
 
   @impl true
-  def handle_info({:tiktok_live_stream_event, {:comment, _comment}}, socket) do
-    # New comment for the stream we're viewing
+  def handle_info({:tiktok_live_stream_event, {:comment, comment}}, socket) do
+    # New comment for the stream we're viewing - add directly for real-time display
     if socket.assigns.selected_stream &&
          socket.assigns.active_tab == "comments" &&
          socket.assigns.comment_search_query == "" do
-      # Reload comments to get the persisted comment with all fields
-      socket = load_comments(socket)
-      {:noreply, socket}
+      # Build a comment struct to prepend to the list
+      new_comment = %{
+        id: nil,
+        tiktok_username: comment.username,
+        tiktok_nickname: comment.nickname,
+        comment_text: comment.content,
+        commented_at: comment.timestamp || DateTime.utc_now()
+      }
+
+      # Prepend to existing comments (newest first)
+      updated_comments = [new_comment | socket.assigns.comments]
+      {:noreply, assign(socket, :comments, updated_comments)}
     else
       {:noreply, socket}
     end

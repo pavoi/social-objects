@@ -17,6 +17,7 @@ defmodule Pavoi.TiktokLive.Stream do
     field :started_at, :utc_datetime
     field :ended_at, :utc_datetime
     field :status, Ecto.Enum, values: @statuses, default: :capturing
+    field :viewer_count_current, :integer, default: 0
     field :viewer_count_peak, :integer, default: 0
     field :total_likes, :integer, default: 0
     field :total_comments, :integer, default: 0
@@ -39,6 +40,7 @@ defmodule Pavoi.TiktokLive.Stream do
       :started_at,
       :ended_at,
       :status,
+      :viewer_count_current,
       :viewer_count_peak,
       :total_likes,
       :total_comments,

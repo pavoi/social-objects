@@ -21,8 +21,8 @@ defmodule Pavoi.TiktokLive.EventHandler do
   alias Pavoi.Repo
   alias Pavoi.TiktokLive.{Comment, Stream, StreamStat}
 
-  @batch_size 100
-  @batch_flush_interval_ms 5_000
+  @batch_size 50
+  @batch_flush_interval_ms 1_000
   @stats_interval_ms 30_000
 
   defmodule State do
@@ -195,10 +195,17 @@ defmodule Pavoi.TiktokLive.EventHandler do
         viewer_count_peak: peak
     }
 
-    # Update peak in database if changed
-    if peak > state.stream.viewer_count_peak do
-      update_stream_field(state.stream, :viewer_count_peak, peak)
-    end
+    # Update current and peak viewer count in database
+    updates =
+      if peak > state.stream.viewer_count_peak do
+        %{viewer_count_current: viewer_count, viewer_count_peak: peak}
+      else
+        %{viewer_count_current: viewer_count}
+      end
+
+    state.stream
+    |> Stream.changeset(updates)
+    |> Repo.update()
 
     broadcast_to_stream(state.stream_id, {:viewer_count, viewer_count})
 

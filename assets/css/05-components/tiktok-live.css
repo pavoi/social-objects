@@ -439,3 +439,12 @@
   color: var(--color-accent-red);
   font-size: var(--text-sm);
 }
+
+/* =============================================================================
+   LIVE INDICATORS
+   ============================================================================= */
+
+.text-live {
+  color: var(--color-accent-red);
+  font-weight: var(--font-semibold);
+}

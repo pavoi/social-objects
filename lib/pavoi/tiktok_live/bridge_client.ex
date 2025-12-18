@@ -31,15 +31,18 @@ defmodule Pavoi.TiktokLive.BridgeClient do
 
   require Logger
 
-  @reconnect_delay_ms 5_000
+  @reconnect_delay_ms 3_000
   @max_reconnect_attempts 10
+  @heartbeat_interval_ms 15_000
 
   defmodule State do
     @moduledoc false
     defstruct [
       :bridge_url,
       :reconnect_attempts,
-      :connected_at
+      :connected_at,
+      :heartbeat_ref,
+      :last_event_at
     ]
   end
 
@@ -175,10 +178,18 @@ defmodule Pavoi.TiktokLive.BridgeClient do
   def handle_connect(_conn, state) do
     Logger.info("Connected to TikTok Bridge WebSocket")
 
+    # Cancel any existing heartbeat timer
+    cancel_heartbeat(state.heartbeat_ref)
+
+    # Start heartbeat timer
+    heartbeat_ref = Process.send_after(self(), :heartbeat, @heartbeat_interval_ms)
+
     new_state = %{
       state
       | connected_at: DateTime.utc_now(),
-        reconnect_attempts: 0
+        reconnect_attempts: 0,
+        heartbeat_ref: heartbeat_ref,
+        last_event_at: DateTime.utc_now()
     }
 
     {:ok, new_state}
@@ -189,7 +200,7 @@ defmodule Pavoi.TiktokLive.BridgeClient do
     case Jason.decode(data) do
       {:ok, event} ->
         handle_bridge_event(event)
-        {:ok, state}
+        {:ok, %{state | last_event_at: DateTime.utc_now()}}
 
       {:error, reason} ->
         Logger.warning("Failed to parse bridge message: #{inspect(reason)}")
@@ -199,11 +210,25 @@ defmodule Pavoi.TiktokLive.BridgeClient do
 
   @impl WebSockex
   def handle_frame(_frame, state) do
+    {:ok, %{state | last_event_at: DateTime.utc_now()}}
+  end
+
+  @impl WebSockex
+  def handle_info(:heartbeat, state) do
+    # Send a ping frame to keep connection alive and detect dead connections
+    heartbeat_ref = Process.send_after(self(), :heartbeat, @heartbeat_interval_ms)
+    {:reply, {:ping, ""}, %{state | heartbeat_ref: heartbeat_ref}}
+  end
+
+  @impl WebSockex
+  def handle_info(_msg, state) do
     {:ok, state}
   end
 
   @impl WebSockex
   def handle_disconnect(disconnect_map, state) do
+    cancel_heartbeat(state.heartbeat_ref)
+
     reason = Map.get(disconnect_map, :reason)
     Logger.warning("Disconnected from TikTok Bridge: #{inspect(reason)}")
 
@@ -215,7 +240,7 @@ defmodule Pavoi.TiktokLive.BridgeClient do
       Process.sleep(@reconnect_delay_ms)
 
       {:reconnect, state.bridge_url,
-       %{state | reconnect_attempts: state.reconnect_attempts + 1}}
+       %{state | reconnect_attempts: state.reconnect_attempts + 1, heartbeat_ref: nil}}
     else
       Logger.error("Max reconnection attempts reached for TikTok Bridge")
       {:ok, state}
@@ -223,7 +248,8 @@ defmodule Pavoi.TiktokLive.BridgeClient do
   end
 
   @impl WebSockex
-  def terminate(reason, _state) do
+  def terminate(reason, state) do
+    cancel_heartbeat(state.heartbeat_ref)
     Logger.info("TikTok Bridge client terminated: #{inspect(reason)}")
     :ok
   end
@@ -382,4 +408,7 @@ defmodule Pavoi.TiktokLive.BridgeClient do
   end
 
   defp parse_timestamp(_), do: DateTime.utc_now() |> DateTime.truncate(:second)
+
+  defp cancel_heartbeat(nil), do: :ok
+  defp cancel_heartbeat(ref), do: Process.cancel_timer(ref)
 end
