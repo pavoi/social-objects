@@ -298,7 +298,10 @@ defmodule Pavoi.TiktokLive.EventHandler do
         |> Map.put(:updated_at, now)
       end)
 
-    case Repo.insert_all(Comment, comments, on_conflict: :nothing) do
+    case Repo.insert_all(Comment, comments,
+           on_conflict: :nothing,
+           conflict_target: [:stream_id, :tiktok_user_id, :commented_at]
+         ) do
       {count, _} when count > 0 ->
         Logger.debug("Inserted #{count} comments for stream #{state.stream_id}")
 

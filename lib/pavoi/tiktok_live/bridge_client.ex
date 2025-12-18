@@ -385,18 +385,11 @@ defmodule Pavoi.TiktokLive.BridgeClient do
   end
 
   defp broadcast_event(unique_id, event) do
-    # Broadcast to the generic events topic (for EventHandler)
+    # Broadcast to the bridge events topic for workers to translate and forward
     Phoenix.PubSub.broadcast(
       Pavoi.PubSub,
       "tiktok_live:bridge:events",
       {:tiktok_bridge_event, unique_id, event}
-    )
-
-    # Also broadcast to stream-specific topic
-    Phoenix.PubSub.broadcast(
-      Pavoi.PubSub,
-      "tiktok_live:stream:#{unique_id}",
-      {:tiktok_live_stream_event, event}
     )
   end
 
