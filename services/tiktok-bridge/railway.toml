@@ -1,3 +1,6 @@
+# TikTok Bridge Railway Configuration
+# Deploy with: ./deploy.sh (or: railway up --path-as-root .)
+
 [build]
 dockerfilePath = "Dockerfile"
 

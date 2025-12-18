@@ -82,37 +82,44 @@ curl -X POST http://localhost:8080/disconnect \
 
 ## Railway Deployment
 
-### 1. Add as a new service in Railway
+### Quick Deploy (CLI)
 
-1. Go to your Railway project
-2. Click "New Service" → "GitHub Repo"
-3. Select your repo and set:
-   - **Root Directory**: `services/tiktok-bridge`
-   - **Start Command**: `node server.js`
+From this directory (`services/tiktok-bridge`):
 
-Or use the Dockerfile:
-   - **Builder**: Dockerfile
-   - **Dockerfile Path**: `services/tiktok-bridge/Dockerfile`
+```bash
+./deploy.sh
+```
 
-### 2. Configure environment variables
+Or manually:
+
+```bash
+railway link -p pavoi -s tiktok-bridge
+railway up --path-as-root .
+```
+
+The `--path-as-root` flag is required because this is a subdirectory of the main repo.
+
+### First-Time Setup
+
+1. Create a new service in Railway named `tiktok-bridge`
+2. No configuration needed - the `railway.toml` handles build settings
+3. Add to the main Elixir app's environment variables:
+   ```
+   TIKTOK_BRIDGE_URL=http://tiktok-bridge.railway.internal:8080
+   ```
+
+### Environment Variables
 
 | Variable | Value | Description |
 |----------|-------|-------------|
 | `PORT` | `8080` | Server port (Railway sets this automatically) |
 | `HOST` | `0.0.0.0` | Bind address |
 
-### 3. Set up internal networking
+### Internal Networking
 
-Railway automatically provides internal URLs for services. Your bridge will be accessible at:
+Railway automatically provides internal URLs. The bridge is accessible at:
 ```
 http://tiktok-bridge.railway.internal:8080
-```
-
-### 4. Update Elixir app configuration
-
-Add to your Elixir app's environment variables in Railway:
-```
-TIKTOK_BRIDGE_URL=http://tiktok-bridge.railway.internal:8080
 ```
 
 ## Resource Requirements
