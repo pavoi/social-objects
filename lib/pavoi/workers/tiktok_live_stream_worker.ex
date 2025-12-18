@@ -80,6 +80,11 @@ defmodule Pavoi.Workers.TiktokLiveStreamWorker do
         Logger.info("Connected to TikTok stream @#{unique_id} via bridge")
         monitor_capture(stream_id, unique_id, event_handler_pid)
 
+      {:error, "Already connected to this stream"} ->
+        # Bridge already has an active connection - this is fine, proceed to monitor
+        Logger.info("Bridge already connected to @#{unique_id}, proceeding to monitor")
+        monitor_capture(stream_id, unique_id, event_handler_pid)
+
       {:error, reason} ->
         Logger.error("Failed to connect to stream via bridge: #{inspect(reason)}")
         stop_event_handler(event_handler_pid)
