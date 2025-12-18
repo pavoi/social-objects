@@ -68,8 +68,19 @@ defmodule Pavoi.TiktokLive.BridgeClient do
         reconnect_attempts: 0
       }
 
-      ws_opts = [name: name, handle_initial_conn_failure: true]
-      WebSockex.start_link(bridge_url, __MODULE__, state, ws_opts)
+      # Start with async connection to avoid blocking supervisor
+      # handle_initial_conn_failure allows the process to start even if connection fails
+      ws_opts = [name: name, handle_initial_conn_failure: true, async: true]
+
+      case WebSockex.start_link(bridge_url, __MODULE__, state, ws_opts) do
+        {:ok, pid} ->
+          {:ok, pid}
+
+        {:error, reason} ->
+          Logger.warning("TikTok Bridge connection failed: #{inspect(reason)}, will retry")
+          # Return :ignore to not crash the supervisor - bridge is optional
+          :ignore
+      end
     end
   end
 
