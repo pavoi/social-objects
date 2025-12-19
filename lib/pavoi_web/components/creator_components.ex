@@ -873,7 +873,15 @@ defmodule PavoiWeb.CreatorComponents do
                 title={if @all_selected, do: "Deselect All", else: "Select All"}
               />
             </th>
-            <%!-- 2. Username --%>
+            <%!-- 2. Status --%>
+            <.sort_header
+              label="Status"
+              field="status"
+              current={@sort_by}
+              dir={@sort_dir}
+              on_sort={@on_sort}
+            />
+            <%!-- 3. Username --%>
             <.sort_header
               label="Username"
               field="username"
@@ -951,15 +959,7 @@ defmodule PavoiWeb.CreatorComponents do
               dir={@sort_dir}
               on_sort={@on_sort}
             />
-            <%!-- 12. Status --%>
-            <.sort_header
-              label="Status"
-              field="status"
-              current={@sort_by}
-              dir={@sort_dir}
-              on_sort={@on_sort}
-            />
-            <%!-- 13. Added --%>
+            <%!-- 12. Added --%>
             <.sort_header
               label="Added"
               field="added"
@@ -988,7 +988,11 @@ defmodule PavoiWeb.CreatorComponents do
                   phx-value-id={creator.id}
                 />
               </td>
-              <%!-- 2. Username --%>
+              <%!-- 2. Status --%>
+              <td class="text-center">
+                <.engagement_status_badge creator={creator} />
+              </td>
+              <%!-- 3. Username --%>
               <td class="text-secondary">
                 <%= cond do %>
                   <% creator.tiktok_username && creator.tiktok_profile_url -> %>
@@ -1033,11 +1037,7 @@ defmodule PavoiWeb.CreatorComponents do
                   <span class="badge badge--muted">No</span>
                 <% end %>
               </td>
-              <%!-- 12. Status --%>
-              <td class="text-center">
-                <.engagement_status_badge creator={creator} />
-              </td>
-              <%!-- 13. Added --%>
+              <%!-- 12. Added --%>
               <td class="text-secondary text-xs">
                 {format_relative_time(creator.inserted_at)}
               </td>
