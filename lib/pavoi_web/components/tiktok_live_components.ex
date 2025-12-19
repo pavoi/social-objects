@@ -54,15 +54,15 @@ defmodule PavoiWeb.TiktokLiveComponents do
   def streams_table(assigns) do
     ~H"""
     <div class="streams-table-wrapper">
-      <table class="streams-table">
+      <table id="streams-table" class="streams-table" phx-hook="ColumnResize" data-table-id="streams">
         <thead>
           <tr>
-            <th>Title</th>
-            <th>Status</th>
-            <th>Started</th>
-            <th class="text-right">Duration</th>
-            <th class="text-right">Viewers</th>
-            <th class="text-right">Comments</th>
+            <th data-column-id="title">Title</th>
+            <th data-column-id="status">Status</th>
+            <th data-column-id="started">Started</th>
+            <th data-column-id="duration">Duration</th>
+            <th data-column-id="viewers">Viewers</th>
+            <th data-column-id="comments">Comments</th>
           </tr>
         </thead>
         <tbody>
@@ -72,9 +72,11 @@ defmodule PavoiWeb.TiktokLiveComponents do
               phx-value-id={stream.id}
               class={[@on_row_click && "cursor-pointer hover:bg-hover"]}
             >
-              <td class="streams-table__title">
-                <span class="streams-table__title-text">{format_stream_title(stream)}</span>
-                <span class="streams-table__username">@{stream.unique_id}</span>
+              <td>
+                <div class="streams-table__title">
+                  <span class="streams-table__title-text">{format_stream_title(stream)}</span>
+                  <span class="streams-table__username">@{stream.unique_id}</span>
+                </div>
               </td>
               <td>
                 <.stream_status_badge status={stream.status} />
@@ -108,10 +110,8 @@ defmodule PavoiWeb.TiktokLiveComponents do
   attr :summary, :map, default: nil
   attr :active_tab, :string, default: "comments"
   attr :comments, :list, default: []
-  attr :comments_page, :integer, default: 1
-  attr :comments_has_more, :boolean, default: false
+  attr :has_comments, :boolean, default: false
   attr :comment_search_query, :string, default: ""
-  attr :loading_comments, :boolean, default: false
   attr :stream_stats, :list, default: []
 
   def stream_detail_modal(assigns) do
@@ -200,9 +200,8 @@ defmodule PavoiWeb.TiktokLiveComponents do
               <% "comments" -> %>
                 <.comments_tab
                   comments={@comments}
+                  has_comments={@has_comments}
                   search_query={@comment_search_query}
-                  has_more={@comments_has_more}
-                  loading={@loading_comments}
                 />
               <% "stats" -> %>
                 <.stats_tab stream_stats={@stream_stats} />
@@ -221,8 +220,7 @@ defmodule PavoiWeb.TiktokLiveComponents do
   """
   attr :comments, :list, required: true
   attr :search_query, :string, default: ""
-  attr :has_more, :boolean, default: false
-  attr :loading, :boolean, default: false
+  attr :has_comments, :boolean, default: false
 
   def comments_tab(assigns) do
     ~H"""
@@ -235,7 +233,22 @@ defmodule PavoiWeb.TiktokLiveComponents do
         />
       </div>
 
-      <%= if Enum.empty?(@comments) do %>
+      <div class="comments-list" id="comments-list" phx-update="stream">
+        <%= for {dom_id, comment} <- @comments do %>
+          <div class="comment-item" id={dom_id}>
+            <div class="comment-item__header">
+              <span class="comment-item__username">@{comment.tiktok_username}</span>
+              <%= if comment.tiktok_nickname && comment.tiktok_nickname != comment.tiktok_username do %>
+                <span class="comment-item__nickname">({comment.tiktok_nickname})</span>
+              <% end %>
+              <span class="comment-item__time">{format_relative_time(comment.commented_at)}</span>
+            </div>
+            <div class="comment-item__text">{comment.comment_text}</div>
+          </div>
+        <% end %>
+      </div>
+
+      <%= unless @has_comments do %>
         <div class="empty-state">
           <.icon name="hero-chat-bubble-left-right" class="empty-state__icon size-8" />
           <p class="empty-state__title">No comments yet</p>
@@ -243,38 +256,6 @@ defmodule PavoiWeb.TiktokLiveComponents do
             Comments will appear here as they're captured
           </p>
         </div>
-      <% else %>
-        <div class="comments-list">
-          <%= for comment <- @comments do %>
-            <div class="comment-item">
-              <div class="comment-item__header">
-                <span class="comment-item__username">@{comment.tiktok_username}</span>
-                <%= if comment.tiktok_nickname && comment.tiktok_nickname != comment.tiktok_username do %>
-                  <span class="comment-item__nickname">({comment.tiktok_nickname})</span>
-                <% end %>
-                <span class="comment-item__time">{format_relative_time(comment.commented_at)}</span>
-              </div>
-              <div class="comment-item__text">{comment.comment_text}</div>
-            </div>
-          <% end %>
-        </div>
-
-        <%= if @has_more do %>
-          <div class="comments-tab__load-more">
-            <.button
-              variant="outline"
-              size="sm"
-              phx-click="load_more_comments"
-              disabled={@loading}
-            >
-              <%= if @loading do %>
-                Loading...
-              <% else %>
-                Load More
-              <% end %>
-            </.button>
-          </div>
-        <% end %>
       <% end %>
     </div>
     """

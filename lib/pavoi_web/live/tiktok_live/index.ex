@@ -39,11 +39,9 @@ defmodule PavoiWeb.TiktokLive.Index do
       |> assign(:selected_stream, nil)
       |> assign(:stream_summary, nil)
       |> assign(:active_tab, "comments")
-      |> assign(:comments, [])
-      |> assign(:comments_page, 1)
-      |> assign(:comments_has_more, false)
+      |> stream(:comments, [])
+      |> assign(:has_comments, false)
       |> assign(:comment_search_query, "")
-      |> assign(:loading_comments, false)
       |> assign(:stream_stats, [])
       # Track which stream we're subscribed to for real-time updates
       |> assign(:subscribed_stream_id, nil)
@@ -98,8 +96,8 @@ defmodule PavoiWeb.TiktokLive.Index do
       |> assign(:selected_stream, nil)
       |> assign(:stream_summary, nil)
       |> assign(:active_tab, "comments")
-      |> assign(:comments, [])
-      |> assign(:comments_page, 1)
+      |> stream(:comments, [], reset: true)
+      |> assign(:has_comments, false)
       |> assign(:comment_search_query, "")
       |> assign(:stream_stats, [])
       |> push_patch(to: ~p"/live-streams?#{params}")
@@ -118,19 +116,7 @@ defmodule PavoiWeb.TiktokLive.Index do
     socket =
       socket
       |> assign(:comment_search_query, query)
-      |> assign(:comments_page, 1)
       |> load_comments()
-
-    {:noreply, socket}
-  end
-
-  @impl true
-  def handle_event("load_more_comments", _params, socket) do
-    socket =
-      socket
-      |> assign(:loading_comments, true)
-      |> assign(:comments_page, socket.assigns.comments_page + 1)
-      |> load_comments(append: true)
 
     {:noreply, socket}
   end
@@ -240,18 +226,22 @@ defmodule PavoiWeb.TiktokLive.Index do
     if socket.assigns.selected_stream &&
          socket.assigns.active_tab == "comments" &&
          socket.assigns.comment_search_query == "" do
-      # Build a comment struct to prepend to the list
+      # Build a comment with a unique ID for the stream
       new_comment = %{
-        id: nil,
+        id: "rt-#{System.unique_integer([:positive, :monotonic])}",
         tiktok_username: comment.username,
         tiktok_nickname: comment.nickname,
         comment_text: comment.content,
         commented_at: comment.timestamp || DateTime.utc_now()
       }
 
-      # Prepend to existing comments (newest first)
-      updated_comments = [new_comment | socket.assigns.comments]
-      {:noreply, assign(socket, :comments, updated_comments)}
+      # Insert at the top of the stream (newest first)
+      socket =
+        socket
+        |> stream_insert(:comments, new_comment, at: 0)
+        |> assign(:has_comments, true)
+
+      {:noreply, socket}
     else
       {:noreply, socket}
     end
@@ -488,44 +478,32 @@ defmodule PavoiWeb.TiktokLive.Index do
   defp load_tab_data(socket, _tab, _stream_id), do: socket
 
   defp load_comments(socket, opts \\ []) do
-    append = Keyword.get(opts, :append, false)
     stream_id = Keyword.get(opts, :stream_id, socket.assigns.selected_stream.id)
 
-    result =
+    comments =
       if socket.assigns.comment_search_query != "" do
         # Search mode - use search function
-        comments =
-          TiktokLiveContext.search_comments(
-            stream_id,
-            socket.assigns.comment_search_query,
-            limit: @comments_per_page
-          )
-
-        %{comments: comments, has_more: false}
+        TiktokLiveContext.search_comments(
+          stream_id,
+          socket.assigns.comment_search_query,
+          limit: @comments_per_page
+        )
       else
-        # Normal pagination mode
+        # Load most recent comments
         result =
           TiktokLiveContext.list_stream_comments(
             stream_id,
-            page: socket.assigns.comments_page,
+            page: 1,
             per_page: @comments_per_page,
             order: :desc
           )
 
-        %{comments: result.comments, has_more: result.has_more}
-      end
-
-    comments =
-      if append do
-        socket.assigns.comments ++ result.comments
-      else
         result.comments
       end
 
     socket
-    |> assign(:loading_comments, false)
-    |> assign(:comments, comments)
-    |> assign(:comments_has_more, result.has_more)
+    |> stream(:comments, comments, reset: true)
+    |> assign(:has_comments, length(comments) > 0)
   end
 
   defp maybe_subscribe_to_stream(socket, %{status: :capturing, id: stream_id}) do
