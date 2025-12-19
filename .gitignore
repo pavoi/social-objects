@@ -60,3 +60,6 @@ erl_crash.dump
 
 # Railway
 .railway/
+
+# Local tool versions (not used by Railway)
+.tool-versions.local
