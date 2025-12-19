@@ -102,17 +102,17 @@
 
 /* Column widths */
 .streams-table th:nth-child(1),
-.streams-table td:nth-child(1) { width: 280px; } /* Title */
+.streams-table td:nth-child(1) { width: 260px; } /* Title */
 .streams-table th:nth-child(2),
-.streams-table td:nth-child(2) { width: 100px; } /* Status */
+.streams-table td:nth-child(2) { width: 120px; } /* Status */
 .streams-table th:nth-child(3),
-.streams-table td:nth-child(3) { width: 160px; } /* Started */
+.streams-table td:nth-child(3) { width: 235px; } /* Started */
 .streams-table th:nth-child(4),
-.streams-table td:nth-child(4) { width: 100px; } /* Duration */
+.streams-table td:nth-child(4) { width: 125px; } /* Duration */
 .streams-table th:nth-child(5),
-.streams-table td:nth-child(5) { width: 100px; } /* Viewers */
+.streams-table td:nth-child(5) { width: 130px; } /* Viewers */
 .streams-table th:nth-child(6),
-.streams-table td:nth-child(6) { width: 100px; } /* Comments */
+.streams-table td:nth-child(6) { width: 125px; } /* Comments */
 
 /* Text alignment helpers */
 .streams-table .text-right {
