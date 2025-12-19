@@ -288,6 +288,94 @@ defmodule PavoiWeb.CreatorComponents do
   end
 
   @doc """
+  Renders the status filter dropdown for filtering by outreach status.
+  """
+  attr :current_status, :string, default: nil
+  attr :stats, :map, default: %{pending: 0, sent: 0, skipped: 0}
+  attr :open, :boolean, default: false
+
+  def status_filter(assigns) do
+    label =
+      case assigns.current_status do
+        nil -> "All Status"
+        "pending" -> "Pending"
+        "sent" -> "Sent"
+        "skipped" -> "Skipped"
+        _ -> "All Status"
+      end
+
+    total = assigns.stats.pending + assigns.stats.sent + assigns.stats.skipped
+    assigns = assign(assigns, label: label, total: total)
+
+    ~H"""
+    <div class="status-filter" phx-click-away={@open && "close_status_filter"}>
+      <button
+        type="button"
+        class={["status-filter__trigger", @current_status && "status-filter__trigger--active"]}
+        phx-click="toggle_status_filter"
+      >
+        <span>{@label}</span>
+        <%= if @current_status do %>
+          <span class="status-filter__clear-x" phx-click="clear_status_filter" title="Clear filter">
+            ×
+          </span>
+        <% else %>
+          <.icon name="hero-chevron-down" class="size-4" />
+        <% end %>
+      </button>
+
+      <%= if @open do %>
+        <div class="status-filter__dropdown">
+          <div class="status-filter__list">
+            <button
+              type="button"
+              class={["status-filter__item", !@current_status && "status-filter__item--selected"]}
+              phx-click="change_outreach_status"
+              phx-value-status=""
+            >
+              All <span class="status-filter__badge">{@total}</span>
+            </button>
+            <button
+              type="button"
+              class={[
+                "status-filter__item",
+                @current_status == "pending" && "status-filter__item--selected"
+              ]}
+              phx-click="change_outreach_status"
+              phx-value-status="pending"
+            >
+              Pending <span class="status-filter__badge">{@stats.pending}</span>
+            </button>
+            <button
+              type="button"
+              class={[
+                "status-filter__item",
+                @current_status == "sent" && "status-filter__item--selected"
+              ]}
+              phx-click="change_outreach_status"
+              phx-value-status="sent"
+            >
+              Sent <span class="status-filter__badge">{@stats.sent}</span>
+            </button>
+            <button
+              type="button"
+              class={[
+                "status-filter__item",
+                @current_status == "skipped" && "status-filter__item--selected"
+              ]}
+              phx-click="change_outreach_status"
+              phx-value-status="skipped"
+            >
+              Skipped <span class="status-filter__badge">{@stats.skipped}</span>
+            </button>
+          </div>
+        </div>
+      <% end %>
+    </div>
+    """
+  end
+
+  @doc """
   Renders a batch tag picker modal content for applying tags to multiple creators.
   """
   attr :available_tags, :list, default: []
@@ -680,6 +768,228 @@ defmodule PavoiWeb.CreatorComponents do
                 <td class="text-right">{creator.sample_count || 0}</td>
                 <td class="text-right">{creator.total_videos || 0}</td>
               <% end %>
+            </tr>
+          <% end %>
+        </tbody>
+      </table>
+    </div>
+    """
+  end
+
+  @doc """
+  Renders a unified creator table with all 13 columns from both CRM and Outreach modes.
+  Columns: Checkbox, Username, Name, Email, Phone, Tags, Followers, GMV, Samples, Videos, SMS, Status, Added
+  """
+  attr :creators, :list, required: true
+  attr :on_row_click, :string, default: nil
+  attr :sort_by, :string, default: nil
+  attr :sort_dir, :string, default: "asc"
+  attr :on_sort, :string, default: nil
+  attr :selected_ids, :any, default: nil
+  attr :total_count, :integer, default: 0
+
+  def unified_creator_table(assigns) do
+    all_selected =
+      assigns.selected_ids && MapSet.size(assigns.selected_ids) == assigns.total_count &&
+        assigns.total_count > 0
+
+    assigns = assign(assigns, :all_selected, all_selected)
+
+    ~H"""
+    <div class="creator-table-wrapper">
+      <table
+        id="unified-creators-table"
+        class="creator-table mode-unified has-checkbox"
+        phx-hook="ColumnResize"
+        data-table-id="creators-unified"
+      >
+        <thead>
+          <tr>
+            <%!-- 1. Checkbox --%>
+            <th class="col-checkbox" data-resizable="false" data-column-id="checkbox">
+              <input
+                type="checkbox"
+                checked={@all_selected}
+                phx-click={if @all_selected, do: "deselect_all", else: "select_all"}
+                title={if @all_selected, do: "Deselect All", else: "Select All"}
+              />
+            </th>
+            <%!-- 2. Username --%>
+            <.sort_header
+              label="Username"
+              field="username"
+              current={@sort_by}
+              dir={@sort_dir}
+              on_sort={@on_sort}
+            />
+            <%!-- 3. Name --%>
+            <.sort_header
+              label="Name"
+              field="name"
+              current={@sort_by}
+              dir={@sort_dir}
+              on_sort={@on_sort}
+            />
+            <%!-- 4. Email --%>
+            <.sort_header
+              label="Email"
+              field="email"
+              current={@sort_by}
+              dir={@sort_dir}
+              on_sort={@on_sort}
+            />
+            <%!-- 5. Phone --%>
+            <.sort_header
+              label="Phone"
+              field="phone"
+              current={@sort_by}
+              dir={@sort_dir}
+              on_sort={@on_sort}
+            />
+            <%!-- 6. Tags --%>
+            <th class="col-tags" data-column-id="tags">Tags</th>
+            <%!-- 7. Followers --%>
+            <.sort_header
+              label="Followers"
+              field="followers"
+              current={@sort_by}
+              dir={@sort_dir}
+              on_sort={@on_sort}
+              class="text-right"
+            />
+            <%!-- 8. GMV --%>
+            <.sort_header
+              label="GMV"
+              field="gmv"
+              current={@sort_by}
+              dir={@sort_dir}
+              on_sort={@on_sort}
+              class="text-right"
+            />
+            <%!-- 9. Samples --%>
+            <.sort_header
+              label="Samples"
+              field="samples"
+              current={@sort_by}
+              dir={@sort_dir}
+              on_sort={@on_sort}
+              class="text-right"
+            />
+            <%!-- 10. Videos --%>
+            <.sort_header
+              label="Videos"
+              field="videos"
+              current={@sort_by}
+              dir={@sort_dir}
+              on_sort={@on_sort}
+              class="text-right"
+            />
+            <%!-- 11. SMS Consent --%>
+            <.sort_header
+              label="SMS"
+              field="sms_consent"
+              current={@sort_by}
+              dir={@sort_dir}
+              on_sort={@on_sort}
+            />
+            <%!-- 12. Status --%>
+            <.sort_header
+              label="Status"
+              field="status"
+              current={@sort_by}
+              dir={@sort_dir}
+              on_sort={@on_sort}
+            />
+            <%!-- 13. Added --%>
+            <.sort_header
+              label="Added"
+              field="added"
+              current={@sort_by}
+              dir={@sort_dir}
+              on_sort={@on_sort}
+            />
+          </tr>
+        </thead>
+        <tbody>
+          <%= for creator <- @creators do %>
+            <tr
+              phx-click={@on_row_click}
+              phx-value-id={creator.id}
+              class={[
+                @on_row_click && "cursor-pointer hover:bg-hover",
+                @selected_ids && MapSet.member?(@selected_ids, creator.id) && "row--selected"
+              ]}
+            >
+              <%!-- 1. Checkbox --%>
+              <td class="col-checkbox" phx-click="stop_propagation">
+                <input
+                  type="checkbox"
+                  checked={@selected_ids && MapSet.member?(@selected_ids, creator.id)}
+                  phx-click="toggle_selection"
+                  phx-value-id={creator.id}
+                />
+              </td>
+              <%!-- 2. Username --%>
+              <td class="text-secondary">
+                <%= cond do %>
+                  <% creator.tiktok_username && creator.tiktok_profile_url -> %>
+                    <a
+                      href={creator.tiktok_profile_url}
+                      target="_blank"
+                      rel="noopener"
+                      class="link"
+                      phx-click="stop_propagation"
+                    >
+                      @{creator.tiktok_username}
+                    </a>
+                  <% creator.tiktok_username -> %>
+                    @{creator.tiktok_username}
+                  <% true -> %>
+                    -
+                <% end %>
+              </td>
+              <%!-- 3. Name --%>
+              <td>{display_name(creator)}</td>
+              <%!-- 4. Email --%>
+              <td class="text-secondary">{creator.email || "-"}</td>
+              <%!-- 5. Phone --%>
+              <td class="text-secondary font-mono">{format_phone(creator.phone)}</td>
+              <%!-- 6. Tags --%>
+              <td class="col-tags" phx-click="stop_propagation">
+                <.tag_cell creator={creator} />
+              </td>
+              <%!-- 7. Followers --%>
+              <td class="text-right">{format_number(creator.follower_count)}</td>
+              <%!-- 8. GMV --%>
+              <td class="text-right">{format_gmv(creator.total_gmv_cents)}</td>
+              <%!-- 9. Samples --%>
+              <td class="text-right">{creator.sample_count || 0}</td>
+              <%!-- 10. Videos --%>
+              <td class="text-right">{creator.total_videos || 0}</td>
+              <%!-- 11. SMS Consent --%>
+              <td class="text-center">
+                <%= if creator.sms_consent do %>
+                  <span class="badge badge--success">Yes</span>
+                <% else %>
+                  <span class="badge badge--muted">No</span>
+                <% end %>
+              </td>
+              <%!-- 12. Status --%>
+              <td class="text-center">
+                <span class={[
+                  "badge",
+                  creator.outreach_status == "pending" && "badge--warning",
+                  creator.outreach_status == "sent" && "badge--success",
+                  creator.outreach_status == "skipped" && "badge--muted",
+                  !creator.outreach_status && "badge--muted"
+                ]}>
+                  {display_status(creator.outreach_status)}
+                </span>
+              </td>
+              <%!-- 13. Added --%>
+              <td class="text-secondary text-xs">
+                {format_relative_time(creator.inserted_at)}
+              </td>
             </tr>
           <% end %>
         </tbody>

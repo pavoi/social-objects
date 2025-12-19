@@ -17,101 +17,40 @@
         <span class="creators-count">{format_number(@total)} creators</span>
       </div>
 
-      <%!-- View Toggle --%>
-      <div class="view-toggle">
-        <button
-          type="button"
-          phx-click="change_view_mode"
-          phx-value-mode="crm"
-          class={["view-toggle__btn", @view_mode == "crm" && "view-toggle__btn--active"]}
-        >
-          All Creators
-        </button>
-        <button
-          type="button"
-          phx-click="change_view_mode"
-          phx-value-mode="outreach"
-          class={["view-toggle__btn", @view_mode == "outreach" && "view-toggle__btn--active"]}
-        >
-          Outreach
-        </button>
-      </div>
+      <%!-- Status Filter Dropdown --%>
+      <.status_filter
+        current_status={@outreach_status}
+        stats={@outreach_stats}
+        open={@show_status_filter}
+      />
     </div>
 
     <div class="page-header__right">
-      <%= if @view_mode == "crm" do %>
-        <%= if MapSet.size(@selected_ids) > 0 do %>
-          <%!-- Bulk Actions (inline, replaces tag filter when items selected) --%>
-          <div class="bulk-actions-inline">
-            <span class="bulk-actions__count">{MapSet.size(@selected_ids)} selected</span>
-            <.button variant="outline" size="sm" phx-click="deselect_all">
-              Clear
-            </.button>
-            <.button variant="primary" size="sm" phx-click="show_batch_tag_picker">Add Tags</.button>
-          </div>
-        <% else %>
-          <%!-- Tag Filter (only when no items selected) --%>
-          <.tag_filter
-            available_tags={@available_tags}
-            selected_tag_ids={@filter_tag_ids}
-            open={@show_tag_filter}
-          />
-        <% end %>
-      <% end %>
-
-      <%!-- Outreach Status Filters (inline, only in outreach mode) --%>
-      <%= if @view_mode == "outreach" do %>
-        <%= if @outreach_status == "pending" and MapSet.size(@selected_ids) > 0 do %>
-          <%!-- Bulk Actions for Outreach --%>
-          <div class="bulk-actions-inline">
-            <span class="bulk-actions__count">{MapSet.size(@selected_ids)} selected</span>
-            <.button variant="outline" size="sm" phx-click="deselect_all">
-              Clear
-            </.button>
+      <%= if MapSet.size(@selected_ids) > 0 do %>
+        <%!-- Unified Bulk Actions --%>
+        <div class="bulk-actions-inline">
+          <span class="bulk-actions__count">{MapSet.size(@selected_ids)} selected</span>
+          <.button variant="outline" size="sm" phx-click="deselect_all">
+            Clear
+          </.button>
+          <.button variant="primary" size="sm" phx-click="show_batch_tag_picker">Add Tags</.button>
+          <%!-- Skip and Send Welcome only when ALL selected are pending --%>
+          <%= if @all_selected_pending do %>
             <.button variant="outline" size="sm" phx-click="skip_selected">
               Skip
             </.button>
             <.button variant="primary" size="sm" phx-click="show_send_modal">
               Send Welcome
             </.button>
-          </div>
-        <% else %>
-          <div class="filter-tabs filter-tabs--inline">
-            <button
-              type="button"
-              class={[
-                "filter-tab filter-tab--compact",
-                @outreach_status == "pending" && "filter-tab--active"
-              ]}
-              phx-click="change_outreach_status"
-              phx-value-status="pending"
-            >
-              Pending <span class="filter-tab__badge">{@outreach_stats.pending}</span>
-            </button>
-            <button
-              type="button"
-              class={[
-                "filter-tab filter-tab--compact",
-                @outreach_status == "sent" && "filter-tab--active"
-              ]}
-              phx-click="change_outreach_status"
-              phx-value-status="sent"
-            >
-              Sent <span class="filter-tab__badge">{@outreach_stats.sent}</span>
-            </button>
-            <button
-              type="button"
-              class={[
-                "filter-tab filter-tab--compact",
-                @outreach_status == "skipped" && "filter-tab--active"
-              ]}
-              phx-click="change_outreach_status"
-              phx-value-status="skipped"
-            >
-              Skipped <span class="filter-tab__badge">{@outreach_stats.skipped}</span>
-            </button>
-          </div>
-        <% end %>
+          <% end %>
+        </div>
+      <% else %>
+        <%!-- Tag Filter (only when no items selected) --%>
+        <.tag_filter
+          available_tags={@available_tags}
+          selected_tag_ids={@filter_tag_ids}
+          open={@show_tag_filter}
+        />
       <% end %>
     </div>
   </div>
@@ -119,24 +58,10 @@
   <%!-- Content Area --%>
   <%= if Enum.empty?(@creators) do %>
     <div class="empty-state">
-      <%= if @view_mode == "outreach" do %>
-        <.icon name="hero-envelope" class="empty-state__icon size-8" />
-        <p class="empty-state__title">
-          <%= case @outreach_status do %>
-            <% "pending" -> %>
-              No pending creators
-            <% "sent" -> %>
-              No sent outreach yet
-            <% "skipped" -> %>
-              No skipped creators
-          <% end %>
-        </p>
-      <% else %>
-        <.icon name="hero-users" class="empty-state__icon size-8" />
-        <p class="empty-state__title">No creators found</p>
-        <%= if @search_query != "" or @badge_filter != "" do %>
-          <p class="empty-state__description">Try adjusting your search or filters</p>
-        <% end %>
+      <.icon name="hero-users" class="empty-state__icon size-8" />
+      <p class="empty-state__title">No creators found</p>
+      <%= if @search_query != "" or @badge_filter != "" or @outreach_status do %>
+        <p class="empty-state__description">Try adjusting your search or filters</p>
       <% end %>
     </div>
   <% else %>
@@ -146,10 +71,8 @@
       class="creators-scroll-container"
       phx-viewport-bottom={@has_more && !@loading_creators && "load_more"}
     >
-      <.creator_table
+      <.unified_creator_table
         creators={@creators}
-        mode={@view_mode}
-        status={@outreach_status}
         selected_ids={@selected_ids}
         total_count={length(@creators)}
         on_row_click="navigate_to_creator"

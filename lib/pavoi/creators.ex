@@ -73,6 +73,91 @@ defmodule Pavoi.Creators do
     }
   end
 
+  @doc """
+  Unified search for creators with all filters from both CRM and Outreach modes.
+
+  ## Options
+    - search_query: Search by username, email, first/last name
+    - badge_level: Filter by TikTok badge level
+    - tag_ids: Filter by tag IDs
+    - outreach_status: Filter by outreach status (nil = all, or "pending"/"sent"/"skipped")
+    - sort_by: Column to sort (supports all CRM and outreach columns)
+    - sort_dir: "asc" or "desc"
+    - page: Page number (default: 1)
+    - per_page: Items per page (default: 50)
+
+  ## Returns
+    A map with creators, total, page, per_page, has_more
+  """
+  def search_creators_unified(opts \\ []) do
+    page = Keyword.get(opts, :page, 1)
+    per_page = Keyword.get(opts, :per_page, 50)
+    sort_by = Keyword.get(opts, :sort_by, "gmv")
+    sort_dir = Keyword.get(opts, :sort_dir, "desc")
+
+    query =
+      from(c in Creator)
+      |> apply_creator_search_filter(Keyword.get(opts, :search_query, ""))
+      |> apply_creator_badge_filter(Keyword.get(opts, :badge_level))
+      |> apply_creator_tag_filter(Keyword.get(opts, :tag_ids))
+      |> apply_outreach_status_filter(Keyword.get(opts, :outreach_status))
+
+    total = Repo.aggregate(query, :count)
+
+    creators =
+      query
+      |> apply_unified_sort(sort_by, sort_dir)
+      |> limit(^per_page)
+      |> offset(^((page - 1) * per_page))
+      |> Repo.all()
+
+    %{
+      creators: creators,
+      total: total,
+      page: page,
+      per_page: per_page,
+      has_more: total > page * per_page
+    }
+  end
+
+  defp apply_outreach_status_filter(query, nil), do: query
+  defp apply_outreach_status_filter(query, ""), do: query
+
+  defp apply_outreach_status_filter(query, status) when status in ["pending", "sent", "skipped"] do
+    where(query, [c], c.outreach_status == ^status)
+  end
+
+  defp apply_outreach_status_filter(query, _), do: query
+
+  # Unified sort supporting all columns from both CRM and Outreach modes
+  defp apply_unified_sort(query, "sms_consent", "asc"),
+    do: order_by(query, [c], asc_nulls_last: c.sms_consent)
+
+  defp apply_unified_sort(query, "sms_consent", "desc"),
+    do: order_by(query, [c], desc_nulls_last: c.sms_consent)
+
+  defp apply_unified_sort(query, "added", "asc"),
+    do: order_by(query, [c], asc: c.inserted_at)
+
+  defp apply_unified_sort(query, "added", "desc"),
+    do: order_by(query, [c], desc: c.inserted_at)
+
+  defp apply_unified_sort(query, "sent", "asc"),
+    do: order_by(query, [c], asc_nulls_last: c.outreach_sent_at)
+
+  defp apply_unified_sort(query, "sent", "desc"),
+    do: order_by(query, [c], desc_nulls_last: c.outreach_sent_at)
+
+  defp apply_unified_sort(query, "status", "asc"),
+    do: order_by(query, [c], asc_nulls_last: c.outreach_status)
+
+  defp apply_unified_sort(query, "status", "desc"),
+    do: order_by(query, [c], desc_nulls_last: c.outreach_status)
+
+  # Delegate to existing sort handlers for CRM columns
+  defp apply_unified_sort(query, sort_by, sort_dir),
+    do: apply_creator_sort(query, sort_by, sort_dir)
+
   defp apply_creator_sort(query, "username", "asc"),
     do: order_by(query, [c], asc: c.tiktok_username)
 

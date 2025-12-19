@@ -78,10 +78,11 @@ defmodule PavoiWeb.CreatorsLive.Index do
       |> assign(:active_tab, "contact")
       |> assign(:editing_contact, false)
       |> assign(:contact_form, nil)
-      # Outreach mode state
-      |> assign(:view_mode, "crm")
-      |> assign(:outreach_status, "pending")
+      # Unified creators state (merged CRM + Outreach)
+      |> assign(:outreach_status, nil)
       |> assign(:selected_ids, MapSet.new())
+      |> assign(:show_status_filter, false)
+      |> assign(:all_selected_pending, false)
       |> assign(:outreach_stats, %{pending: 0, sent: 0, skipped: 0})
       |> assign(:sent_today, 0)
       |> assign(:lark_presets, %{})
@@ -249,15 +250,29 @@ defmodule PavoiWeb.CreatorsLive.Index do
     {:noreply, socket}
   end
 
-  # Outreach mode event handlers
+  # Status filter event handlers
   @impl true
-  def handle_event("change_view_mode", %{"mode" => mode}, socket) do
-    params = build_query_params(socket, view_mode: mode, page: 1)
+  def handle_event("toggle_status_filter", _params, socket) do
+    {:noreply, assign(socket, :show_status_filter, !socket.assigns.show_status_filter)}
+  end
+
+  @impl true
+  def handle_event("close_status_filter", _params, socket) do
+    {:noreply, assign(socket, :show_status_filter, false)}
+  end
+
+  @impl true
+  def handle_event("clear_status_filter", _params, socket) do
+    socket = assign(socket, :show_status_filter, false)
+    params = build_query_params(socket, outreach_status: nil, page: 1)
     {:noreply, push_patch(socket, to: ~p"/creators?#{params}")}
   end
 
   @impl true
   def handle_event("change_outreach_status", %{"status" => status}, socket) do
+    # Convert empty string to nil (meaning "all")
+    status = if status == "", do: nil, else: status
+    socket = assign(socket, :show_status_filter, false)
     params = build_query_params(socket, outreach_status: status, page: 1)
     {:noreply, push_patch(socket, to: ~p"/creators?#{params}")}
   end
@@ -274,18 +289,34 @@ defmodule PavoiWeb.CreatorsLive.Index do
         MapSet.put(selected, id)
       end
 
-    {:noreply, assign(socket, :selected_ids, selected)}
+    socket =
+      socket
+      |> assign(:selected_ids, selected)
+      |> compute_all_selected_pending()
+
+    {:noreply, socket}
   end
 
   @impl true
   def handle_event("select_all", _params, socket) do
     all_ids = Enum.map(socket.assigns.creators, & &1.id) |> MapSet.new()
-    {:noreply, assign(socket, :selected_ids, all_ids)}
+
+    socket =
+      socket
+      |> assign(:selected_ids, all_ids)
+      |> compute_all_selected_pending()
+
+    {:noreply, socket}
   end
 
   @impl true
   def handle_event("deselect_all", _params, socket) do
-    {:noreply, assign(socket, :selected_ids, MapSet.new())}
+    socket =
+      socket
+      |> assign(:selected_ids, MapSet.new())
+      |> assign(:all_selected_pending, false)
+
+    {:noreply, socket}
   end
 
   @impl true
@@ -377,8 +408,9 @@ defmodule PavoiWeb.CreatorsLive.Index do
         socket
         |> assign(:show_send_modal, false)
         |> assign(:selected_ids, MapSet.new())
+        |> assign(:all_selected_pending, false)
         |> put_flash(:info, "Queued #{count} outreach messages for sending")
-        |> push_patch(to: ~p"/creators?view=outreach&status=sent")
+        |> push_patch(to: ~p"/creators?status=sent")
 
       {:noreply, socket}
     end
@@ -873,19 +905,23 @@ defmodule PavoiWeb.CreatorsLive.Index do
   end
 
   defp apply_params(socket, params) do
-    view_mode = params["view"] || "crm"
-
     socket
     |> assign(:search_query, params["q"] || "")
     |> assign(:badge_filter, params["badge"] || "")
-    |> assign(:sort_by, params["sort"] || default_sort(view_mode))
+    |> assign(:sort_by, params["sort"] || "gmv")
     |> assign(:sort_dir, params["dir"] || "desc")
     |> assign(:page, parse_page(params["page"]))
-    |> assign(:view_mode, view_mode)
-    |> assign(:outreach_status, params["status"] || "pending")
+    |> assign(:outreach_status, parse_outreach_status(params["status"]))
     |> assign(:selected_ids, MapSet.new())
+    |> assign(:all_selected_pending, false)
     |> assign(:filter_tag_ids, parse_tag_ids(params["tags"]))
   end
+
+  defp parse_outreach_status(nil), do: nil
+  defp parse_outreach_status(""), do: nil
+  defp parse_outreach_status("all"), do: nil
+  defp parse_outreach_status(status) when status in ["pending", "sent", "skipped"], do: status
+  defp parse_outreach_status(_), do: nil
 
   defp parse_tag_ids(nil), do: []
   defp parse_tag_ids(""), do: []
@@ -897,22 +933,11 @@ defmodule PavoiWeb.CreatorsLive.Index do
     |> Enum.reject(&(&1 == ""))
   end
 
-  defp default_sort("outreach"), do: nil
-  defp default_sort(_), do: "gmv"
-
   defp parse_page(nil), do: 1
   defp parse_page(page) when is_binary(page), do: String.to_integer(page)
   defp parse_page(page) when is_integer(page), do: page
 
   defp load_creators(socket) do
-    if socket.assigns.view_mode == "outreach" do
-      load_outreach_creators(socket)
-    else
-      load_crm_creators(socket)
-    end
-  end
-
-  defp load_crm_creators(socket) do
     %{
       search_query: search_query,
       badge_filter: badge_filter,
@@ -921,6 +946,7 @@ defmodule PavoiWeb.CreatorsLive.Index do
       page: page,
       per_page: per_page,
       filter_tag_ids: filter_tag_ids,
+      outreach_status: outreach_status,
       brand_id: brand_id
     } = socket.assigns
 
@@ -930,9 +956,10 @@ defmodule PavoiWeb.CreatorsLive.Index do
       |> maybe_add_opt(:badge_level, badge_filter)
       |> maybe_add_opt(:sort_by, sort_by)
       |> maybe_add_opt(:sort_dir, sort_dir)
+      |> maybe_add_opt(:outreach_status, outreach_status)
       |> maybe_add_tag_filter(filter_tag_ids)
 
-    result = Creators.search_creators_paginated(opts)
+    result = Creators.search_creators_unified(opts)
 
     # Add sample counts and tags to each creator
     creators_with_data =
@@ -963,51 +990,16 @@ defmodule PavoiWeb.CreatorsLive.Index do
   defp maybe_add_tag_filter(opts, []), do: opts
   defp maybe_add_tag_filter(opts, tag_ids), do: Keyword.put(opts, :tag_ids, tag_ids)
 
-  defp load_outreach_creators(socket) do
-    %{
-      search_query: search_query,
-      outreach_status: status,
-      sort_by: sort_by,
-      sort_dir: sort_dir,
-      page: page,
-      per_page: per_page
-    } = socket.assigns
-
-    opts =
-      [page: page, per_page: per_page, search_query: search_query]
-      |> maybe_add_opt(:sort_by, sort_by)
-      |> maybe_add_opt(:sort_dir, sort_dir)
-
-    result = Outreach.list_creators_by_status(status, opts)
-
-    # If loading more (page > 1), append to existing
-    creators =
-      if page > 1 do
-        socket.assigns.creators ++ result.creators
-      else
-        result.creators
-      end
+  # Always load outreach stats for the status filter dropdown
+  defp load_outreach_stats(socket) do
+    stats = Outreach.get_outreach_stats()
+    sent_today = Outreach.count_sent_today()
+    lark_presets = load_lark_presets()
 
     socket
-    |> assign(:loading_creators, false)
-    |> assign(:creators, creators)
-    |> assign(:total, result.total)
-    |> assign(:has_more, result.has_more)
-  end
-
-  defp load_outreach_stats(socket) do
-    if socket.assigns.view_mode == "outreach" do
-      stats = Outreach.get_outreach_stats()
-      sent_today = Outreach.count_sent_today()
-      lark_presets = load_lark_presets()
-
-      socket
-      |> assign(:outreach_stats, stats)
-      |> assign(:sent_today, sent_today)
-      |> assign(:lark_presets, lark_presets)
-    else
-      socket
-    end
+    |> assign(:outreach_stats, stats)
+    |> assign(:sent_today, sent_today)
+    |> assign(:lark_presets, lark_presets)
   end
 
   defp load_lark_presets do
@@ -1030,7 +1022,6 @@ defmodule PavoiWeb.CreatorsLive.Index do
     page: :page,
     creator_id: :c,
     tab: :tab,
-    view_mode: :view,
     outreach_status: :status,
     filter_tag_ids: :tags
   }
@@ -1044,7 +1035,6 @@ defmodule PavoiWeb.CreatorsLive.Index do
       page: socket.assigns.page,
       c: get_creator_id(socket.assigns.selected_creator),
       tab: socket.assigns.active_tab,
-      view: socket.assigns.view_mode,
       status: socket.assigns.outreach_status,
       tags: format_tag_ids(socket.assigns.filter_tag_ids)
     }
@@ -1082,9 +1072,25 @@ defmodule PavoiWeb.CreatorsLive.Index do
   defp default_value?({:sort, nil}), do: true
   defp default_value?({:dir, "desc"}), do: true
   defp default_value?({:tab, "contact"}), do: true
-  defp default_value?({:view, "crm"}), do: true
-  defp default_value?({:status, "pending"}), do: true
+  # Note: nil is now the default for status (show all), so specific statuses are kept in URL
   defp default_value?(_), do: false
+
+  # Computes whether all selected creators have "pending" outreach status
+  # Used to show/hide Skip and Send Welcome bulk actions
+  defp compute_all_selected_pending(socket) do
+    selected_ids = socket.assigns.selected_ids
+    creators = socket.assigns.creators
+
+    all_pending =
+      if MapSet.size(selected_ids) == 0 do
+        false
+      else
+        selected_creators = Enum.filter(creators, &MapSet.member?(selected_ids, &1.id))
+        Enum.all?(selected_creators, &(&1.outreach_status == "pending"))
+      end
+
+    assign(socket, :all_selected_pending, all_pending)
+  end
 
   defp maybe_load_selected_creator(socket, params) do
     case params["c"] do

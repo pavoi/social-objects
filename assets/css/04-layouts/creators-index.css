@@ -166,6 +166,49 @@
 .creator-table.mode-outreach:not(.has-checkbox) th:nth-child(8),
 .creator-table.mode-outreach:not(.has-checkbox) td:nth-child(8) { width: 125px; }  /* Sent (when visible) */
 
+/* =============================================================================
+   UNIFIED MODE - All 13 columns (merged CRM + Outreach)
+   Columns: Checkbox, Username, Name, Email, Phone, Tags, Followers, GMV, Samples, Videos, SMS, Status, Added
+   ============================================================================= */
+.creator-table.mode-unified {
+  min-width: 1600px;
+}
+
+.creator-table.mode-unified th:nth-child(1),
+.creator-table.mode-unified td:nth-child(1) { width: 40px; }   /* Checkbox */
+.creator-table.mode-unified th:nth-child(2),
+.creator-table.mode-unified td:nth-child(2) { width: 130px; }  /* Username */
+.creator-table.mode-unified th:nth-child(3),
+.creator-table.mode-unified td:nth-child(3) { width: 130px; }  /* Name */
+.creator-table.mode-unified th:nth-child(4),
+.creator-table.mode-unified td:nth-child(4) { width: 180px; }  /* Email */
+.creator-table.mode-unified th:nth-child(5),
+.creator-table.mode-unified td:nth-child(5) { width: 115px; }  /* Phone */
+.creator-table.mode-unified th:nth-child(6),
+.creator-table.mode-unified td:nth-child(6) { width: 130px; }  /* Tags */
+.creator-table.mode-unified th:nth-child(7),
+.creator-table.mode-unified td:nth-child(7) { width: 95px; }   /* Followers */
+.creator-table.mode-unified th:nth-child(8),
+.creator-table.mode-unified td:nth-child(8) { width: 85px; }   /* GMV */
+.creator-table.mode-unified th:nth-child(9),
+.creator-table.mode-unified td:nth-child(9) { width: 80px; }   /* Samples */
+.creator-table.mode-unified th:nth-child(10),
+.creator-table.mode-unified td:nth-child(10) { width: 75px; }  /* Videos */
+.creator-table.mode-unified th:nth-child(11),
+.creator-table.mode-unified td:nth-child(11) { width: 70px; }  /* SMS */
+.creator-table.mode-unified th:nth-child(12),
+.creator-table.mode-unified td:nth-child(12) { width: 90px; }  /* Status */
+.creator-table.mode-unified th:nth-child(13),
+.creator-table.mode-unified td:nth-child(13) { width: 100px; } /* Added */
+
+/* Center align SMS and Status columns in unified mode */
+.creator-table.mode-unified th:nth-child(11),
+.creator-table.mode-unified td:nth-child(11),
+.creator-table.mode-unified th:nth-child(12),
+.creator-table.mode-unified td:nth-child(12) {
+  text-align: center;
+}
+
 /* Sortable headers */
 .sortable-header {
   padding: 0;
