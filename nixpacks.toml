@@ -1,5 +1,5 @@
 [phases.setup]
-nixPkgs = ["erlang", "elixir", "nodejs", "npm"]
+nixPkgs = ["erlang", "elixir", "nodejs"]
 
 [phases.install]
 cmds = [
