@@ -12,7 +12,7 @@ defmodule Pavoi.Communications.Templates do
   Returns the welcome email subject line.
   """
   def welcome_email_subject do
-    "Free Jewelry, Real Commissions - You're In"
+    "You're invited to the Pavoi Creator Program"
   end
 
   @doc """
@@ -20,14 +20,12 @@ defmodule Pavoi.Communications.Templates do
   """
   @brand_dark_green "#2E4042"
   @brand_sage "#A9BDB6"
-  @brand_font "'Mier A', Georgia, 'Times New Roman', serif"
+  @brand_font "Georgia, 'Times New Roman', serif"
 
   def welcome_email_html(creator, lark_invite_url) do
     name = get_display_name(creator)
     base_url = base_url()
     logo_url = "#{base_url}/images/pavoi-logo-email.png"
-    font_url = "#{base_url}/fonts/MierA-Regular.woff"
-    font_bold_url = "#{base_url}/fonts/MierA-DemiBold.woff"
     unsubscribe_url = unsubscribe_url(creator)
 
     """
@@ -37,20 +35,6 @@ defmodule Pavoi.Communications.Templates do
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width, initial-scale=1.0">
       <title>Welcome to Pavoi</title>
-      <style>
-        @font-face {
-          font-family: 'Mier A';
-          font-style: normal;
-          font-weight: 400;
-          src: url('#{font_url}') format('woff');
-        }
-        @font-face {
-          font-family: 'Mier A';
-          font-style: normal;
-          font-weight: 600;
-          src: url('#{font_bold_url}') format('woff');
-        }
-      </style>
     </head>
     <body style="font-family: #{@brand_font}; line-height: 1.7; color: #{@brand_dark_green}; max-width: 600px; margin: 0 auto; padding: 0; background-color: #f8f8f8;">
       <div style="background: #ffffff; margin: 20px;">
@@ -62,17 +46,17 @@ defmodule Pavoi.Communications.Templates do
         <!-- Main Content -->
         <div style="padding: 0 40px 40px;">
           <h1 style="font-family: #{@brand_font}; color: #{@brand_dark_green}; margin: 0 0 30px; font-size: 26px; font-weight: normal; text-align: center; letter-spacing: 1px;">
-            Free Jewelry. Real Earnings.<br>You're In.
+            Welcome to the<br>Pavoi Creator Program
           </h1>
 
           <p style="margin: 0 0 20px;">#{html_escape(greeting(name))}!</p>
 
-          <p style="margin: 0 0 20px;">You've been selected for the Pavoi Creator Program - and yes, that means <strong>free jewelry</strong> is coming your way.</p>
+          <p style="margin: 0 0 20px;">You've been selected for the Pavoi Creator Program - and yes, that means <strong>jewelry samples</strong> are coming your way.</p>
 
           <p style="margin: 0 0 15px;"><strong>Here's what you get:</strong></p>
 
           <ul style="padding-left: 20px; margin: 0 0 25px;">
-            <li style="margin-bottom: 8px;"><strong>Free product samples</strong> shipped directly to you</li>
+            <li style="margin-bottom: 8px;"><strong>Product samples</strong> shipped directly to you</li>
             <li style="margin-bottom: 8px;"><strong>Earn commissions</strong> on every sale from your content</li>
             <li style="margin-bottom: 8px;"><strong>First access</strong> to new drops before anyone else</li>
             <li style="margin-bottom: 8px;"><strong>Direct line</strong> to our team for collabs and support</li>
@@ -83,7 +67,7 @@ defmodule Pavoi.Communications.Templates do
           <div style="text-align: center; margin: 30px 0;">
             <a href="#{html_escape(lark_invite_url)}"
                style="display: inline-block; background: #{@brand_dark_green}; color: #ffffff; padding: 16px 40px; text-decoration: none; font-size: 15px; letter-spacing: 1px; font-family: #{@brand_font};">
-              GET MY FREE SAMPLES
+              JOIN THE PROGRAM
             </a>
           </div>
 
@@ -104,6 +88,9 @@ defmodule Pavoi.Communications.Templates do
           <p style="margin: 0 0 10px; color: #888; font-size: 12px;">
             You're receiving this email because you received a product sample from us on TikTok Shop.
           </p>
+          <p style="margin: 0 0 10px; color: #888; font-size: 12px;">
+            Pavoi &bull; 11401 NW 12th Street, Miami, FL 33172
+          </p>
           <p style="margin: 0; color: #888; font-size: 12px;">
             <a href="#{html_escape(unsubscribe_url)}" style="color: #888; text-decoration: underline;">Unsubscribe</a>
           </p>
@@ -122,19 +109,19 @@ defmodule Pavoi.Communications.Templates do
     unsubscribe_url = unsubscribe_url(creator)
 
     """
-    Free Jewelry. Real Earnings. You're In.
+    Welcome to the Pavoi Creator Program
 
     #{greeting(name)}!
 
-    You've been selected for the Pavoi Creator Program - and yes, that means free jewelry is coming your way.
+    You've been selected for the Pavoi Creator Program - and yes, that means jewelry samples are coming your way.
 
     Here's what you get:
-    - Free product samples shipped directly to you
+    - Product samples shipped directly to you
     - Earn commissions on every sale from your content
     - First access to new drops before anyone else
     - Direct line to our team for collabs and support
 
-    Ready to get started? Click here to get your free samples:
+    Ready to get started? Join the program here:
     #{lark_invite_url}
 
     This invite links to Lark - a free messaging app by ByteDance (the company behind TikTok). It takes 30 seconds to set up, and it's where we coordinate samples, share promo codes, and announce exclusive opportunities.
@@ -144,6 +131,7 @@ defmodule Pavoi.Communications.Templates do
 
     ---
     You're receiving this email because you received a product sample from us on TikTok Shop.
+    Pavoi - 11401 NW 12th Street, Miami, FL 33172
     Unsubscribe: #{unsubscribe_url}
     """
   end
