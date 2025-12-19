@@ -16,6 +16,8 @@ import HostProductsScroll from "./hooks/host_products_scroll"
 import ViewerChart from "./hooks/viewer_chart"
 import ConfirmDelete from "./hooks/confirm_delete"
 import TagPickerPosition from "./hooks/tag_picker_position"
+import ColumnResize from "./hooks/column_resize"
+import TagOverflow from "./hooks/tag_overflow"
 
 const Hooks = {
   SessionHostKeyboard,
@@ -33,7 +35,9 @@ const Hooks = {
   HostProductsScroll,
   ViewerChart,
   ConfirmDelete,
-  TagPickerPosition
+  TagPickerPosition,
+  ColumnResize,
+  TagOverflow
 }
 
 export default Hooks

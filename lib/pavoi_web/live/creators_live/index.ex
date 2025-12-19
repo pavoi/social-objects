@@ -99,6 +99,7 @@ defmodule PavoiWeb.CreatorsLive.Index do
       |> assign(:available_tags, available_tags)
       |> assign(:filter_tag_ids, [])
       |> assign(:tag_picker_open_for, nil)
+      |> assign(:tag_picker_source, nil)
       |> assign(:tag_search_query, "")
       |> assign(:new_tag_color, "gray")
       |> assign(:show_tag_filter, false)
@@ -147,17 +148,24 @@ defmodule PavoiWeb.CreatorsLive.Index do
 
   @impl true
   def handle_event("close_creator_modal", _params, socket) do
-    params = build_query_params(socket, creator_id: nil, tab: nil)
+    # Ignore close if tag picker is open from modal (triggered by click-away on picker)
+    if socket.assigns.tag_picker_open_for && socket.assigns.tag_picker_source == :modal do
+      {:noreply, socket}
+    else
+      params = build_query_params(socket, creator_id: nil, tab: nil)
 
-    socket =
-      socket
-      |> assign(:selected_creator, nil)
-      |> assign(:active_tab, "contact")
-      |> assign(:editing_contact, false)
-      |> assign(:contact_form, nil)
-      |> push_patch(to: ~p"/creators?#{params}")
+      socket =
+        socket
+        |> assign(:selected_creator, nil)
+        |> assign(:active_tab, "contact")
+        |> assign(:editing_contact, false)
+        |> assign(:contact_form, nil)
+        |> assign(:tag_picker_open_for, nil)
+        |> assign(:tag_picker_source, nil)
+        |> push_patch(to: ~p"/creators?#{params}")
 
-    {:noreply, socket}
+      {:noreply, socket}
+    end
   end
 
   @impl true
@@ -412,6 +420,7 @@ defmodule PavoiWeb.CreatorsLive.Index do
     socket =
       socket
       |> assign(:tag_picker_open_for, creator_id)
+      |> assign(:tag_picker_source, :table)
       |> assign(:tag_search_query, "")
       |> assign(:creating_tag, false)
       |> assign(:new_tag_color, random_color)
@@ -421,13 +430,45 @@ defmodule PavoiWeb.CreatorsLive.Index do
   end
 
   @impl true
-  def handle_event("close_tag_picker", _params, socket) do
-    socket =
-      socket
-      |> assign(:tag_picker_open_for, nil)
-      |> assign(:tag_search_query, "")
+  def handle_event("open_modal_tag_picker", _params, socket) do
+    creator = socket.assigns.selected_creator
 
-    {:noreply, socket}
+    if creator do
+      selected_tag_ids = Creators.get_tag_ids_for_creator(creator.id)
+      random_color = Enum.random(@tag_colors)
+
+      socket =
+        socket
+        |> assign(:tag_picker_open_for, creator.id)
+        |> assign(:tag_picker_source, :modal)
+        |> assign(:tag_search_query, "")
+        |> assign(:creating_tag, false)
+        |> assign(:new_tag_color, random_color)
+        |> assign(:picker_selected_tag_ids, selected_tag_ids)
+
+      {:noreply, socket}
+    else
+      {:noreply, socket}
+    end
+  end
+
+  @impl true
+  def handle_event("close_tag_picker", params, socket) do
+    force = params["force"] == true
+
+    # When opened from modal, ignore click-outside closes to prevent race with modal click-away
+    # User can force close via Escape key
+    if socket.assigns.tag_picker_source == :modal && !force do
+      {:noreply, socket}
+    else
+      socket =
+        socket
+        |> assign(:tag_picker_open_for, nil)
+        |> assign(:tag_picker_source, nil)
+        |> assign(:tag_search_query, "")
+
+      {:noreply, socket}
+    end
   end
 
   @impl true
@@ -459,8 +500,10 @@ defmodule PavoiWeb.CreatorsLive.Index do
           socket
           |> assign(:tag_search_query, "")
           |> assign(:picker_selected_tag_ids, Enum.uniq(selected_tag_ids))
-          |> assign(:tag_picker_open_for, nil)
           |> reload_creator_tags(creator_id)
+          |> maybe_refresh_selected_creator_tags(creator_id)
+          |> assign(:tag_picker_open_for, nil)
+          |> assign(:tag_picker_source, nil)
 
         {:noreply, socket}
       else
@@ -481,18 +524,27 @@ defmodule PavoiWeb.CreatorsLive.Index do
   def handle_event("toggle_tag", %{"creator-id" => creator_id, "tag-id" => tag_id}, socket) do
     creator_id = String.to_integer(creator_id)
     selected_tag_ids = socket.assigns[:picker_selected_tag_ids] || []
+    from_modal = socket.assigns.tag_picker_source == :modal
 
-    if tag_id in selected_tag_ids do
-      Creators.remove_tag_from_creator(creator_id, tag_id)
-    else
-      Creators.assign_tag_to_creator(creator_id, tag_id)
-    end
+    # Update the tag assignment
+    new_selected_tag_ids =
+      if tag_id in selected_tag_ids do
+        Creators.remove_tag_from_creator(creator_id, tag_id)
+        List.delete(selected_tag_ids, tag_id)
+      else
+        Creators.assign_tag_to_creator(creator_id, tag_id)
+        [tag_id | selected_tag_ids]
+      end
 
     socket =
       socket
-      |> assign(:tag_picker_open_for, nil)
       |> assign(:tag_search_query, "")
+      |> assign(:picker_selected_tag_ids, new_selected_tag_ids)
       |> reload_creator_tags(creator_id)
+      |> maybe_refresh_selected_creator_tags(creator_id)
+      # Always close picker after toggling a tag (modal stays open via click_away_disabled)
+      |> assign(:tag_picker_open_for, nil)
+      |> assign(:tag_picker_source, nil)
 
     {:noreply, socket}
   end
@@ -528,8 +580,11 @@ defmodule PavoiWeb.CreatorsLive.Index do
           |> assign(:available_tags, available_tags)
           |> assign(:tag_search_query, "")
           |> assign(:picker_selected_tag_ids, selected_tag_ids)
-          |> assign(:tag_picker_open_for, nil)
           |> reload_creator_tags(creator_id)
+          |> maybe_refresh_selected_creator_tags(creator_id)
+          # Always close picker after creating a tag (modal stays open via click_away_disabled)
+          |> assign(:tag_picker_open_for, nil)
+          |> assign(:tag_picker_source, nil)
 
         {:noreply, socket}
 
@@ -730,6 +785,19 @@ defmodule PavoiWeb.CreatorsLive.Index do
       end)
 
     assign(socket, :creators, creators)
+  end
+
+  # Update tags on selected_creator if modal is open (without refetching entire record)
+  defp maybe_refresh_selected_creator_tags(socket, creator_id) do
+    selected_creator = socket.assigns.selected_creator
+
+    if socket.assigns.tag_picker_source == :modal && selected_creator && selected_creator.id == creator_id do
+      tags = Creators.list_tags_for_creator(creator_id, socket.assigns.brand_id)
+      updated_creator = Map.put(selected_creator, :creator_tags, tags)
+      assign(socket, :selected_creator, updated_creator)
+    else
+      socket
+    end
   end
 
   # BigQuery sync PubSub handlers

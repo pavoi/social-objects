@@ -35,6 +35,7 @@ defmodule PavoiWeb.CreatorComponents do
   """
   attr :tags, :list, default: []
   attr :max_visible, :integer, default: 3
+  attr :in_table, :boolean, default: false
 
   def tag_pills(assigns) do
     visible_tags = Enum.take(assigns.tags || [], assigns.max_visible)
@@ -43,15 +44,15 @@ defmodule PavoiWeb.CreatorComponents do
 
     ~H"""
     <%= if @tags && @tags != [] do %>
-      <div class="tag-pills">
+      <div class={["tag-pills", @in_table && "tag-pills--table"]} data-total-tags={length(@tags || [])}>
         <%= for tag <- @visible_tags do %>
           <%= if is_binary(tag) do %>
-            <span class="tag-pill tag-pill--gray">{tag}</span>
+            <span class="tag-pill tag-pill--gray" data-tag>{tag}</span>
           <% else %>
-            <span class={"tag-pill tag-pill--#{tag.color}"}>{tag.name}</span>
+            <span class={"tag-pill tag-pill--#{tag.color}"} data-tag>{tag.name}</span>
           <% end %>
         <% end %>
-        <%= if @remaining_count > 0 do %>
+        <%= if @remaining_count > 0 && !@in_table do %>
           <span class="tag-pill tag-pill--more">+{@remaining_count}</span>
         <% end %>
       </div>
@@ -71,11 +72,18 @@ defmodule PavoiWeb.CreatorComponents do
     assigns = assign(assigns, :creator_tags, creator_tags)
 
     ~H"""
-    <div class="tag-cell" data-tag-cell-id={@creator.id} phx-click="open_tag_picker" phx-value-creator-id={@creator.id}>
+    <div
+      id={"tag-cell-#{@creator.id}"}
+      class="tag-cell"
+      data-tag-cell-id={@creator.id}
+      phx-click="open_tag_picker"
+      phx-value-creator-id={@creator.id}
+      phx-hook="TagOverflow"
+    >
       <%= if @creator_tags == [] do %>
         <span class="tag-cell__placeholder">Add tags</span>
       <% else %>
-        <.tag_pills tags={@creator_tags} max_visible={2} />
+        <.tag_pills tags={@creator_tags} max_visible={10} in_table={true} />
       <% end %>
     </div>
     """
@@ -476,11 +484,16 @@ defmodule PavoiWeb.CreatorComponents do
 
     ~H"""
     <div class="creator-table-wrapper">
-      <table class={["creator-table", "mode-#{@mode}", @has_checkbox && "has-checkbox"]}>
+      <table
+        id={"creators-table-#{@mode}"}
+        class={["creator-table", "mode-#{@mode}", @has_checkbox && "has-checkbox"]}
+        phx-hook="ColumnResize"
+        data-table-id={"creators-#{@mode}"}
+      >
         <thead>
           <tr>
             <%= if @has_checkbox do %>
-              <th class="col-checkbox">
+              <th class="col-checkbox" data-resizable="false" data-column-id="checkbox">
                 <input
                   type="checkbox"
                   checked={@all_selected}
@@ -518,7 +531,7 @@ defmodule PavoiWeb.CreatorComponents do
               on_sort={@on_sort}
             />
             <%= if @mode == "crm" do %>
-              <th class="col-tags">Tags</th>
+              <th class="col-tags" data-column-id="tags">Tags</th>
             <% end %>
             <%= if @mode == "outreach" do %>
               <.sort_header
@@ -528,7 +541,7 @@ defmodule PavoiWeb.CreatorComponents do
                 dir={@sort_dir}
                 on_sort={@on_sort}
               />
-              <th>Status</th>
+              <th data-column-id="status">Status</th>
               <.sort_header
                 label="Added"
                 field="added"
@@ -696,7 +709,7 @@ defmodule PavoiWeb.CreatorComponents do
       |> assign(:next_dir, next_dir)
 
     ~H"""
-    <th class={["sortable-header", @class, @is_active && "sortable-header--active"]}>
+    <th class={["sortable-header", @class, @is_active && "sortable-header--active"]} data-column-id={@field}>
       <%= if @on_sort do %>
         <button
           type="button"
@@ -913,11 +926,13 @@ defmodule PavoiWeb.CreatorComponents do
   - `active_tab` - Current active tab ("contact", "samples", "videos", "performance")
   - `editing_contact` - Whether contact form is in edit mode
   - `contact_form` - The form for editing contact info
+  - `tag_picker_open` - Whether tag picker is open from this modal (disables click-away)
   """
   attr :creator, :any, default: nil
   attr :active_tab, :string, default: "contact"
   attr :editing_contact, :boolean, default: false
   attr :contact_form, :any, default: nil
+  attr :tag_picker_open, :boolean, default: false
 
   def creator_detail_modal(assigns) do
     ~H"""
@@ -927,29 +942,40 @@ defmodule PavoiWeb.CreatorComponents do
         show={true}
         on_cancel={JS.push("close_creator_modal")}
         modal_class="modal__box--wide"
+        click_away_disabled={@tag_picker_open}
       >
         <div class="modal__header">
           <div class="creator-modal-header">
-            <h2 class="modal__title">
-              <%= if @creator.tiktok_username do %>
-                @{@creator.tiktok_username}
-              <% else %>
-                {Creator.full_name(@creator) || "Creator"}
+            <div class="creator-modal-header__row">
+              <h2 class="modal__title">
+                <%= if @creator.tiktok_username do %>
+                  @{@creator.tiktok_username}
+                <% else %>
+                  {Creator.full_name(@creator) || "Creator"}
+                <% end %>
+              </h2>
+              <%= if @creator.tiktok_profile_url do %>
+                <a
+                  href={@creator.tiktok_profile_url}
+                  target="_blank"
+                  rel="noopener"
+                  class="link text-sm"
+                >
+                  View TikTok Profile →
+                </a>
               <% end %>
-            </h2>
-            <%= if @creator.tiktok_profile_url do %>
-              <a
-                href={@creator.tiktok_profile_url}
-                target="_blank"
-                rel="noopener"
-                class="link text-sm"
-              >
-                View TikTok Profile →
-              </a>
-            <% end %>
-            <.whitelisted_badge is_whitelisted={@creator.is_whitelisted} />
-            <.badge_pill level={@creator.tiktok_badge_level} />
-            <.tag_pills tags={@creator.creator_tags} />
+              <.whitelisted_badge is_whitelisted={@creator.is_whitelisted} />
+              <.badge_pill level={@creator.tiktok_badge_level} />
+            </div>
+            <div class="creator-modal-tags" data-modal-tag-target={@creator.id}>
+              <.tag_pills tags={@creator.creator_tags} max_visible={999} />
+              <button
+                type="button"
+                class="creator-modal-tags__add"
+                phx-click="open_modal_tag_picker"
+                title="Add tag"
+              >+</button>
+            </div>
           </div>
         </div>
 

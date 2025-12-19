@@ -62,7 +62,8 @@
 }
 
 .creator-table-wrapper {
-  overflow-x: auto;
+  overflow: auto;
+  height: calc(100vh - 160px); /* viewport minus navbar and page header */
   border-radius: var(--radius-md);
   border: 1px solid var(--color-border);
   background: var(--color-surface-primary);
@@ -85,6 +86,10 @@
   background: var(--color-surface-secondary);
   border-bottom: 1px solid var(--color-border);
   white-space: nowrap;
+  /* Sticky header within scroll container */
+  position: sticky;
+  top: 0;
+  z-index: 10;
 }
 
 
@@ -97,48 +102,48 @@
    Columns: Checkbox, Username, Name, Email, Phone, Tags, Followers, GMV, Samples, Videos
    ============================================================================= */
 .creator-table.mode-crm th:nth-child(1),
-.creator-table.mode-crm td:nth-child(1) { width: 40px; }   /* Checkbox */
+.creator-table.mode-crm td:nth-child(1) { width: 45px; }   /* Checkbox */
 .creator-table.mode-crm th:nth-child(2),
-.creator-table.mode-crm td:nth-child(2) { width: 130px; }  /* Username */
+.creator-table.mode-crm td:nth-child(2) { width: 145px; }  /* Username */
 .creator-table.mode-crm th:nth-child(3),
-.creator-table.mode-crm td:nth-child(3) { width: 130px; }  /* Name */
+.creator-table.mode-crm td:nth-child(3) { width: 155px; }  /* Name */
 .creator-table.mode-crm th:nth-child(4),
-.creator-table.mode-crm td:nth-child(4) { width: 170px; }  /* Email */
+.creator-table.mode-crm td:nth-child(4) { width: 205px; }  /* Email */
 .creator-table.mode-crm th:nth-child(5),
-.creator-table.mode-crm td:nth-child(5) { width: 115px; }  /* Phone */
+.creator-table.mode-crm td:nth-child(5) { width: 135px; }  /* Phone */
 .creator-table.mode-crm th:nth-child(6),
-.creator-table.mode-crm td:nth-child(6) { width: 100px; }  /* Tags */
+.creator-table.mode-crm td:nth-child(6) { width: 150px; }  /* Tags */
 .creator-table.mode-crm th:nth-child(7),
-.creator-table.mode-crm td:nth-child(7) { width: 100px; }  /* Followers */
+.creator-table.mode-crm td:nth-child(7) { width: 125px; }  /* Followers */
 .creator-table.mode-crm th:nth-child(8),
-.creator-table.mode-crm td:nth-child(8) { width: 80px; }   /* GMV */
+.creator-table.mode-crm td:nth-child(8) { width: 100px; }  /* GMV */
 .creator-table.mode-crm th:nth-child(9),
-.creator-table.mode-crm td:nth-child(9) { width: 80px; }   /* Samples */
+.creator-table.mode-crm td:nth-child(9) { width: 120px; }  /* Samples */
 .creator-table.mode-crm th:nth-child(10),
-.creator-table.mode-crm td:nth-child(10) { width: 80px; }  /* Videos */
+.creator-table.mode-crm td:nth-child(10) { width: 115px; } /* Videos */
 
 /* =============================================================================
    OUTREACH MODE - with checkbox (pending status)
    Columns: Checkbox, Username, Name, Email, Phone, SMS Consent, Status, Added, [Sent]
    ============================================================================= */
 .creator-table.mode-outreach.has-checkbox th:nth-child(1),
-.creator-table.mode-outreach.has-checkbox td:nth-child(1) { width: 40px; }   /* Checkbox */
+.creator-table.mode-outreach.has-checkbox td:nth-child(1) { width: 45px; }   /* Checkbox */
 .creator-table.mode-outreach.has-checkbox th:nth-child(2),
 .creator-table.mode-outreach.has-checkbox td:nth-child(2) { width: 140px; }  /* Username */
 .creator-table.mode-outreach.has-checkbox th:nth-child(3),
-.creator-table.mode-outreach.has-checkbox td:nth-child(3) { width: 160px; }  /* Name */
+.creator-table.mode-outreach.has-checkbox td:nth-child(3) { width: 165px; }  /* Name */
 .creator-table.mode-outreach.has-checkbox th:nth-child(4),
-.creator-table.mode-outreach.has-checkbox td:nth-child(4) { width: 180px; }  /* Email */
+.creator-table.mode-outreach.has-checkbox td:nth-child(4) { width: 245px; }  /* Email */
 .creator-table.mode-outreach.has-checkbox th:nth-child(5),
-.creator-table.mode-outreach.has-checkbox td:nth-child(5) { width: 120px; }  /* Phone */
+.creator-table.mode-outreach.has-checkbox td:nth-child(5) { width: 140px; }  /* Phone */
 .creator-table.mode-outreach.has-checkbox th:nth-child(6),
-.creator-table.mode-outreach.has-checkbox td:nth-child(6) { width: 100px; }  /* SMS Consent */
+.creator-table.mode-outreach.has-checkbox td:nth-child(6) { width: 165px; }  /* SMS Consent */
 .creator-table.mode-outreach.has-checkbox th:nth-child(7),
-.creator-table.mode-outreach.has-checkbox td:nth-child(7) { width: 100px; }  /* Status */
+.creator-table.mode-outreach.has-checkbox td:nth-child(7) { width: 120px; }  /* Status */
 .creator-table.mode-outreach.has-checkbox th:nth-child(8),
-.creator-table.mode-outreach.has-checkbox td:nth-child(8) { width: 130px; }  /* Added */
+.creator-table.mode-outreach.has-checkbox td:nth-child(8) { width: 120px; }  /* Added */
 .creator-table.mode-outreach.has-checkbox th:nth-child(9),
-.creator-table.mode-outreach.has-checkbox td:nth-child(9) { width: 130px; }  /* Sent (when visible) */
+.creator-table.mode-outreach.has-checkbox td:nth-child(9) { width: 125px; }  /* Sent (when visible) */
 
 /* =============================================================================
    OUTREACH MODE - without checkbox (sent/skipped status)
@@ -147,19 +152,19 @@
 .creator-table.mode-outreach:not(.has-checkbox) th:nth-child(1),
 .creator-table.mode-outreach:not(.has-checkbox) td:nth-child(1) { width: 140px; }  /* Username */
 .creator-table.mode-outreach:not(.has-checkbox) th:nth-child(2),
-.creator-table.mode-outreach:not(.has-checkbox) td:nth-child(2) { width: 160px; }  /* Name */
+.creator-table.mode-outreach:not(.has-checkbox) td:nth-child(2) { width: 165px; }  /* Name */
 .creator-table.mode-outreach:not(.has-checkbox) th:nth-child(3),
-.creator-table.mode-outreach:not(.has-checkbox) td:nth-child(3) { width: 180px; }  /* Email */
+.creator-table.mode-outreach:not(.has-checkbox) td:nth-child(3) { width: 245px; }  /* Email */
 .creator-table.mode-outreach:not(.has-checkbox) th:nth-child(4),
-.creator-table.mode-outreach:not(.has-checkbox) td:nth-child(4) { width: 120px; }  /* Phone */
+.creator-table.mode-outreach:not(.has-checkbox) td:nth-child(4) { width: 140px; }  /* Phone */
 .creator-table.mode-outreach:not(.has-checkbox) th:nth-child(5),
-.creator-table.mode-outreach:not(.has-checkbox) td:nth-child(5) { width: 100px; }  /* SMS Consent */
+.creator-table.mode-outreach:not(.has-checkbox) td:nth-child(5) { width: 165px; }  /* SMS Consent */
 .creator-table.mode-outreach:not(.has-checkbox) th:nth-child(6),
-.creator-table.mode-outreach:not(.has-checkbox) td:nth-child(6) { width: 100px; }  /* Status */
+.creator-table.mode-outreach:not(.has-checkbox) td:nth-child(6) { width: 120px; }  /* Status */
 .creator-table.mode-outreach:not(.has-checkbox) th:nth-child(7),
-.creator-table.mode-outreach:not(.has-checkbox) td:nth-child(7) { width: 130px; }  /* Added */
+.creator-table.mode-outreach:not(.has-checkbox) td:nth-child(7) { width: 120px; }  /* Added */
 .creator-table.mode-outreach:not(.has-checkbox) th:nth-child(8),
-.creator-table.mode-outreach:not(.has-checkbox) td:nth-child(8) { width: 130px; }  /* Sent (when visible) */
+.creator-table.mode-outreach:not(.has-checkbox) td:nth-child(8) { width: 125px; }  /* Sent (when visible) */
 
 /* Sortable headers */
 .sortable-header {
@@ -169,6 +174,7 @@
 .sortable-header__btn {
   display: flex;
   align-items: center;
+  justify-content: flex-start;
   gap: var(--space-1);
   width: 100%;
   padding: var(--space-3) var(--space-4);
@@ -179,6 +185,7 @@
   color: var(--color-text-secondary);
   cursor: pointer;
   transition: color 0.15s ease;
+  text-align: left;
 }
 
 .sortable-header__btn:hover {
@@ -212,9 +219,8 @@
   opacity: 1;
 }
 
-.sortable-header.text-right .sortable-header__btn {
-  justify-content: flex-end;
-}
+/* Note: Removed justify-content: flex-end for headers - all headers are left-aligned */
+/* Data cells use .text-right class for right-alignment */
 
 .creator-table td {
   padding: var(--space-3) var(--space-4);
@@ -674,11 +680,11 @@
   border: 1px solid rgba(251, 191, 36, 0.2);
 }
 
-/* Center align SMS Consent and Status columns in outreach mode */
-.creator-table.has-checkbox th:nth-child(6),
-.creator-table.has-checkbox td:nth-child(6),
-.creator-table.has-checkbox th:nth-child(7),
-.creator-table.has-checkbox td:nth-child(7) {
+/* Center align SMS Consent and Status columns in outreach mode only */
+.creator-table.mode-outreach.has-checkbox th:nth-child(6),
+.creator-table.mode-outreach.has-checkbox td:nth-child(6),
+.creator-table.mode-outreach.has-checkbox th:nth-child(7),
+.creator-table.mode-outreach.has-checkbox td:nth-child(7) {
   text-align: center;
 }
 
@@ -738,3 +744,74 @@
   background: var(--color-surface-secondary);
   border-color: var(--color-border);
 }
+
+/* ============================================
+   COLUMN RESIZE STYLES
+   ============================================ */
+
+/* Resize handle - positioned at right edge of header cells */
+.column-resize-handle {
+  position: absolute;
+  top: 0;
+  right: -1px;
+  width: 7px;
+  height: 100%;
+  cursor: col-resize;
+  z-index: 100;
+  background: transparent;
+  pointer-events: auto;
+}
+
+/* Ensure button doesn't block resize handle */
+.sortable-header__btn {
+  pointer-events: auto;
+  position: relative;
+  z-index: 1;
+}
+
+/* Always-visible separator line */
+.column-resize-handle::before {
+  content: "";
+  position: absolute;
+  top: 25%;
+  bottom: 25%;
+  left: 3px;
+  width: 1px;
+  background: var(--color-border);
+  transition: background 0.15s ease, width 0.15s ease;
+}
+
+/* Hover state - thicker, more visible line */
+.column-resize-handle:hover::before {
+  width: 2px;
+  left: 2.5px;
+  background: var(--color-text-tertiary);
+}
+
+/* Active state - only the handle being dragged gets the blue highlight */
+.column-resize-handle.is-active::before {
+  width: 3px;
+  left: 2px;
+  top: 0;
+  bottom: 0;
+  background: var(--color-primary);
+}
+
+/* While actively resizing */
+.creator-table.is-resizing {
+  cursor: col-resize;
+  user-select: none;
+}
+
+/* Prevent text selection during resize */
+.creator-table.is-resizing td,
+.creator-table.is-resizing th {
+  user-select: none;
+}
+
+/* Ensure headers have relative positioning for handles */
+.creator-table th {
+  position: relative;
+}
+
+

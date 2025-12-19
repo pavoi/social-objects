@@ -277,11 +277,17 @@
   active_tab={@active_tab}
   editing_contact={@editing_contact}
   contact_form={@contact_form}
+  tag_picker_open={@tag_picker_open_for != nil && @tag_picker_source == :modal}
 />
 
 <%!-- Tag Picker (rendered at page level to avoid table overflow clipping) --%>
 <%= if @tag_picker_open_for do %>
-  <div id="tag-picker-container" class="tag-picker-container" phx-hook="TagPickerPosition">
+  <div
+    id="tag-picker-container"
+    class="tag-picker-container"
+    phx-hook="TagPickerPosition"
+    data-source={@tag_picker_source}
+  >
     <.tag_picker
       creator_id={@tag_picker_open_for}
       available_tags={@available_tags}

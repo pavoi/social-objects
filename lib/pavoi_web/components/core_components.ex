@@ -708,6 +708,7 @@ defmodule PavoiWeb.CoreComponents do
   attr :show, :boolean, default: false
   attr :on_cancel, JS, default: %JS{}
   attr :modal_class, :string, default: "", doc: "Additional CSS classes for the modal box"
+  attr :click_away_disabled, :boolean, default: false, doc: "Disable click-away behavior (useful when external elements like pickers are open)"
   attr :rest, :global, doc: "arbitrary HTML attributes to add to the modal container"
   slot :inner_block, required: true
 
@@ -734,7 +735,7 @@ defmodule PavoiWeb.CoreComponents do
             id={"#{@id}-container"}
             phx-window-keydown={JS.exec("data-cancel", to: "##{@id}")}
             phx-key="escape"
-            phx-click-away={JS.exec("data-cancel", to: "##{@id}")}
+            phx-click-away={!@click_away_disabled && JS.exec("data-cancel", to: "##{@id}")}
             class={["modal__box", @modal_class]}
           >
             <button

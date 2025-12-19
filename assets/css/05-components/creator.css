@@ -278,6 +278,12 @@
 /* Modal header */
 .creator-modal-header {
   display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.creator-modal-header__row {
+  display: flex;
   align-items: baseline;
   flex-wrap: wrap;
   gap: var(--space-2) var(--space-3);
@@ -285,6 +291,41 @@
 
 .creator-modal-header .modal__title {
   margin: 0;
+}
+
+/* Tags section in modal */
+.creator-modal-tags {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.creator-modal-tags__add {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 1px dashed var(--color-border);
+  background: transparent;
+  color: var(--color-text-secondary);
+  font-size: 16px;
+  font-weight: 300;
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s ease;
+  flex-shrink: 0;
+  padding: 0;
+  padding-bottom: 1px;
+  margin-top: 8px;
+}
+
+.creator-modal-tags__add:hover {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+  background: var(--color-surface-secondary);
 }
 
 /* Stats bar */
@@ -522,6 +563,31 @@
   gap: var(--space-1);
 }
 
+/* Table variant - responsive to column width */
+.tag-pills--table {
+  flex-wrap: nowrap;
+  margin-top: 0;
+  position: relative;
+}
+
+.tag-pills--table .tag-pill {
+  flex-shrink: 0;
+}
+
+/* Overflow indicator injected by JS - positioned at right edge of tag-cell */
+.tag-cell .tag-overflow-indicator {
+  flex-shrink: 0;
+  margin-left: auto;
+  /* Gradient background to fade clipped tags */
+  background: linear-gradient(to right, transparent 0%, var(--color-surface-primary) 8px);
+  padding-left: 10px;
+}
+
+/* Ensure indicator stays visible on row hover */
+.creator-table tbody tr:hover .tag-overflow-indicator {
+  background: linear-gradient(to right, transparent 0%, var(--color-bg-hover) 8px);
+}
+
 .tag-pill {
   display: inline-flex;
   align-items: center;
@@ -585,6 +651,12 @@
 
 .tag-cell:hover {
   background: var(--color-bg-hover);
+}
+
+/* Allow tag-pills in table cells to use available width */
+.tag-cell .tag-pills--table {
+  max-width: 100%;
+  overflow: hidden;
 }
 
 .tag-cell__placeholder {
