@@ -83,6 +83,7 @@ defmodule Pavoi.Workers.CreatorOutreachWorker do
       end
     else
       Logger.warning("Creator #{creator.id} has no email address, skipping email")
+      Outreach.log_outreach(creator.id, "email", "failed", error_message: "no_email")
       Map.put(results, :email, {:error, "no_email"})
     end
   end
