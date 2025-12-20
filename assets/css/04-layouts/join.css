@@ -1,0 +1,215 @@
+/* ============================================================================
+   JOIN PAGE - SMS Consent Form
+   ============================================================================
+
+   Public-facing form page for capturing phone number and SMS consent
+   before redirecting to Lark community.
+
+   Uses Pavoi brand styling:
+   - Font: Georgia, serif
+   - Dark green: #2E4042
+   - Sage green: #A9BDB6
+
+   ============================================================================ */
+
+/* Brand-specific tokens for this page */
+.join-page {
+  --join-brand-dark: #2E4042;
+  --join-brand-sage: #A9BDB6;
+  --join-font: Georgia, 'Times New Roman', serif;
+}
+
+/* Page wrapper */
+.join-page {
+  min-height: 100vh;
+  background: #f8f8f8;
+  padding: var(--space-8) var(--space-4);
+  font-family: var(--join-font);
+  line-height: 1.7;
+  color: var(--join-brand-dark);
+}
+
+/* Container */
+.join-container {
+  max-width: 500px;
+  margin: 0 auto;
+  background: #ffffff;
+  box-shadow: var(--shadow-md);
+}
+
+/* Header with logo */
+.join-header {
+  text-align: center;
+  padding: var(--space-10) var(--space-8) var(--space-6);
+}
+
+.join-logo {
+  font-family: var(--join-font);
+  font-size: 28px;
+  letter-spacing: 4px;
+  color: var(--join-brand-dark);
+}
+
+/* Main content area */
+.join-content {
+  padding: 0 var(--space-10) var(--space-10);
+}
+
+.join-content h1 {
+  font-family: var(--join-font);
+  color: var(--join-brand-dark);
+  margin: 0 0 var(--space-8);
+  font-size: 26px;
+  font-weight: normal;
+  text-align: center;
+  letter-spacing: 1px;
+}
+
+/* Benefits section */
+.join-benefits {
+  margin-bottom: var(--space-6);
+}
+
+.join-benefits p {
+  margin: 0 0 var(--space-3);
+  font-weight: bold;
+}
+
+.join-benefits ul {
+  padding-left: var(--space-5);
+  margin: 0;
+}
+
+.join-benefits li {
+  margin-bottom: var(--space-2);
+}
+
+/* Lark info box */
+.join-lark-info {
+  color: #666;
+  font-size: var(--text-sm);
+  margin-bottom: var(--space-8);
+  padding: var(--space-4);
+  background: #f9f9f9;
+  border-left: 3px solid var(--join-brand-sage);
+}
+
+.join-lark-info p {
+  margin: 0;
+}
+
+/* Form styles */
+.join-form {
+  margin-top: var(--space-6);
+}
+
+.join-field {
+  margin-bottom: var(--space-5);
+}
+
+.join-field label {
+  display: block;
+  font-weight: bold;
+  margin-bottom: var(--space-2);
+  font-size: var(--text-sm);
+}
+
+.join-input {
+  width: 100%;
+  padding: var(--space-3) var(--space-4);
+  font-family: var(--join-font);
+  font-size: var(--text-base);
+  border: 1px solid #ccc;
+  border-radius: var(--radius-sm);
+  background: #fff;
+  color: var(--join-brand-dark);
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.join-input:focus {
+  outline: none;
+  border-color: var(--join-brand-dark);
+  box-shadow: 0 0 0 2px rgba(46, 64, 66, 0.1);
+}
+
+.join-input--readonly {
+  background: #f5f5f5;
+  color: #666;
+  cursor: not-allowed;
+}
+
+.join-input--error {
+  border-color: var(--color-accent-red);
+}
+
+.join-field-error {
+  display: block;
+  margin-top: var(--space-2);
+  color: var(--color-accent-red);
+  font-size: var(--text-sm);
+}
+
+/* Consent text */
+.join-consent-text {
+  font-size: var(--text-xs);
+  color: #888;
+  line-height: 1.5;
+  margin: var(--space-4) 0 var(--space-6);
+}
+
+/* Submit button */
+.join-button {
+  width: 100%;
+  padding: var(--space-4) var(--space-8);
+  font-family: var(--join-font);
+  font-size: 15px;
+  letter-spacing: 1px;
+  background: var(--join-brand-dark);
+  color: #fff;
+  border: none;
+  cursor: pointer;
+  transition: background var(--transition-fast);
+}
+
+.join-button:hover:not(:disabled) {
+  background: #1f2d2f;
+}
+
+.join-button:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+/* Error page state */
+.join-page--error .join-content {
+  text-align: center;
+  padding: var(--space-10);
+}
+
+.join-page--error h1 {
+  margin-bottom: var(--space-4);
+}
+
+.join-error-message {
+  color: #666;
+  line-height: 1.6;
+}
+
+/* Mobile responsiveness */
+@media (max-width: 560px) {
+  .join-page {
+    padding: var(--space-4) var(--space-2);
+  }
+
+  .join-content {
+    padding: 0 var(--space-6) var(--space-8);
+  }
+
+  .join-header {
+    padding: var(--space-8) var(--space-6) var(--space-4);
+  }
+
+  .join-content h1 {
+    font-size: 22px;
+  }
+}

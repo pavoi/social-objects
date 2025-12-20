@@ -17,12 +17,15 @@ defmodule Pavoi.Communications.Templates do
 
   @doc """
   Returns the welcome email HTML body.
+
+  The join_url parameter is the URL to the consent/join form page,
+  which captures phone number and SMS consent before redirecting to Lark.
   """
   @brand_dark_green "#2E4042"
   @brand_sage "#A9BDB6"
   @brand_font "Georgia, 'Times New Roman', serif"
 
-  def welcome_email_html(creator, lark_invite_url) do
+  def welcome_email_html(creator, join_url) do
     name = get_display_name(creator)
     unsubscribe_url = unsubscribe_url(creator)
 
@@ -60,18 +63,14 @@ defmodule Pavoi.Communications.Templates do
             <li style="margin-bottom: 8px;"><strong>Direct line</strong> to our team for collabs and support</li>
           </ul>
 
-          <p style="margin: 0 0 20px;"><strong>Ready to get started?</strong></p>
+          <p style="margin: 0 0 20px;"><strong>Ready to join our exclusive creator community?</strong></p>
 
           <div style="text-align: center; margin: 30px 0;">
-            <a href="#{html_escape(lark_invite_url)}"
+            <a href="#{html_escape(join_url)}"
                style="display: inline-block; background: #{@brand_dark_green}; color: #ffffff; padding: 16px 40px; text-decoration: none; font-size: 15px; letter-spacing: 1px; font-family: #{@brand_font};">
-              JOIN THE PROGRAM
+              JOIN THE COMMUNITY
             </a>
           </div>
-
-          <p style="color: #666; font-size: 14px; margin: 30px 0 0; padding: 20px; background: #f9f9f9; border-left: 3px solid #{@brand_sage};">
-            This invite links to Lark - a free messaging app by ByteDance (TikTok's parent company). It takes 30 seconds to set up, and it's where we coordinate samples, share promo codes, and announce exclusive opportunities.
-          </p>
 
           <div style="border-top: 1px solid #{@brand_sage}; margin-top: 35px; padding-top: 25px;">
             <p style="margin: 0;">
@@ -101,8 +100,10 @@ defmodule Pavoi.Communications.Templates do
 
   @doc """
   Returns the welcome email plain text body.
+
+  The join_url parameter is the URL to the consent/join form page.
   """
-  def welcome_email_text(creator, lark_invite_url) do
+  def welcome_email_text(creator, join_url) do
     name = get_display_name(creator)
     unsubscribe_url = unsubscribe_url(creator)
 
@@ -119,10 +120,8 @@ defmodule Pavoi.Communications.Templates do
     - First access to new drops before anyone else
     - Direct line to our team for collabs and support
 
-    Ready to get started? Join the program here:
-    #{lark_invite_url}
-
-    This invite links to Lark - a free messaging app by ByteDance (the company behind TikTok). It takes 30 seconds to set up, and it's where we coordinate samples, share promo codes, and announce exclusive opportunities.
+    Ready to join our exclusive creator community? Click here:
+    #{join_url}
 
     Talk soon,
     The Pavoi Team

@@ -20,6 +20,9 @@ defmodule Pavoi.Outreach.OutreachLog do
     # Channel: "email" or "sms"
     field :channel, :string
 
+    # Lark preset used for this outreach (jewelry, active, top_creators)
+    field :lark_preset, :string
+
     # Status: "sent", "failed", "bounced", "delivered"
     field :status, :string
 
@@ -49,6 +52,7 @@ defmodule Pavoi.Outreach.OutreachLog do
     |> cast(attrs, [
       :creator_id,
       :channel,
+      :lark_preset,
       :status,
       :provider_id,
       :error_message,

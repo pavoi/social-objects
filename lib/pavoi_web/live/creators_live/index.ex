@@ -395,14 +395,17 @@ defmodule PavoiWeb.CreatorsLive.Index do
 
   @impl true
   def handle_event("send_outreach", _params, socket) do
-    selected = socket.assigns.selected_lark_preset
-    lark_url = socket.assigns.lark_presets[selected].url
+    selected_preset = socket.assigns.selected_lark_preset
+    lark_url = socket.assigns.lark_presets[selected_preset].url
 
     if String.trim(lark_url) == "" do
       {:noreply, put_flash(socket, :error, "Selected Lark group has no URL configured")}
     else
       creator_ids = MapSet.to_list(socket.assigns.selected_ids)
-      {:ok, count} = CreatorOutreachWorker.enqueue_batch(creator_ids, lark_url)
+      # Pass the preset name (e.g., "jewelry") instead of the URL
+      # The worker generates a join token URL for emails
+      lark_preset = Atom.to_string(selected_preset)
+      {:ok, count} = CreatorOutreachWorker.enqueue_batch(creator_ids, lark_preset)
 
       socket =
         socket
@@ -519,14 +522,16 @@ defmodule PavoiWeb.CreatorsLive.Index do
     # Only create if there's text and no exact match exists
     if query != "" && creator_id do
       available_tags = socket.assigns.available_tags
-      exact_match = Enum.find(available_tags, fn tag ->
-        String.downcase(tag.name) == String.downcase(query)
-      end)
+
+      exact_match =
+        Enum.find(available_tags, fn tag ->
+          String.downcase(tag.name) == String.downcase(query)
+        end)
 
       if exact_match do
         # If exact match exists, assign that tag
         Creators.assign_tag_to_creator(creator_id, exact_match.id)
-        selected_tag_ids = [exact_match.id | (socket.assigns[:picker_selected_tag_ids] || [])]
+        selected_tag_ids = [exact_match.id | socket.assigns[:picker_selected_tag_ids] || []]
 
         socket =
           socket
@@ -545,6 +550,7 @@ defmodule PavoiWeb.CreatorsLive.Index do
           "creator-id" => to_string(creator_id),
           "color" => socket.assigns.new_tag_color
         }
+
         handle_event("quick_create_tag", params, socket)
       end
     else
@@ -587,7 +593,11 @@ defmodule PavoiWeb.CreatorsLive.Index do
   end
 
   @impl true
-  def handle_event("quick_create_tag", %{"name" => name, "creator-id" => creator_id} = params, socket) do
+  def handle_event(
+        "quick_create_tag",
+        %{"name" => name, "creator-id" => creator_id} = params,
+        socket
+      ) do
     creator_id = String.to_integer(creator_id)
     brand_id = socket.assigns.brand_id
     color = Map.get(params, "color", socket.assigns.new_tag_color)
@@ -605,7 +615,7 @@ defmodule PavoiWeb.CreatorsLive.Index do
 
         # Refresh available tags
         available_tags = Creators.list_tags_for_brand(brand_id)
-        selected_tag_ids = [tag.id | (socket.assigns[:picker_selected_tag_ids] || [])]
+        selected_tag_ids = [tag.id | socket.assigns[:picker_selected_tag_ids] || []]
 
         socket =
           socket
@@ -658,7 +668,9 @@ defmodule PavoiWeb.CreatorsLive.Index do
 
             # Remove from filter if it was selected
             new_filter_ids = Enum.reject(socket.assigns.filter_tag_ids, &(&1 == tag_id))
-            new_picker_ids = Enum.reject(socket.assigns.picker_selected_tag_ids || [], &(&1 == tag_id))
+
+            new_picker_ids =
+              Enum.reject(socket.assigns.picker_selected_tag_ids || [], &(&1 == tag_id))
 
             socket =
               socket
@@ -823,7 +835,8 @@ defmodule PavoiWeb.CreatorsLive.Index do
   defp maybe_refresh_selected_creator_tags(socket, creator_id) do
     selected_creator = socket.assigns.selected_creator
 
-    if socket.assigns.tag_picker_source == :modal && selected_creator && selected_creator.id == creator_id do
+    if socket.assigns.tag_picker_source == :modal && selected_creator &&
+         selected_creator.id == creator_id do
       tags = Creators.list_tags_for_creator(creator_id, socket.assigns.brand_id)
       updated_creator = Map.put(selected_creator, :creator_tags, tags)
       assign(socket, :selected_creator, updated_creator)

@@ -58,6 +58,8 @@ defmodule Pavoi.Creators.Creator do
     field :outreach_sent_at, :utc_datetime
     field :sms_consent, :boolean, default: false
     field :sms_consent_at, :utc_datetime
+    field :sms_consent_ip, :string
+    field :sms_consent_user_agent, :string
 
     # Associations
     has_many :brand_creators, Pavoi.Creators.BrandCreator
@@ -99,7 +101,9 @@ defmodule Pavoi.Creators.Creator do
       :outreach_status,
       :outreach_sent_at,
       :sms_consent,
-      :sms_consent_at
+      :sms_consent_at,
+      :sms_consent_ip,
+      :sms_consent_user_agent
     ])
     |> validate_required([])
     |> normalize_username()

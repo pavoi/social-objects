@@ -198,6 +198,44 @@ defmodule Pavoi.Outreach do
   end
 
   @doc """
+  Generates a signed token for join/consent form links.
+  Token encodes both creator_id and lark_preset for redirect after form submission.
+  Token is valid for 90 days.
+  """
+  def generate_join_token(creator_id, lark_preset) do
+    Phoenix.Token.sign(PavoiWeb.Endpoint, "join", %{
+      creator_id: creator_id,
+      lark_preset: lark_preset
+    })
+  end
+
+  @doc """
+  Verifies a join token and returns the payload map with creator_id and lark_preset.
+  Token must be less than 90 days old.
+  """
+  def verify_join_token(token) do
+    # 90 days in seconds
+    max_age = 90 * 24 * 60 * 60
+    Phoenix.Token.verify(PavoiWeb.Endpoint, "join", token, max_age: max_age)
+  end
+
+  @doc """
+  Updates SMS consent for a creator with full TCPA tracking.
+  Records consent timestamp, IP address, and user agent for compliance.
+  """
+  def update_sms_consent_with_tracking(%Creator{} = creator, phone, ip, user_agent) do
+    creator
+    |> Creator.changeset(%{
+      phone: phone,
+      sms_consent: true,
+      sms_consent_at: DateTime.utc_now() |> DateTime.truncate(:second),
+      sms_consent_ip: ip,
+      sms_consent_user_agent: user_agent
+    })
+    |> Repo.update()
+  end
+
+  @doc """
   Updates SMS consent for a creator.
   """
   def update_sms_consent(%Creator{} = creator, consent) when is_boolean(consent) do
@@ -220,6 +258,12 @@ defmodule Pavoi.Outreach do
 
   @doc """
   Logs an outreach attempt for a creator.
+
+  ## Options
+    - provider_id: SendGrid message ID or Twilio SID
+    - error_message: Error details if failed
+    - sent_at: Override send timestamp (defaults to now)
+    - lark_preset: Which Lark preset was used (jewelry, active, top_creators)
   """
   def log_outreach(creator_id, channel, status, opts \\ []) do
     %OutreachLog{}
@@ -229,6 +273,7 @@ defmodule Pavoi.Outreach do
       status: status,
       provider_id: Keyword.get(opts, :provider_id),
       error_message: Keyword.get(opts, :error_message),
+      lark_preset: Keyword.get(opts, :lark_preset),
       sent_at: Keyword.get(opts, :sent_at, DateTime.utc_now() |> DateTime.truncate(:second))
     })
     |> Repo.insert()
