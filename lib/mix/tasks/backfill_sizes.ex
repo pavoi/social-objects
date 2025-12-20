@@ -49,7 +49,10 @@ defmodule Mix.Tasks.BackfillSizes do
     batch_size = Keyword.get(opts, :batch_size, 500)
     force = Keyword.get(opts, :force, false)
 
-    Mix.shell().info("Starting size backfill#{if dry_run, do: " (DRY RUN)", else: ""}#{if force, do: " (FORCE ALL)", else: ""}...")
+    Mix.shell().info(
+      "Starting size backfill#{if dry_run, do: " (DRY RUN)", else: ""}#{if force, do: " (FORCE ALL)", else: ""}..."
+    )
+
     Mix.shell().info("Batch size: #{batch_size}")
     Mix.shell().info("")
 

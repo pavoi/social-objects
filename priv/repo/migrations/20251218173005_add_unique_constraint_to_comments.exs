@@ -15,13 +15,13 @@ defmodule Pavoi.Repo.Migrations.AddUniqueConstraintToComments do
     # Add unique constraint to prevent future duplicates
     # A user can't send two messages at the exact same second
     create unique_index(:tiktok_comments, [:stream_id, :tiktok_user_id, :commented_at],
-      name: :tiktok_comments_unique_per_user_timestamp
-    )
+             name: :tiktok_comments_unique_per_user_timestamp
+           )
   end
 
   def down do
     drop index(:tiktok_comments, [:stream_id, :tiktok_user_id, :commented_at],
-      name: :tiktok_comments_unique_per_user_timestamp
-    )
+           name: :tiktok_comments_unique_per_user_timestamp
+         )
   end
 end

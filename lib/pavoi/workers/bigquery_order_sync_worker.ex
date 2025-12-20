@@ -188,7 +188,8 @@ defmodule Pavoi.Workers.BigQueryOrderSyncWorker do
   end
 
   # Fetch user_id from TikTok Order API and update creator if missing
-  defp maybe_enrich_with_tiktok_user_id(%{tiktok_user_id: nil} = creator, order_id) when is_binary(order_id) do
+  defp maybe_enrich_with_tiktok_user_id(%{tiktok_user_id: nil} = creator, order_id)
+       when is_binary(order_id) do
     Task.start(fn ->
       case fetch_tiktok_user_id(order_id) do
         {:ok, user_id} when is_binary(user_id) ->

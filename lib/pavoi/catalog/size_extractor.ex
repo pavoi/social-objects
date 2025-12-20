@@ -15,7 +15,14 @@ defmodule Pavoi.Catalog.SizeExtractor do
   - :apparel - Clothing sizes (S, M, L, XL, X-Small, etc.)
   """
 
-  @size_option_keys ["Size", "Ring Size", "Length", "Diameter", "Item Display Length", "Pearl Size"]
+  @size_option_keys [
+    "Size",
+    "Ring Size",
+    "Length",
+    "Diameter",
+    "Item Display Length",
+    "Pearl Size"
+  ]
 
   # SKU patterns:
   # -Y5, -W7, -R10 = color letter + size number at end
@@ -118,7 +125,8 @@ defmodule Pavoi.Catalog.SizeExtractor do
 
   defp extract_from_shopify_options(_), do: nil
 
-  defp extract_from_tiktok_attributes(attributes) when is_list(attributes) and length(attributes) > 0 do
+  defp extract_from_tiktok_attributes(attributes)
+       when is_list(attributes) and length(attributes) > 0 do
     # TikTok sales_attributes structure: [%{"attribute_name" => "Size", "value_name" => "7"}, ...]
     # Also handles alternative keys: [%{"name" => "Size", "value" => "7"}, ...]
     Enum.find_value(attributes, &extract_size_from_tiktok_attr/1)

@@ -5,7 +5,9 @@ defmodule Pavoi.Repo.Migrations.CreateCreatorTagAssignments do
     create table(:creator_tag_assignments, primary_key: false) do
       add :id, :binary_id, primary_key: true
       add :creator_id, references(:creators, on_delete: :delete_all), null: false
-      add :creator_tag_id, references(:creator_tags, type: :binary_id, on_delete: :delete_all), null: false
+
+      add :creator_tag_id, references(:creator_tags, type: :binary_id, on_delete: :delete_all),
+        null: false
 
       timestamps(type: :utc_datetime)
     end

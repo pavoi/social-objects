@@ -89,17 +89,26 @@ defmodule Pavoi.TiktokLive.StreamReconciler do
     case Client.fetch_room_info(stream.unique_id) do
       {:ok, %{is_live: true, room_id: room_id}} when room_id == stream.room_id ->
         # Stream is still live with same room_id, restart capture
-        Logger.info("Stream #{stream.id} (@#{stream.unique_id}) is still live, restarting capture")
+        Logger.info(
+          "Stream #{stream.id} (@#{stream.unique_id}) is still live, restarting capture"
+        )
+
         restart_capture(stream)
 
       {:ok, %{is_live: true}} ->
         # Live but different room_id means this is a new stream
-        Logger.info("Stream #{stream.id} (@#{stream.unique_id}) has new room_id, marking as ended")
+        Logger.info(
+          "Stream #{stream.id} (@#{stream.unique_id}) has new room_id, marking as ended"
+        )
+
         mark_stream_ended(stream)
 
       _ ->
         # Not live or error checking, mark as ended
-        Logger.info("Stream #{stream.id} (@#{stream.unique_id}) is no longer live, marking as ended")
+        Logger.info(
+          "Stream #{stream.id} (@#{stream.unique_id}) is no longer live, marking as ended"
+        )
+
         mark_stream_ended(stream)
     end
   end
@@ -183,9 +192,7 @@ defmodule Pavoi.TiktokLive.StreamReconciler do
   end
 
   defp mark_stream_ended(stream) do
-    Logger.info(
-      "Marking orphaned stream #{stream.id} (@#{stream.unique_id}) as ended"
-    )
+    Logger.info("Marking orphaned stream #{stream.id} (@#{stream.unique_id}) as ended")
 
     stream
     |> Stream.changeset(%{

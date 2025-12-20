@@ -33,7 +33,9 @@
           <.button variant="outline" size="sm" phx-click="deselect_all">
             Clear
           </.button>
-          <.button variant="primary" size="sm" phx-click="show_batch_tag_picker">Add Tags</.button>
+          <.button variant="primary" size="sm" phx-click="show_batch_tag_picker">
+            Add Tags
+          </.button>
           <%!-- Skip and Send Welcome only when ALL selected are pending --%>
           <%= if @all_selected_pending do %>
             <.button variant="outline" size="sm" phx-click="skip_selected">
@@ -164,7 +166,9 @@
           </div>
           <div style="margin-top: var(--space-3); display: flex; gap: var(--space-2); justify-content: flex-end;">
             <.button variant="outline" size="sm" phx-click="cancel_lark_edit">Cancel</.button>
-            <.button variant="primary" size="sm" phx-click="save_lark_presets">Save Links</.button>
+            <.button variant="primary" size="sm" phx-click="save_lark_presets">
+              Save Links
+            </.button>
           </div>
         <% else %>
           <%!-- Selection Mode: Radio buttons --%>

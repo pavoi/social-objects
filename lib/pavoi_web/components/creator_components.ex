@@ -45,7 +45,10 @@ defmodule PavoiWeb.CreatorComponents do
 
     ~H"""
     <%= if @tags && @tags != [] do %>
-      <div class={["tag-pills", @in_table && "tag-pills--table"]} data-total-tags={length(@tags || [])}>
+      <div
+        class={["tag-pills", @in_table && "tag-pills--table"]}
+        data-total-tags={length(@tags || [])}
+      >
         <%= for tag <- @visible_tags do %>
           <%= if is_binary(tag) do %>
             <span class="tag-pill tag-pill--gray" data-tag>{tag}</span>
@@ -107,6 +110,7 @@ defmodule PavoiWeb.CreatorComponents do
         assigns.available_tags
       else
         query = String.downcase(search_query)
+
         Enum.filter(assigns.available_tags, fn tag ->
           String.contains?(String.downcase(tag.name), query)
         end)
@@ -114,6 +118,7 @@ defmodule PavoiWeb.CreatorComponents do
 
     # Sort applied tags to the top
     selected_ids = assigns.selected_tag_ids || []
+
     filtered_tags =
       Enum.sort_by(filtered_tags, fn tag ->
         if tag.id in selected_ids, do: 0, else: 1
@@ -122,12 +127,13 @@ defmodule PavoiWeb.CreatorComponents do
     # Check if search query exactly matches an existing tag
     exact_match =
       search_query != "" &&
-      Enum.any?(assigns.available_tags, fn tag ->
-        String.downcase(tag.name) == String.downcase(search_query)
-      end)
+        Enum.any?(assigns.available_tags, fn tag ->
+          String.downcase(tag.name) == String.downcase(search_query)
+        end)
 
     # Show quick create when searching and no exact match exists
-    show_quick_create = search_query != "" && !exact_match && String.length(String.trim(search_query)) > 0
+    show_quick_create =
+      search_query != "" && !exact_match && String.length(String.trim(search_query)) > 0
 
     assigns =
       assigns
@@ -210,7 +216,9 @@ defmodule PavoiWeb.CreatorComponents do
                   phx-value-creator-id={@creator_id}
                   phx-value-tag-id={tag.id}
                   title="Remove tag"
-                >×</button>
+                >
+                  ×
+                </button>
               <% end %>
             </div>
           <% end %>
@@ -277,7 +285,9 @@ defmodule PavoiWeb.CreatorComponents do
                     phx-click="delete_tag"
                     phx-value-tag-id={tag.id}
                     title="Delete tag"
-                  >×</button>
+                  >
+                    ×
+                  </button>
                 </div>
               <% end %>
             </div>
@@ -393,7 +403,9 @@ defmodule PavoiWeb.CreatorComponents do
         <%= if @available_tags == [] do %>
           <div class="batch-tag-picker__empty">
             <p>No tags available.</p>
-            <p class="text-secondary text-sm">Create tags by clicking on the Tags column in the table.</p>
+            <p class="text-secondary text-sm">
+              Create tags by clicking on the Tags column in the table.
+            </p>
           </div>
         <% else %>
           <p class="text-secondary" style="margin-bottom: var(--space-3);">
@@ -617,10 +629,12 @@ defmodule PavoiWeb.CreatorComponents do
   def creator_table(assigns) do
     # Add 'has-checkbox' class when checkboxes should be shown
     # CRM mode always has checkbox, outreach only in pending status
-    has_checkbox = assigns.mode == "crm" || (assigns.mode == "outreach" && assigns.status == "pending")
+    has_checkbox =
+      assigns.mode == "crm" || (assigns.mode == "outreach" && assigns.status == "pending")
 
     all_selected =
-      has_checkbox && assigns.selected_ids && MapSet.size(assigns.selected_ids) == assigns.total_count &&
+      has_checkbox && assigns.selected_ids &&
+        MapSet.size(assigns.selected_ids) == assigns.total_count &&
         assigns.total_count > 0
 
     assigns =
@@ -1070,7 +1084,10 @@ defmodule PavoiWeb.CreatorComponents do
       |> assign(:next_dir, next_dir)
 
     ~H"""
-    <th class={["sortable-header", @class, @is_active && "sortable-header--active"]} data-column-id={@field}>
+    <th
+      class={["sortable-header", @class, @is_active && "sortable-header--active"]}
+      data-column-id={@field}
+    >
       <%= if @on_sort do %>
         <button
           type="button"
@@ -1335,7 +1352,9 @@ defmodule PavoiWeb.CreatorComponents do
                 class="creator-modal-tags__add"
                 phx-click="open_modal_tag_picker"
                 title="Add tag"
-              >+</button>
+              >
+                +
+              </button>
             </div>
           </div>
         </div>

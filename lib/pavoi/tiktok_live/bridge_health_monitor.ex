@@ -103,7 +103,9 @@ defmodule Pavoi.TiktokLive.BridgeHealthMonitor do
     case BridgeClient.health() do
       {:ok, _} ->
         if state.consecutive_failures > 0 do
-          Logger.info("TikTok Bridge is healthy again after #{state.consecutive_failures} failures")
+          Logger.info(
+            "TikTok Bridge is healthy again after #{state.consecutive_failures} failures"
+          )
         end
 
         %{state | consecutive_failures: 0, last_healthy_at: DateTime.utc_now()}

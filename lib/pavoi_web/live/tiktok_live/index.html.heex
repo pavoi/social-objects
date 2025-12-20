@@ -41,7 +41,11 @@
           value={@capture_input}
           disabled={@capture_loading}
         />
-        <button type="submit" class="button button--sm button--primary" disabled={@capture_loading}>
+        <button
+          type="submit"
+          class="button button--sm button--primary"
+          disabled={@capture_loading}
+        >
           <%= if @capture_loading do %>
             Connecting...
           <% else %>

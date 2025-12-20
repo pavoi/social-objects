@@ -68,9 +68,7 @@ defmodule PavoiWeb.SendgridWebhookController do
         update_outreach_log_engagement(outreach_log, event_type, timestamp)
 
       {:error, changeset} ->
-        Logger.warning(
-          "[SendGrid Webhook] Failed to create event: #{inspect(changeset.errors)}"
-        )
+        Logger.warning("[SendGrid Webhook] Failed to create event: #{inspect(changeset.errors)}")
     end
   end
 

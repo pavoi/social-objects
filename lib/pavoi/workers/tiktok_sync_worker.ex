@@ -634,9 +634,14 @@ defmodule Pavoi.Workers.TiktokSyncWorker do
       )
 
     case Catalog.update_product_variant(variant, tiktok_attrs) do
-      {:ok, _} -> count + 1
+      {:ok, _} ->
+        count + 1
+
       {:error, changeset} ->
-        Logger.warning("Skipping variant #{variant.id} TikTok SKU update: #{inspect(changeset.errors)}")
+        Logger.warning(
+          "Skipping variant #{variant.id} TikTok SKU update: #{inspect(changeset.errors)}"
+        )
+
         count
     end
   end

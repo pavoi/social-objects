@@ -259,7 +259,8 @@ defmodule Pavoi.TiktokLive.BridgeClient do
 
       Process.sleep(@reconnect_delay_ms)
 
-      {:reconnect, %{state | reconnect_attempts: state.reconnect_attempts + 1, heartbeat_ref: nil}}
+      {:reconnect,
+       %{state | reconnect_attempts: state.reconnect_attempts + 1, heartbeat_ref: nil}}
     else
       # Crash to trigger supervisor restart with fresh state
       Logger.error("Max reconnection attempts reached, crashing to trigger supervisor restart")
