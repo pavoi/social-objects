@@ -283,7 +283,19 @@ defmodule Pavoi.TiktokLive.BridgeClient do
 
   defp handle_bridge_event(%{"type" => "connected", "uniqueId" => unique_id} = event) do
     Logger.info("Stream connected: @#{unique_id}")
-    broadcast_event(unique_id, %{type: :connected, raw: event})
+    room_id = event["roomId"]
+    cover_url = event["coverUrl"]
+
+    if cover_url do
+      Logger.info("Cover URL available for @#{unique_id}")
+    end
+
+    broadcast_event(unique_id, %{
+      type: :connected,
+      room_id: room_id,
+      cover_url: cover_url,
+      raw: event
+    })
   end
 
   defp handle_bridge_event(%{"type" => "disconnected", "uniqueId" => unique_id}) do

@@ -125,6 +125,23 @@ function extractProductDetails(p) {
 }
 
 /**
+ * Extract cover image URL from roomInfo.
+ * TikTok provides cover images in roomInfo.cover.url_list array.
+ */
+function extractCoverUrl(roomInfo) {
+  if (!roomInfo) return null;
+
+  // Try cover.url_list first (most common)
+  const urlList = roomInfo.cover?.url_list;
+  if (Array.isArray(urlList) && urlList.length > 0) {
+    return urlList[0];
+  }
+
+  // Fallback to other possible locations
+  return roomInfo.coverUrl || roomInfo.cover_url || null;
+}
+
+/**
  * Extract price in cents from various price formats.
  */
 function extractPrice(p) {
@@ -177,10 +194,18 @@ async function connectToStream(uniqueId) {
     // Set up event handlers
     connection.on('connected', (state) => {
       console.log(`[${uniqueId}] Connected! Room ID: ${state.roomId}`);
+
+      // Extract cover image URL from roomInfo
+      const coverUrl = extractCoverUrl(state.roomInfo);
+      if (coverUrl) {
+        console.log(`[${uniqueId}] Cover URL: ${coverUrl.substring(0, 80)}...`);
+      }
+
       broadcastEvent({
         type: 'connected',
         uniqueId,
         roomId: state.roomId,
+        coverUrl: coverUrl,
         roomInfo: state.roomInfo
       });
     });

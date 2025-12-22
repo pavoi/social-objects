@@ -29,6 +29,8 @@ defmodule Pavoi.TiktokLive do
 
   import Ecto.Query, warn: false
 
+  require Logger
+
   alias Pavoi.Catalog.Product
   alias Pavoi.Repo
   alias Pavoi.Sessions.{Session, SessionProduct}
@@ -291,6 +293,46 @@ defmodule Pavoi.TiktokLive do
     })
     |> Repo.update()
   end
+
+  @doc """
+  Updates a stream's cover image by downloading from URL and uploading to storage.
+
+  This is typically called when we receive the connected event from the bridge,
+  which includes the cover image URL from TikTok's roomInfo.
+
+  Returns `{:ok, stream}` on success, `{:error, reason}` on failure.
+  """
+  def update_stream_cover(stream_id, cover_url) when is_binary(cover_url) do
+    stream = get_stream!(stream_id)
+
+    # Skip if stream already has a cover image
+    if stream.cover_image_url do
+      {:ok, stream}
+    else
+      # Generate storage key for the cover image
+      storage_key = "streams/#{stream_id}/cover.jpg"
+
+      case Pavoi.Storage.upload_from_url(cover_url, storage_key) do
+        {:ok, _key} ->
+          # Get the public URL and update stream
+          public_url = Pavoi.Storage.public_url(storage_key)
+
+          stream
+          |> Stream.changeset(%{cover_image_url: public_url})
+          |> Repo.update()
+
+        {:error, reason} ->
+          Logger.warning(
+            "Failed to upload cover image for stream #{stream_id}: #{inspect(reason)}"
+          )
+
+          {:error, reason}
+      end
+    end
+  end
+
+  def update_stream_cover(_stream_id, nil), do: {:ok, nil}
+  def update_stream_cover(_stream_id, _), do: {:ok, nil}
 
   @doc """
   Deletes a stream and all associated data (comments, stats).

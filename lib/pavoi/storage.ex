@@ -96,6 +96,65 @@ defmodule Pavoi.Storage do
   end
 
   @doc """
+  Downloads an image from a URL and uploads it to storage.
+
+  This is useful for capturing external images (like TikTok cover images)
+  and storing them permanently in our storage bucket.
+
+  ## Parameters
+
+  - `url` - The URL to download the image from
+  - `key` - The object key (path within the bucket) to store it at
+
+  ## Returns
+
+  - `{:ok, key}` - The storage key on success
+  - `{:error, reason}` - If download or upload fails
+  """
+  @spec upload_from_url(String.t(), String.t()) :: {:ok, String.t()} | {:error, term()}
+  def upload_from_url(url, key) do
+    if configured?() do
+      with {:ok, %{status: 200, body: body, headers: headers}} <- Req.get(url),
+           content_type <- get_content_type(headers, url),
+           {:ok, _} <- upload_binary(key, body, content_type) do
+        {:ok, key}
+      else
+        {:ok, %{status: status}} ->
+          {:error, {:http_error, status}}
+
+        {:error, reason} ->
+          {:error, reason}
+      end
+    else
+      {:error, :storage_not_configured}
+    end
+  end
+
+  defp get_content_type(headers, url) do
+    # Try to get content-type from headers, fallback to guessing from URL
+    case List.keyfind(headers, "content-type", 0) do
+      {_, content_type} -> content_type
+      nil -> guess_content_type(url)
+    end
+  end
+
+  defp guess_content_type(url) do
+    cond do
+      String.contains?(url, ".png") -> "image/png"
+      String.contains?(url, ".gif") -> "image/gif"
+      String.contains?(url, ".webp") -> "image/webp"
+      true -> "image/jpeg"
+    end
+  end
+
+  defp upload_binary(key, binary, content_type) do
+    bucket = bucket_name()
+
+    ExAws.S3.put_object(bucket, key, binary, content_type: content_type)
+    |> ExAws.request(config() |> Map.to_list())
+  end
+
+  @doc """
   Extracts the storage key from a stored URL.
 
   Useful for regenerating presigned URLs from stored notes_image_url values.

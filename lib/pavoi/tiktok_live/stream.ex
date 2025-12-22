@@ -23,6 +23,7 @@ defmodule Pavoi.TiktokLive.Stream do
     field :total_comments, :integer, default: 0
     field :total_gifts_value, :integer, default: 0
     field :raw_metadata, :map, default: %{}
+    field :cover_image_url, :string
 
     has_many :comments, Pavoi.TiktokLive.Comment, foreign_key: :stream_id
     has_many :stats, Pavoi.TiktokLive.StreamStat, foreign_key: :stream_id
@@ -48,7 +49,8 @@ defmodule Pavoi.TiktokLive.Stream do
       :total_likes,
       :total_comments,
       :total_gifts_value,
-      :raw_metadata
+      :raw_metadata,
+      :cover_image_url
     ])
     |> validate_required([:room_id, :unique_id, :started_at])
   end

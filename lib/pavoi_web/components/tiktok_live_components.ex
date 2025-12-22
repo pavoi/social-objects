@@ -46,6 +46,29 @@ defmodule PavoiWeb.TiktokLiveComponents do
   end
 
   @doc """
+  Renders a stream thumbnail image or placeholder.
+
+  ## Examples
+
+      <.stream_thumbnail url={stream.cover_image_url} />
+  """
+  attr :url, :string, default: nil
+
+  def stream_thumbnail(assigns) do
+    ~H"""
+    <div class="stream-thumbnail">
+      <%= if @url do %>
+        <img src={@url} alt="Stream thumbnail" class="stream-thumbnail__image" loading="lazy" />
+      <% else %>
+        <div class="stream-thumbnail__placeholder">
+          <.icon name="hero-video-camera" class="stream-thumbnail__icon" />
+        </div>
+      <% end %>
+    </div>
+    """
+  end
+
+  @doc """
   Renders the streams table.
   """
   attr :streams, :list, required: true
@@ -57,6 +80,7 @@ defmodule PavoiWeb.TiktokLiveComponents do
       <table id="streams-table" class="streams-table" phx-hook="ColumnResize" data-table-id="streams">
         <thead>
           <tr>
+            <th data-column-id="thumbnail" class="streams-table__th-thumbnail"></th>
             <th data-column-id="title">Title</th>
             <th data-column-id="status">Status</th>
             <th data-column-id="started">Started</th>
@@ -72,6 +96,9 @@ defmodule PavoiWeb.TiktokLiveComponents do
               phx-value-id={stream.id}
               class={[@on_row_click && "cursor-pointer hover:bg-hover"]}
             >
+              <td class="streams-table__td-thumbnail">
+                <.stream_thumbnail url={stream.cover_image_url} />
+              </td>
               <td>
                 <div class="streams-table__title">
                   <span class="streams-table__title-text">{format_stream_title(stream)}</span>
