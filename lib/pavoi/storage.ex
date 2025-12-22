@@ -8,10 +8,10 @@ defmodule Pavoi.Storage do
 
   ## Configuration
 
-  Required environment variables:
-  - `RAILWAY_BUCKET_NAME` - The bucket name (e.g., "pavoi-uploads-abc123")
-  - `RAILWAY_BUCKET_ACCESS_KEY` - S3 access key ID
-  - `RAILWAY_BUCKET_SECRET_KEY` - S3 secret access key
+  Required environment variables (auto-injected by Railway when bucket is linked):
+  - `RAILWAY_BUCKET_NAME` - The bucket name
+  - `RAILWAY_BUCKET_ACCESS_KEY_ID` - S3 access key ID
+  - `RAILWAY_BUCKET_SECRET_ACCESS_KEY` - S3 secret access key
 
   ## Usage
 
@@ -50,7 +50,7 @@ defmodule Pavoi.Storage do
       )
     else
       {:error,
-       "Storage not configured. Set RAILWAY_BUCKET_NAME, RAILWAY_BUCKET_ACCESS_KEY, and RAILWAY_BUCKET_SECRET_KEY environment variables."}
+       "Storage not configured. Ensure Railway Bucket is linked to this service."}
     end
   end
 
@@ -198,6 +198,6 @@ defmodule Pavoi.Storage do
   end
 
   defp bucket_name, do: System.get_env("RAILWAY_BUCKET_NAME")
-  defp access_key, do: System.get_env("RAILWAY_BUCKET_ACCESS_KEY")
-  defp secret_key, do: System.get_env("RAILWAY_BUCKET_SECRET_KEY")
+  defp access_key, do: System.get_env("RAILWAY_BUCKET_ACCESS_KEY_ID")
+  defp secret_key, do: System.get_env("RAILWAY_BUCKET_SECRET_ACCESS_KEY")
 end
