@@ -309,6 +309,112 @@ defmodule Pavoi.TiktokLive do
     end
   end
 
+  @doc """
+  Merges duplicate streams for the same room into a single stream.
+
+  This handles race conditions where two streams were created for the same
+  live broadcast. All comments and stats from the source stream are moved
+  to the target stream, then the source is deleted.
+
+  ## Parameters
+
+  - `target_id` - The stream ID to keep (will receive merged data)
+  - `source_id` - The stream ID to merge from and delete
+
+  ## Returns
+
+  `{:ok, target_stream}` on success, `{:error, reason}` on failure.
+  """
+  def merge_streams(target_id, source_id) when target_id != source_id do
+    target = get_stream!(target_id)
+    source = get_stream!(source_id)
+
+    # Verify they're for the same room
+    if target.room_id != source.room_id do
+      {:error, :different_rooms}
+    else
+      # Find comments in source that would conflict with target (same user + timestamp)
+      # These are duplicates captured by both streams
+      duplicate_comment_ids =
+        from(sc in Comment,
+          join: tc in Comment,
+          on:
+            tc.stream_id == ^target_id and
+              sc.tiktok_user_id == tc.tiktok_user_id and
+              sc.commented_at == tc.commented_at,
+          where: sc.stream_id == ^source_id,
+          select: sc.id
+        )
+        |> Repo.all()
+
+      # Find stats in source that would conflict with target (same timestamp)
+      duplicate_stat_ids =
+        from(ss in StreamStat,
+          join: ts in StreamStat,
+          on: ts.stream_id == ^target_id and ss.recorded_at == ts.recorded_at,
+          where: ss.stream_id == ^source_id,
+          select: ss.id
+        )
+        |> Repo.all()
+
+      Ecto.Multi.new()
+      # Delete duplicate comments from source (already exist in target)
+      |> Ecto.Multi.delete_all(
+        :delete_dup_comments,
+        from(c in Comment, where: c.id in ^duplicate_comment_ids)
+      )
+      # Delete duplicate stats from source (already exist in target)
+      |> Ecto.Multi.delete_all(
+        :delete_dup_stats,
+        from(s in StreamStat, where: s.id in ^duplicate_stat_ids)
+      )
+      # Move remaining unique comments from source to target
+      |> Ecto.Multi.update_all(
+        :move_comments,
+        from(c in Comment, where: c.stream_id == ^source_id),
+        set: [stream_id: target_id]
+      )
+      # Move remaining unique stats from source to target
+      |> Ecto.Multi.update_all(
+        :move_stats,
+        from(s in StreamStat, where: s.stream_id == ^source_id),
+        set: [stream_id: target_id]
+      )
+      # Update target with best values from both streams
+      |> Ecto.Multi.update(:update_target, fn _changes ->
+        Stream.changeset(target, %{
+          started_at: earlier_datetime(target.started_at, source.started_at),
+          ended_at: later_datetime(target.ended_at, source.ended_at),
+          viewer_count_peak: max(target.viewer_count_peak || 0, source.viewer_count_peak || 0),
+          total_likes: max(target.total_likes || 0, source.total_likes || 0),
+          total_comments: (target.total_comments || 0) + (source.total_comments || 0),
+          total_gifts_value: (target.total_gifts_value || 0) + (source.total_gifts_value || 0)
+        })
+      end)
+      # Delete the source stream
+      |> Ecto.Multi.delete(:delete_source, source)
+      |> Repo.transaction()
+      |> case do
+        {:ok, %{update_target: updated_target}} -> {:ok, updated_target}
+        {:error, step, reason, _changes} -> {:error, {step, reason}}
+      end
+    end
+  end
+
+  defp earlier_datetime(nil, dt), do: dt
+  defp earlier_datetime(dt, nil), do: dt
+
+  defp earlier_datetime(dt1, dt2) do
+    if DateTime.compare(dt1, dt2) == :lt, do: dt1, else: dt2
+  end
+
+  defp later_datetime(nil, dt), do: dt
+  defp later_datetime(dt, nil), do: dt
+
+  defp later_datetime(dt1, dt2) do
+    if DateTime.compare(dt1, dt2) == :gt, do: dt1, else: dt2
+  end
+
   ## Private Helpers
 
   defp apply_filters(query, opts) do

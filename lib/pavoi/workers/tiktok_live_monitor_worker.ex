@@ -129,6 +129,11 @@ defmodule Pavoi.Workers.TiktokLiveMonitorWorker do
           {:capture_started, stream}
         )
 
+      {:error, %{errors: [room_id: {"has already been taken", _}]}} ->
+        # Race condition: another process created a capturing stream for this room
+        # This is expected and handled by the unique index
+        Logger.info("Stream already being captured for room #{room_id} (caught by unique index)")
+
       {:error, changeset} ->
         Logger.error("Failed to create stream record: #{inspect(changeset.errors)}")
     end
