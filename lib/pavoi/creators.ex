@@ -13,6 +13,7 @@ defmodule Pavoi.Creators do
     BrandCreator,
     Creator,
     CreatorPerformanceSnapshot,
+    CreatorPurchase,
     CreatorSample,
     CreatorTag,
     CreatorTagAssignment,
@@ -1072,5 +1073,97 @@ defmodule Pavoi.Creators do
       select: a.creator_tag_id
     )
     |> Repo.all()
+  end
+
+  ## Creator Purchases
+
+  @doc """
+  Creates a creator purchase record.
+  Uses on_conflict: :nothing to handle duplicates gracefully.
+  """
+  def create_purchase(attrs \\ %{}) do
+    %CreatorPurchase{}
+    |> CreatorPurchase.changeset(attrs)
+    |> Repo.insert(on_conflict: :nothing, conflict_target: :tiktok_order_id)
+  end
+
+  @doc """
+  Lists purchases for a creator, ordered by date descending.
+  """
+  def list_purchases_for_creator(creator_id) do
+    from(p in CreatorPurchase,
+      where: p.creator_id == ^creator_id,
+      order_by: [desc: p.ordered_at]
+    )
+    |> Repo.all()
+  end
+
+  @doc """
+  Gets purchase statistics for a creator.
+  Returns %{purchase_count: n, total_spent_cents: n, paid_purchase_count: n}
+  """
+  def get_purchase_stats(creator_id) do
+    from(p in CreatorPurchase,
+      where: p.creator_id == ^creator_id,
+      select: %{
+        purchase_count: count(p.id),
+        total_spent_cents: coalesce(sum(p.total_amount_cents), 0)
+      }
+    )
+    |> Repo.one()
+    |> then(fn stats ->
+      # Also count non-sample (paid) purchases
+      paid_count =
+        from(p in CreatorPurchase,
+          where: p.creator_id == ^creator_id and p.is_sample_order == false,
+          select: count(p.id)
+        )
+        |> Repo.one()
+
+      Map.put(stats, :paid_purchase_count, paid_count)
+    end)
+  end
+
+  @doc """
+  Gets purchases for a creator for modal display, limited to 50.
+  """
+  def get_purchases_for_modal(creator_id) do
+    from(p in CreatorPurchase,
+      where: p.creator_id == ^creator_id,
+      order_by: [desc: p.ordered_at],
+      limit: 50
+    )
+    |> Repo.all()
+  end
+
+  @doc """
+  Lists all existing purchase order IDs for efficient deduplication.
+  Returns a MapSet for O(1) lookups.
+  """
+  def list_existing_purchase_order_ids do
+    from(p in CreatorPurchase,
+      select: p.tiktok_order_id,
+      distinct: true
+    )
+    |> Repo.all()
+    |> MapSet.new()
+  end
+
+  @doc """
+  Batch counts purchases for multiple creators.
+  Returns a map of creator_id => count.
+  """
+  def batch_count_purchases(creator_ids) when is_list(creator_ids) do
+    if creator_ids == [] do
+      %{}
+    else
+      from(p in CreatorPurchase,
+        where: p.creator_id in ^creator_ids and p.is_sample_order == false,
+        group_by: p.creator_id,
+        select: {p.creator_id, count(p.id)}
+      )
+      |> Repo.all()
+      |> Map.new()
+    end
   end
 end

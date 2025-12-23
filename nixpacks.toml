@@ -12,8 +12,8 @@ cmds = [
 cmds = [
   "cd assets && npm ci --production=false && cd ..",
   "mix assets.deploy",
-  "mix compile",
-  "mix release",
+  "mix compile --force",
+  "mix release --overwrite",
   "for d in _build/prod/rel/pavoi/lib/pavoi-*/priv; do mkdir -p \"$d/static\" && cp -rf priv/static/. \"$d/static/\"; done"
 ]
 

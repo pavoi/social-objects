@@ -9,9 +9,8 @@ defmodule Pavoi.Repo.Migrations.CreateCreatorPurchases do
   """
 
   def change do
-    create table(:creator_purchases, primary_key: false) do
-      add :id, :binary_id, primary_key: true
-      add :creator_id, references(:creators, on_delete: :delete_all, type: :binary_id), null: false
+    create table(:creator_purchases) do
+      add :creator_id, references(:creators, on_delete: :delete_all), null: false
 
       # TikTok Order Info
       add :tiktok_order_id, :string, null: false

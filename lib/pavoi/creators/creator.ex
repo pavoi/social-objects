@@ -84,6 +84,7 @@ defmodule Pavoi.Creators.Creator do
     has_many :outreach_logs, Pavoi.Outreach.OutreachLog
     has_many :tag_assignments, Pavoi.Creators.CreatorTagAssignment
     many_to_many :creator_tags, Pavoi.Creators.CreatorTag, join_through: "creator_tag_assignments"
+    has_many :purchases, Pavoi.Creators.CreatorPurchase
 
     timestamps()
   end

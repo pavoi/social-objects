@@ -14,6 +14,11 @@ defmodule PavoiWeb.Router do
     plug :accepts, ["json"]
   end
 
+  # Health check endpoint (no auth, no database)
+  scope "/", PavoiWeb do
+    get "/health", HealthController, :check
+  end
+
   # Protected pipeline - requires password in production if SITE_PASSWORD env var is set
   pipeline :protected do
     plug PavoiWeb.Plugs.RequirePassword
