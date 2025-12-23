@@ -152,7 +152,7 @@ defmodule PavoiWeb.HostViewComponents do
     <div class={["host-session-panel", @collapsed && "host-session-panel--collapsed"]}>
       <div class="host-session-panel__header" phx-click="toggle_session_panel">
         <span class="host-session-panel__title">{@session.name}</span>
-        <span class="host-session-panel__count">{@total_products} products</span>
+        <span class="host-session-panel__count">SESSION NOTES</span>
         <svg
           class="host-session-panel__chevron"
           viewBox="0 0 24 24"
