@@ -81,10 +81,15 @@ defmodule Pavoi.Storage do
         key_or_url
       end
 
-    if key do
-      # Use direct public URL format for Railway buckets
-      bucket = bucket_name() || "unconfigured"
-      "https://#{bucket}.storage.railway.app/#{key}"
+    if configured?() && key do
+      bucket = bucket_name()
+
+      # Generate presigned URL valid for 7 days
+      case config()
+           |> ExAws.S3.presigned_url(:get, bucket, key, expires_in: 604_800) do
+        {:ok, url} -> url
+        {:error, _} -> nil
+      end
     else
       nil
     end
@@ -195,7 +200,7 @@ defmodule Pavoi.Storage do
       access_key_id: access_key(),
       secret_access_key: secret_key(),
       host: "storage.railway.app",
-      scheme: "https",
+      scheme: "https://",
       region: "auto"
     )
   end
