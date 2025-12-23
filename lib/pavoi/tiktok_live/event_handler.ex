@@ -273,10 +273,16 @@ defmodule Pavoi.TiktokLive.EventHandler do
 
   defp process_event(%{type: :connected} = event, state) do
     # Try to capture cover image if available
-    if cover_url = event[:cover_url] do
+    cover_url = event[:cover_url]
+    Logger.info("Stream #{state.stream_id} connected, cover_url: #{inspect(cover_url)}")
+
+    if cover_url do
       # Run async to not block event processing
       Task.start(fn ->
-        Pavoi.TiktokLive.update_stream_cover(state.stream_id, cover_url)
+        case Pavoi.TiktokLive.update_stream_cover(state.stream_id, cover_url) do
+          {:ok, _} -> Logger.info("Cover image saved for stream #{state.stream_id}")
+          {:error, reason} -> Logger.warning("Failed to save cover for stream #{state.stream_id}: #{inspect(reason)}")
+        end
       end)
     end
 

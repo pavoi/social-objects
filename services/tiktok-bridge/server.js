@@ -195,10 +195,16 @@ async function connectToStream(uniqueId) {
     connection.on('connected', (state) => {
       console.log(`[${uniqueId}] Connected! Room ID: ${state.roomId}`);
 
+      // Debug: log cover info
+      const cover = state.roomInfo?.cover;
+      console.log(`[${uniqueId}] Cover object:`, cover ? JSON.stringify(cover).substring(0, 200) : 'undefined');
+
       // Extract cover image URL from roomInfo
       const coverUrl = extractCoverUrl(state.roomInfo);
       if (coverUrl) {
         console.log(`[${uniqueId}] Cover URL: ${coverUrl.substring(0, 80)}...`);
+      } else {
+        console.log(`[${uniqueId}] No cover URL found`);
       }
 
       broadcastEvent({
