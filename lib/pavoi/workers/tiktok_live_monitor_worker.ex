@@ -65,8 +65,17 @@ defmodule Pavoi.Workers.TiktokLiveMonitorWorker do
     # Check if we're already capturing this stream
     case get_active_stream(room_id) do
       nil ->
-        # Start new capture
-        start_capture(unique_id, room_id, room_info)
+        # Check if there's a recently-ended stream for the same room we can resume
+        # This handles app restarts/deployments during a live broadcast
+        case get_resumable_stream(room_id) do
+          nil ->
+            # Start new capture
+            start_capture(unique_id, room_id, room_info)
+
+          stream ->
+            # Resume the existing stream
+            resume_capture(stream, unique_id)
+        end
 
       stream ->
         # Check if the capture is actually healthy (receiving events)
@@ -147,6 +156,50 @@ defmodule Pavoi.Workers.TiktokLiveMonitorWorker do
       limit: 1
     )
     |> Repo.one()
+  end
+
+  # Find a stream that ended recently and can be resumed
+  # This handles app restarts/deployments - if a stream with the same room_id
+  # ended within the last 10 minutes, it's likely the same broadcast
+  defp get_resumable_stream(room_id) do
+    import Ecto.Query
+
+    cutoff = DateTime.utc_now() |> DateTime.add(-10, :minute)
+
+    from(s in Stream,
+      where: s.room_id == ^room_id and s.status == :ended,
+      where: s.ended_at > ^cutoff,
+      order_by: [desc: s.ended_at],
+      limit: 1
+    )
+    |> Repo.one()
+  end
+
+  # Resume a previously-ended stream by setting it back to capturing
+  defp resume_capture(stream, unique_id) do
+    Logger.info("Resuming stream #{stream.id} for @#{unique_id} (same room_id, ended recently)")
+
+    case stream
+         |> Stream.changeset(%{status: :capturing, ended_at: nil})
+         |> Repo.update() do
+      {:ok, updated_stream} ->
+        # Enqueue the stream worker to resume capture
+        %{stream_id: updated_stream.id, unique_id: unique_id}
+        |> TiktokLiveStreamWorker.new()
+        |> Oban.insert()
+
+        # Broadcast that capture has resumed
+        Phoenix.PubSub.broadcast(
+          Pavoi.PubSub,
+          "tiktok_live:monitor",
+          {:capture_resumed, updated_stream}
+        )
+
+        Logger.info("Successfully resumed stream #{stream.id}")
+
+      {:error, changeset} ->
+        Logger.error("Failed to resume stream #{stream.id}: #{inspect(changeset.errors)}")
+    end
   end
 
   # Check if a capture is receiving events (stats updated within last 3 minutes)
