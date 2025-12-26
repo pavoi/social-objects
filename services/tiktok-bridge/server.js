@@ -133,6 +133,19 @@ function extractProductDetails(p) {
 }
 
 /**
+ * Fetch a cover image URL and convert to base64.
+ * Returns base64-encoded JPEG image data.
+ */
+async function fetchCoverImage(coverUrl, uniqueId) {
+  const response = await fetch(coverUrl);
+  if (!response.ok) {
+    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+  }
+  const buffer = await response.arrayBuffer();
+  return Buffer.from(buffer).toString('base64');
+}
+
+/**
  * Capture a video thumbnail from an HLS stream URL.
  * Returns base64-encoded JPEG image data.
  */
@@ -217,6 +230,17 @@ async function connectToStream(uniqueId) {
     connection.on('connected', (state) => {
       console.log(`[${uniqueId}] Connected! Room ID: ${state.roomId}`);
 
+      // Debug: log roomInfo structure to understand what TikTok returns
+      console.log(`[${uniqueId}] roomInfo keys:`, Object.keys(state.roomInfo || {}));
+      if (state.roomInfo?.stream_url) {
+        console.log(`[${uniqueId}] stream_url keys:`, Object.keys(state.roomInfo.stream_url));
+      }
+      // Check for cover image as potential fallback
+      const coverUrl = state.roomInfo?.cover?.url_list?.[0] || state.roomInfo?.coverUrl;
+      if (coverUrl) {
+        console.log(`[${uniqueId}] Cover image available: ${coverUrl.substring(0, 80)}...`);
+      }
+
       // Extract HLS stream URL for thumbnail capture
       const hlsUrl = state.roomInfo?.stream_url?.hls_pull_url;
 
@@ -244,8 +268,24 @@ async function connectToStream(uniqueId) {
           .catch((err) => {
             console.error(`[${uniqueId}] Thumbnail capture failed:`, err.message);
           });
+      } else if (coverUrl) {
+        // Fallback: use cover image if HLS URL isn't available
+        console.log(`[${uniqueId}] Using cover image as thumbnail fallback`);
+        fetchCoverImage(coverUrl, uniqueId)
+          .then((thumbnailBase64) => {
+            console.log(`[${uniqueId}] Cover image fetched (${thumbnailBase64.length} chars base64)`);
+            broadcastEvent({
+              type: 'thumbnail',
+              uniqueId,
+              thumbnailBase64,
+              contentType: 'image/jpeg'
+            });
+          })
+          .catch((err) => {
+            console.error(`[${uniqueId}] Cover image fetch failed:`, err.message);
+          });
       } else {
-        console.log(`[${uniqueId}] No HLS URL available for thumbnail capture`);
+        console.log(`[${uniqueId}] No HLS URL or cover image available for thumbnail`);
       }
     });
 
