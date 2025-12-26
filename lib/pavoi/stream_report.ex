@@ -172,11 +172,10 @@ defmodule Pavoi.StreamReport do
     # Format each comment with username for AI context
     formatted_comments =
       comments
-      |> Enum.map(fn c ->
+      |> Enum.map_join("\n", fn c ->
         username = c.username || "Anonymous"
         "**@#{username}**: #{c.text}"
       end)
-      |> Enum.join("\n")
 
     case OpenAIClient.analyze_stream_comments(formatted_comments) do
       {:ok, analysis} ->
@@ -199,37 +198,31 @@ defmodule Pavoi.StreamReport do
   """
   def send_to_slack(report_data) do
     alias Pavoi.Communications.Slack
-    alias Pavoi.Storage
 
     with {:ok, blocks} <- format_slack_blocks(report_data) do
       stream = report_data.stream
 
-      case stream.cover_image_key do
-        nil ->
-          # No cover image, just send the message
-          Slack.send_message(blocks)
+      # Try to upload cover image if present (failures are logged but don't block report)
+      maybe_upload_cover_image(stream)
 
-        key ->
-          # Try to upload cover image, fall back to message-only if it fails
-          case Storage.download(key) do
-            {:ok, image_binary} ->
-              filename = "stream_#{stream.id}_cover.jpg"
+      # Always send the message
+      Slack.send_message(blocks)
+    end
+  end
 
-              case Slack.upload_image(image_binary, filename, title: "Stream Cover") do
-                {:ok, _file_id} ->
-                  # Image uploaded, now send the report message
-                  Slack.send_message(blocks)
+  defp maybe_upload_cover_image(%{cover_image_key: nil}), do: :ok
+  defp maybe_upload_cover_image(%{cover_image_key: key, id: stream_id}) do
+    alias Pavoi.Communications.Slack
+    alias Pavoi.Storage
 
-                {:error, reason} ->
-                  Logger.warning("Failed to upload cover image: #{inspect(reason)}, sending report without image")
-                  Slack.send_message(blocks)
-              end
-
-            {:error, reason} ->
-              Logger.warning("Failed to download cover image: #{inspect(reason)}, sending report without image")
-              Slack.send_message(blocks)
-          end
-      end
+    with {:ok, image_binary} <- Storage.download(key),
+         filename = "stream_#{stream_id}_cover.jpg",
+         {:ok, _file_id} <- Slack.upload_image(image_binary, filename, title: "Stream Cover") do
+      :ok
+    else
+      {:error, reason} ->
+        Logger.warning("Failed to upload cover image: #{inspect(reason)}")
+        :ok
     end
   end
 

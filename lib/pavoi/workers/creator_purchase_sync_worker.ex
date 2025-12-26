@@ -18,9 +18,9 @@ defmodule Pavoi.Workers.CreatorPurchaseSyncWorker do
   require Logger
   import Ecto.Query
 
-  alias Pavoi.Repo
   alias Pavoi.Creators
   alias Pavoi.Creators.Creator
+  alias Pavoi.Repo
   alias Pavoi.TiktokShop
 
   @batch_size 100
@@ -70,38 +70,13 @@ defmodule Pavoi.Workers.CreatorPurchaseSyncWorker do
   end
 
   defp sync_orders_page(page_token, creator_lookup, existing_ids, stats) do
-    params = %{page_size: @batch_size}
-    params = if page_token, do: Map.put(params, :page_token, page_token), else: params
+    params = build_page_params(page_token)
 
-    # No time filter - paginate through all orders
-    body = %{}
-
-    case TiktokShop.make_api_request(:post, "/order/202309/orders/search", params, body) do
-      {:ok, %{"data" => %{"orders" => orders} = data}} when is_list(orders) ->
-        Process.sleep(@api_delay_ms)
-        new_stats = process_orders_batch(orders, creator_lookup, existing_ids, stats)
-        new_stats = %{new_stats | pages: new_stats.pages + 1}
-
-        next_token = data["next_page_token"]
-
-        if next_token && next_token != "" && new_stats.pages < 50 do
-          # Max 50 pages to avoid runaway
-          sync_orders_page(next_token, creator_lookup, existing_ids, new_stats)
-        else
-          {:ok, new_stats}
-        end
-
+    case TiktokShop.make_api_request(:post, "/order/202309/orders/search", params, %{}) do
       {:ok, %{"data" => data}} ->
-        # Response without orders (e.g., just total_count and next_page_token)
         Process.sleep(@api_delay_ms)
-        new_stats = %{stats | pages: stats.pages + 1}
-        next_token = data["next_page_token"]
-
-        if next_token && next_token != "" && new_stats.pages < 50 do
-          sync_orders_page(next_token, creator_lookup, existing_ids, new_stats)
-        else
-          {:ok, new_stats}
-        end
+        new_stats = handle_orders_response(data, creator_lookup, existing_ids, stats)
+        maybe_fetch_next_page(data["next_page_token"], creator_lookup, existing_ids, new_stats)
 
       {:error, reason} ->
         Logger.error("[CreatorPurchaseSync] API error: #{inspect(reason)}")
@@ -109,34 +84,59 @@ defmodule Pavoi.Workers.CreatorPurchaseSyncWorker do
     end
   end
 
+  defp build_page_params(nil), do: %{page_size: @batch_size}
+  defp build_page_params(token), do: %{page_size: @batch_size, page_token: token}
+
+  defp handle_orders_response(%{"orders" => orders}, creator_lookup, existing_ids, stats)
+       when is_list(orders) do
+    stats = process_orders_batch(orders, creator_lookup, existing_ids, stats)
+    %{stats | pages: stats.pages + 1}
+  end
+
+  defp handle_orders_response(_data, _creator_lookup, _existing_ids, stats) do
+    %{stats | pages: stats.pages + 1}
+  end
+
+  defp maybe_fetch_next_page(token, creator_lookup, existing_ids, stats)
+       when is_binary(token) and token != "" and stats.pages < 50 do
+    sync_orders_page(token, creator_lookup, existing_ids, stats)
+  end
+
+  defp maybe_fetch_next_page(_token, _creator_lookup, _existing_ids, stats) do
+    {:ok, stats}
+  end
+
   defp process_orders_batch(orders, creator_lookup, existing_ids, stats) do
     Enum.reduce(orders, stats, fn order, acc ->
-      user_id = order["user_id"]
-      order_id = order["id"]
-
-      cond do
-        # Skip if already synced
-        MapSet.member?(existing_ids, order_id) ->
-          %{acc | skipped: acc.skipped + 1}
-
-        # Skip if user_id doesn't match a known creator
-        !Map.has_key?(creator_lookup, user_id) ->
-          %{acc | skipped: acc.skipped + 1}
-
-        # Process the order
-        true ->
-          creator_id = Map.get(creator_lookup, user_id)
-
-          case create_purchase(order, creator_id) do
-            {:ok, _} ->
-              %{acc | synced: acc.synced + 1}
-
-            {:error, reason} ->
-              Logger.warning("[CreatorPurchaseSync] Error creating purchase: #{inspect(reason)}")
-              %{acc | errors: acc.errors + 1}
-          end
-      end
+      process_single_order(order, creator_lookup, existing_ids, acc)
     end)
+  end
+
+  defp process_single_order(order, creator_lookup, existing_ids, stats) do
+    user_id = order["user_id"]
+    order_id = order["id"]
+
+    cond do
+      MapSet.member?(existing_ids, order_id) ->
+        %{stats | skipped: stats.skipped + 1}
+
+      !Map.has_key?(creator_lookup, user_id) ->
+        %{stats | skipped: stats.skipped + 1}
+
+      true ->
+        sync_creator_order(order, Map.get(creator_lookup, user_id), stats)
+    end
+  end
+
+  defp sync_creator_order(order, creator_id, stats) do
+    case create_purchase(order, creator_id) do
+      {:ok, _} ->
+        %{stats | synced: stats.synced + 1}
+
+      {:error, reason} ->
+        Logger.warning("[CreatorPurchaseSync] Error creating purchase: #{inspect(reason)}")
+        %{stats | errors: stats.errors + 1}
+    end
   end
 
   defp create_purchase(order, creator_id) do
