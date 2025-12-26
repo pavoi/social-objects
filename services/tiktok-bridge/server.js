@@ -16,7 +16,7 @@ import http from 'http';
 import { URL } from 'url';
 import { WebSocketServer, WebSocket } from 'ws';
 import { WebcastPushConnection } from 'tiktok-live-connector';
-import ffmpeg from 'fluent-ffmpeg';
+import { spawn } from 'child_process';
 import fs from 'fs';
 import os from 'os';
 import path from 'path';
@@ -133,58 +133,119 @@ function extractProductDetails(p) {
 
 /**
  * Capture a video thumbnail from a stream URL (HLS, FLV, or RTMP).
+ * Uses raw ffmpeg spawn instead of fluent-ffmpeg for better error handling.
  * Returns base64-encoded JPEG image data.
  */
 async function captureVideoThumbnail(streamUrl, uniqueId) {
   const tmpFile = path.join(os.tmpdir(), `thumb_${uniqueId}_${Date.now()}.jpg`);
 
   return new Promise((resolve, reject) => {
-    // Use a shorter timeout and skip seeking for FLV/RTMP streams
-    const isHls = streamUrl.includes('.m3u8') || streamUrl.includes('hls');
+    // Detect stream type
+    const isHls = streamUrl.includes('.m3u8') || streamUrl.includes('/hls/');
+    const isFlv = streamUrl.includes('.flv');
+    const streamType = isHls ? 'HLS' : isFlv ? 'FLV' : 'RTMP';
 
-    console.log(`[${uniqueId}] FFmpeg capturing from ${isHls ? 'HLS' : 'FLV/RTMP'} stream...`);
+    console.log(`[${uniqueId}] FFmpeg capturing from ${streamType} stream...`);
 
-    const command = ffmpeg(streamUrl)
-      .inputOptions([
-        '-y',                    // Overwrite output
-        '-t', '5',               // Limit input duration to 5 seconds
-        '-reconnect', '1',       // Enable reconnection
-        '-reconnect_streamed', '1',
-        '-reconnect_delay_max', '2',
-        '-user_agent', 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36',
-      ])
-      .frames(1)
-      .outputOptions([
-        '-vf', 'scale=-2:320',   // Scale to 320px height
-        '-q:v', '2'              // JPEG quality
-      ])
-      .output(tmpFile);
+    // Build ffmpeg arguments
+    const args = [
+      '-y',  // Overwrite output
+    ];
 
-    // For HLS, skip ahead a few seconds to avoid black frames
     if (isHls) {
-      command.setStartTime(3);
+      // HLS-specific: allow reconnection, seek past black frames
+      args.push('-reconnect', '1', '-reconnect_streamed', '1', '-reconnect_delay_max', '2');
+      args.push('-ss', '3');  // Seek 3 seconds in
     }
 
-    command
-      .on('end', () => {
-        try {
-          const buffer = fs.readFileSync(tmpFile);
-          const base64 = buffer.toString('base64');
-          fs.unlinkSync(tmpFile);
-          resolve(base64);
-        } catch (err) {
-          reject(err);
-        }
-      })
-      .on('start', (cmdline) => {
-        console.log(`[${uniqueId}] FFmpeg command:`, cmdline.substring(0, 200));
-      })
-      .on('error', (err, stdout, stderr) => {
-        console.error(`[${uniqueId}] FFmpeg error:`, err.message);
-        console.error(`[${uniqueId}] FFmpeg stderr:`, stderr?.substring(0, 1000));
+    // Input timeout and analysis settings
+    args.push(
+      '-t', '5',                      // Limit input to 5 seconds
+      '-analyzeduration', '3000000',  // 3 seconds to analyze format
+      '-probesize', '2000000',        // 2MB probe size
+    );
+
+    // Headers to look like a browser
+    args.push(
+      '-user_agent', 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+      '-headers', 'Referer: https://www.tiktok.com/\r\n',
+    );
+
+    // Input URL
+    args.push('-i', streamUrl);
+
+    // Output settings
+    args.push(
+      '-frames:v', '1',         // Just one frame
+      '-vf', 'scale=-2:320',    // Scale to 320px height
+      '-q:v', '2',              // JPEG quality (2 = high)
+      tmpFile
+    );
+
+    console.log(`[${uniqueId}] FFmpeg args:`, args.slice(0, 15).join(' ') + '...');
+
+    const ffmpegProcess = spawn('ffmpeg', args, {
+      stdio: ['ignore', 'pipe', 'pipe'],
+      timeout: 30000,  // 30 second timeout
+    });
+
+    let stderr = '';
+    let killed = false;
+
+    // Set a hard timeout to prevent hanging
+    const timeout = setTimeout(() => {
+      killed = true;
+      ffmpegProcess.kill('SIGKILL');
+      console.error(`[${uniqueId}] FFmpeg timeout - killed process`);
+    }, 25000);
+
+    ffmpegProcess.stderr.on('data', (data) => {
+      stderr += data.toString();
+    });
+
+    ffmpegProcess.on('error', (err) => {
+      clearTimeout(timeout);
+      console.error(`[${uniqueId}] FFmpeg spawn error:`, err.message);
+      try { fs.unlinkSync(tmpFile); } catch {}
+      reject(err);
+    });
+
+    ffmpegProcess.on('close', (code, signal) => {
+      clearTimeout(timeout);
+
+      if (killed) {
+        reject(new Error('FFmpeg timeout'));
+        return;
+      }
+
+      if (signal) {
+        console.error(`[${uniqueId}] FFmpeg killed by signal:`, signal);
+        console.error(`[${uniqueId}] FFmpeg stderr:`, stderr.substring(0, 2000));
+        try { fs.unlinkSync(tmpFile); } catch {}
+        reject(new Error(`FFmpeg killed by ${signal}`));
+        return;
+      }
+
+      if (code !== 0) {
+        console.error(`[${uniqueId}] FFmpeg exited with code:`, code);
+        console.error(`[${uniqueId}] FFmpeg stderr:`, stderr.substring(0, 2000));
+        try { fs.unlinkSync(tmpFile); } catch {}
+        reject(new Error(`FFmpeg exited with code ${code}`));
+        return;
+      }
+
+      // Success - read the file
+      try {
+        const buffer = fs.readFileSync(tmpFile);
+        const base64 = buffer.toString('base64');
+        fs.unlinkSync(tmpFile);
+        console.log(`[${uniqueId}] FFmpeg capture successful (${base64.length} chars)`);
+        resolve(base64);
+      } catch (err) {
+        console.error(`[${uniqueId}] Failed to read thumbnail:`, err.message);
         reject(err);
-      })
-      .run();
+      }
+    });
   });
 }
 
@@ -259,8 +320,23 @@ async function connectToStream(uniqueId) {
 
       if (streamUrl) {
         console.log(`[${uniqueId}] stream_url keys:`, Object.keys(streamUrl));
-        console.log(`[${uniqueId}] hls_pull_url type:`, typeof streamUrl.hls_pull_url);
-        console.log(`[${uniqueId}] flv_pull_url type:`, typeof streamUrl.flv_pull_url);
+        console.log(`[${uniqueId}] hls_pull_url:`, streamUrl.hls_pull_url ? `"${String(streamUrl.hls_pull_url).substring(0, 60)}..."` : '(empty)');
+        console.log(`[${uniqueId}] hls_pull_url_map:`, streamUrl.hls_pull_url_map ? JSON.stringify(Object.keys(streamUrl.hls_pull_url_map)) : '(empty)');
+        console.log(`[${uniqueId}] flv_pull_url:`, typeof streamUrl.flv_pull_url === 'object' ? JSON.stringify(Object.keys(streamUrl.flv_pull_url)) : streamUrl.flv_pull_url);
+
+        // Log actual URLs for debugging
+        if (streamUrl.hls_pull_url_map && typeof streamUrl.hls_pull_url_map === 'object') {
+          const firstHlsKey = Object.keys(streamUrl.hls_pull_url_map)[0];
+          if (firstHlsKey) {
+            console.log(`[${uniqueId}] hls_pull_url_map[${firstHlsKey}]:`, String(streamUrl.hls_pull_url_map[firstHlsKey]).substring(0, 80));
+          }
+        }
+        if (streamUrl.flv_pull_url && typeof streamUrl.flv_pull_url === 'object') {
+          const firstFlvKey = Object.keys(streamUrl.flv_pull_url)[0];
+          if (firstFlvKey) {
+            console.log(`[${uniqueId}] flv_pull_url[${firstFlvKey}]:`, String(streamUrl.flv_pull_url[firstFlvKey]).substring(0, 80));
+          }
+        }
       }
 
 
@@ -599,6 +675,58 @@ async function handleRequest(req, res) {
         const result = disconnectFromStream(uniqueId);
         res.writeHead(result.success ? 200 : 400, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify(result));
+      } catch (error) {
+        res.writeHead(400, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'Invalid JSON' }));
+      }
+    });
+    return;
+  }
+
+  // Test endpoint - probe a stream without full connection
+  if (url.pathname === '/test-stream' && req.method === 'POST') {
+    let body = '';
+    req.on('data', chunk => body += chunk);
+    req.on('end', async () => {
+      try {
+        const { uniqueId } = JSON.parse(body);
+        if (!uniqueId) {
+          res.writeHead(400, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ error: 'Missing uniqueId' }));
+          return;
+        }
+
+        console.log(`[TEST] Probing stream info for ${uniqueId}...`);
+
+        const connection = new WebcastPushConnection(uniqueId, {
+          processInitialData: false,
+          enableExtendedGiftInfo: false,
+          enableWebsocketUpgrade: false
+        });
+
+        try {
+          const roomInfo = await connection.getRoomInfo();
+          const streamUrl = roomInfo?.stream_url;
+
+          const result = {
+            success: true,
+            roomId: roomInfo?.id_str,
+            status: roomInfo?.status,
+            stream_url_keys: streamUrl ? Object.keys(streamUrl) : [],
+            hls_pull_url: streamUrl?.hls_pull_url || null,
+            hls_pull_url_map: streamUrl?.hls_pull_url_map ? Object.keys(streamUrl.hls_pull_url_map) : [],
+            flv_pull_url: typeof streamUrl?.flv_pull_url === 'object'
+              ? Object.entries(streamUrl.flv_pull_url).map(([k, v]) => ({ quality: k, url: String(v).substring(0, 100) + '...' }))
+              : streamUrl?.flv_pull_url || null,
+          };
+
+          console.log(`[TEST] Room info retrieved:`, JSON.stringify(result, null, 2));
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify(result, null, 2));
+        } catch (err) {
+          res.writeHead(400, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ success: false, error: err.message }));
+        }
       } catch (error) {
         res.writeHead(400, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ error: 'Invalid JSON' }));
