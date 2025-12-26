@@ -133,34 +133,36 @@ function extractProductDetails(p) {
 }
 
 /**
- * Fetch a cover image URL and convert to base64.
+ * Capture a video thumbnail from a stream URL (HLS, FLV, or RTMP).
  * Returns base64-encoded JPEG image data.
  */
-async function fetchCoverImage(coverUrl, uniqueId) {
-  const response = await fetch(coverUrl);
-  if (!response.ok) {
-    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-  }
-  const buffer = await response.arrayBuffer();
-  return Buffer.from(buffer).toString('base64');
-}
-
-/**
- * Capture a video thumbnail from an HLS stream URL.
- * Returns base64-encoded JPEG image data.
- */
-async function captureVideoThumbnail(hlsUrl, uniqueId) {
+async function captureVideoThumbnail(streamUrl, uniqueId) {
   const tmpFile = path.join(os.tmpdir(), `thumb_${uniqueId}_${Date.now()}.jpg`);
 
   return new Promise((resolve, reject) => {
-    // Wait 5 seconds into stream, capture 1 frame
-    // Scale to max 320px height while preserving aspect ratio (TikTok is vertical 9:16)
-    // -2 ensures width is even number (required by some encoders)
-    ffmpeg(hlsUrl)
-      .setStartTime(5)
+    // Use a shorter timeout and skip seeking for FLV/RTMP streams
+    const isHls = streamUrl.includes('.m3u8') || streamUrl.includes('hls');
+
+    console.log(`[${uniqueId}] FFmpeg capturing from ${isHls ? 'HLS' : 'FLV/RTMP'} stream...`);
+
+    const command = ffmpeg(streamUrl)
+      .inputOptions([
+        '-y',                    // Overwrite output
+        '-t', '10',              // Limit input duration to 10 seconds
+      ])
       .frames(1)
-      .outputOptions(['-vf', 'scale=-2:320'])
-      .output(tmpFile)
+      .outputOptions([
+        '-vf', 'scale=-2:320',   // Scale to 320px height
+        '-q:v', '2'              // JPEG quality
+      ])
+      .output(tmpFile);
+
+    // For HLS, skip ahead a few seconds to avoid black frames
+    if (isHls) {
+      command.setStartTime(3);
+    }
+
+    command
       .on('end', () => {
         try {
           const buffer = fs.readFileSync(tmpFile);
@@ -171,7 +173,10 @@ async function captureVideoThumbnail(hlsUrl, uniqueId) {
           reject(err);
         }
       })
-      .on('error', reject)
+      .on('error', (err, stdout, stderr) => {
+        console.error(`[${uniqueId}] FFmpeg stderr:`, stderr?.substring(0, 500));
+        reject(err);
+      })
       .run();
   });
 }
@@ -237,8 +242,11 @@ async function connectToStream(uniqueId) {
       // Helper to extract URL from field (handles both string and object/map formats)
       const extractUrl = (field) => {
         if (!field) return null;
-        if (typeof field === 'string') return field;
-        if (typeof field === 'object') return Object.values(field)[0];
+        if (typeof field === 'string' && field.length > 0) return field;
+        if (typeof field === 'object') {
+          const values = Object.values(field);
+          return values.length > 0 ? values[0] : null;
+        }
         return null;
       };
 
@@ -248,8 +256,6 @@ async function connectToStream(uniqueId) {
         console.log(`[${uniqueId}] flv_pull_url type:`, typeof streamUrl.flv_pull_url);
       }
 
-      // Check for cover image as potential fallback
-      const coverUrl = state.roomInfo?.cover?.url_list?.[0] || state.roomInfo?.coverUrl;
 
       // Try multiple stream URL sources for thumbnail capture
       // Priority: HLS string > HLS map > FLV string > FLV map
@@ -285,24 +291,8 @@ async function connectToStream(uniqueId) {
           .catch((err) => {
             console.error(`[${uniqueId}] Thumbnail capture failed:`, err.message);
           });
-      } else if (coverUrl) {
-        // Fallback: use cover image if no stream URL available
-        console.log(`[${uniqueId}] No stream URL available, falling back to cover image`);
-        fetchCoverImage(coverUrl, uniqueId)
-          .then((thumbnailBase64) => {
-            console.log(`[${uniqueId}] Cover image fetched (${thumbnailBase64.length} chars base64)`);
-            broadcastEvent({
-              type: 'thumbnail',
-              uniqueId,
-              thumbnailBase64,
-              contentType: 'image/jpeg'
-            });
-          })
-          .catch((err) => {
-            console.error(`[${uniqueId}] Cover image fetch failed:`, err.message);
-          });
       } else {
-        console.log(`[${uniqueId}] No HLS URL or cover image available for thumbnail`);
+        console.log(`[${uniqueId}] No stream URL available for thumbnail capture`);
       }
     });
 
