@@ -233,23 +233,32 @@ async function connectToStream(uniqueId) {
       // Debug: log roomInfo structure to understand what TikTok returns
       const streamUrl = state.roomInfo?.stream_url;
       console.log(`[${uniqueId}] roomInfo keys:`, Object.keys(state.roomInfo || {}));
+
+      // Helper to extract URL from field (handles both string and object/map formats)
+      const extractUrl = (field) => {
+        if (!field) return null;
+        if (typeof field === 'string') return field;
+        if (typeof field === 'object') return Object.values(field)[0];
+        return null;
+      };
+
       if (streamUrl) {
         console.log(`[${uniqueId}] stream_url keys:`, Object.keys(streamUrl));
-        console.log(`[${uniqueId}] hls_pull_url value:`, streamUrl.hls_pull_url ? streamUrl.hls_pull_url.substring(0, 80) + '...' : 'EMPTY/NULL');
-        console.log(`[${uniqueId}] flv_pull_url value:`, streamUrl.flv_pull_url ? 'present' : 'EMPTY/NULL');
+        console.log(`[${uniqueId}] hls_pull_url type:`, typeof streamUrl.hls_pull_url);
+        console.log(`[${uniqueId}] flv_pull_url type:`, typeof streamUrl.flv_pull_url);
       }
 
       // Check for cover image as potential fallback
       const coverUrl = state.roomInfo?.cover?.url_list?.[0] || state.roomInfo?.coverUrl;
-      if (coverUrl) {
-        console.log(`[${uniqueId}] Cover image available: ${coverUrl.substring(0, 80)}...`);
-      }
 
       // Try multiple stream URL sources for thumbnail capture
-      // Priority: HLS > FLV > HLS from map
-      const hlsUrl = streamUrl?.hls_pull_url ||
-                     streamUrl?.flv_pull_url ||
-                     (streamUrl?.hls_pull_url_map && Object.values(streamUrl.hls_pull_url_map)[0]);
+      // Priority: HLS string > HLS map > FLV string > FLV map
+      const hlsUrl = extractUrl(streamUrl?.hls_pull_url) ||
+                     extractUrl(streamUrl?.hls_pull_url_map) ||
+                     extractUrl(streamUrl?.flv_pull_url) ||
+                     extractUrl(streamUrl?.rtmp_pull_url);
+
+      console.log(`[${uniqueId}] Selected stream URL:`, hlsUrl ? hlsUrl.substring(0, 80) + '...' : 'NONE');
 
       // Broadcast connected event immediately (don't block on thumbnail)
       broadcastEvent({
@@ -277,8 +286,8 @@ async function connectToStream(uniqueId) {
             console.error(`[${uniqueId}] Thumbnail capture failed:`, err.message);
           });
       } else if (coverUrl) {
-        // Fallback: use cover image if HLS URL isn't available
-        console.log(`[${uniqueId}] Using cover image as thumbnail fallback`);
+        // Fallback: use cover image if no stream URL available
+        console.log(`[${uniqueId}] No stream URL available, falling back to cover image`);
         fetchCoverImage(coverUrl, uniqueId)
           .then((thumbnailBase64) => {
             console.log(`[${uniqueId}] Cover image fetched (${thumbnailBase64.length} chars base64)`);
