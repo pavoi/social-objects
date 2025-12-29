@@ -110,10 +110,12 @@ defmodule Pavoi.Workers.TiktokLiveMonitorWorker do
       case Pavoi.TiktokLive.mark_stream_ended(stream.id) do
         {:ok, :ended} ->
           # Enqueue Slack report job for the completed stream
-          Logger.info("Enqueueing stream report for stream #{stream.id}")
+          # Delay 10 minutes to allow monitor to detect if stream is actually still live
+          # (handles false end detection during deploys/API blips)
+          Logger.info("Enqueueing stream report for stream #{stream.id} (scheduled in 10 min)")
 
           %{stream_id: stream.id}
-          |> StreamReportWorker.new()
+          |> StreamReportWorker.new(schedule_in: 600)
           |> Oban.insert()
 
         {:error, :already_ended} ->
