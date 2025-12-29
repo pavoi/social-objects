@@ -16,6 +16,7 @@ defmodule Pavoi.StreamReport do
   alias Pavoi.Repo
   alias Pavoi.TiktokLive
   alias Pavoi.TiktokLive.Comment
+  alias Pavoi.TiktokShop
 
   @flash_sale_threshold 50
   @max_comments_for_ai 200
@@ -51,13 +52,17 @@ defmodule Pavoi.StreamReport do
     # Generate AI sentiment analysis
     sentiment = generate_sentiment_analysis(comments)
 
+    # Fetch GMV data for the stream time window
+    gmv_data = get_gmv_data(stream)
+
     {:ok,
      %{
        stream: stream,
        stats: stats,
        top_products: products,
        flash_sales: flash_sales,
-       sentiment_analysis: sentiment
+       sentiment_analysis: sentiment,
+       gmv_data: gmv_data
      }}
   end
 
@@ -103,6 +108,34 @@ defmodule Pavoi.StreamReport do
       [] ->
         []
     end
+  end
+
+  defp get_gmv_data(%{started_at: nil}), do: nil
+  defp get_gmv_data(%{ended_at: nil}), do: nil
+
+  defp get_gmv_data(stream) do
+    case TiktokShop.fetch_orders_in_range(stream.started_at, stream.ended_at) do
+      {:ok, orders} ->
+        build_gmv_summary(orders)
+
+      {:error, reason} ->
+        Logger.warning("Failed to fetch GMV data: #{inspect(reason)}")
+        nil
+    end
+  end
+
+  defp build_gmv_summary(orders) do
+    hourly = TiktokShop.calculate_hourly_gmv(orders)
+
+    %{
+      hourly: hourly,
+      total_gmv_cents: sum_field(hourly, :gmv_cents),
+      total_orders: sum_field(hourly, :order_count)
+    }
+  end
+
+  defp sum_field(list, field) do
+    Enum.reduce(list, 0, fn item, acc -> acc + Map.get(item, field, 0) end)
   end
 
   @doc """
@@ -220,6 +253,14 @@ defmodule Pavoi.StreamReport do
         divider_block()
       ])
 
+    # Add GMV section if available
+    blocks =
+      if report_data.gmv_data && report_data.gmv_data.total_orders > 0 do
+        blocks ++ [gmv_block(report_data.gmv_data), divider_block()]
+      else
+        blocks
+      end
+
     blocks =
       if Enum.any?(report_data.top_products) do
         blocks ++ [products_block(report_data.top_products), divider_block()]
@@ -312,6 +353,54 @@ defmodule Pavoi.StreamReport do
 
     %{type: "section", text: %{type: "mrkdwn", text: text}}
   end
+
+  defp gmv_block(gmv_data) do
+    total_gmv = format_money(gmv_data.total_gmv_cents)
+    total_orders = gmv_data.total_orders
+    duration_hours = length(gmv_data.hourly)
+
+    gmv_per_hour =
+      if duration_hours > 0 do
+        format_money(div(gmv_data.total_gmv_cents, duration_hours))
+      else
+        "$0"
+      end
+
+    # Build hourly breakdown
+    hourly_lines =
+      Enum.map_join(gmv_data.hourly, "\n", fn h ->
+        hour_str = format_hour_pst(h.hour)
+        "#{hour_str}: *#{format_money(h.gmv_cents)}* (#{h.order_count} orders)"
+      end)
+
+    text =
+      ":moneybag: *GMV During Stream* _(correlation, not attribution)_\n" <>
+        "*#{total_gmv}* total  •  *#{total_orders}* orders  •  *#{gmv_per_hour}/hr* avg\n\n" <>
+        "_Hourly breakdown:_\n#{hourly_lines}"
+
+    %{type: "section", text: %{type: "mrkdwn", text: text}}
+  end
+
+  defp format_hour_pst(hour) do
+    # Convert UTC to PST (UTC-8)
+    pst_hour = DateTime.add(hour, -8 * 3600, :second)
+    Calendar.strftime(pst_hour, "%I %p")
+  end
+
+  defp format_money(cents) when is_integer(cents) do
+    dollars = round(cents / 100)
+
+    formatted =
+      dollars
+      |> Integer.to_string()
+      |> String.reverse()
+      |> String.replace(~r/(\d{3})(?=\d)/, "\\1,")
+      |> String.reverse()
+
+    "$#{formatted}"
+  end
+
+  defp format_money(_), do: "$0"
 
   defp products_block(products) do
     lines =

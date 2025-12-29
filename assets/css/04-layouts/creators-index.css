@@ -173,45 +173,43 @@
 .creator-table.mode-outreach:not(.has-checkbox) td:nth-child(8) { width: 125px; }  /* Sent (when visible) */
 
 /* =============================================================================
-   UNIFIED MODE - All 13 columns (merged CRM + Outreach)
-   Columns: Checkbox, Username, Name, Email, Phone, Tags, Followers, GMV, Samples, Videos, SMS, Status, Added
+   UNIFIED MODE - All 13 columns
+   Columns: Checkbox, Status, Creator, Email, Tags, Followers, GMV, Video GMV, Avg Views, Samples, Videos, Commission, Enriched
    ============================================================================= */
 .creator-table.mode-unified {
   min-width: 1600px;
 }
 
 .creator-table.mode-unified th:nth-child(1),
-.creator-table.mode-unified td:nth-child(1) { width: 45px; }   /* Checkbox */
+.creator-table.mode-unified td:nth-child(1) { width: 55px; }   /* Checkbox */
 .creator-table.mode-unified th:nth-child(2),
-.creator-table.mode-unified td:nth-child(2) { width: 150px; }  /* Username */
+.creator-table.mode-unified td:nth-child(2) { width: 120px; }  /* Status */
 .creator-table.mode-unified th:nth-child(3),
-.creator-table.mode-unified td:nth-child(3) { width: 150px; }  /* Name */
+.creator-table.mode-unified td:nth-child(3) { width: 300px; }  /* Creator */
 .creator-table.mode-unified th:nth-child(4),
-.creator-table.mode-unified td:nth-child(4) { width: 195px; }  /* Email */
+.creator-table.mode-unified td:nth-child(4) { width: 215px; }  /* Email */
 .creator-table.mode-unified th:nth-child(5),
-.creator-table.mode-unified td:nth-child(5) { width: 135px; }  /* Phone */
+.creator-table.mode-unified td:nth-child(5) { width: 170px; }  /* Tags */
 .creator-table.mode-unified th:nth-child(6),
-.creator-table.mode-unified td:nth-child(6) { width: 150px; }  /* Tags */
+.creator-table.mode-unified td:nth-child(6) { width: 125px; }  /* Followers */
 .creator-table.mode-unified th:nth-child(7),
-.creator-table.mode-unified td:nth-child(7) { width: 125px; }  /* Followers */
+.creator-table.mode-unified td:nth-child(7) { width: 115px; }  /* GMV */
 .creator-table.mode-unified th:nth-child(8),
-.creator-table.mode-unified td:nth-child(8) { width: 105px; }  /* GMV */
+.creator-table.mode-unified td:nth-child(8) { width: 150px; }  /* Video GMV */
 .creator-table.mode-unified th:nth-child(9),
-.creator-table.mode-unified td:nth-child(9) { width: 110px; }  /* Samples */
+.creator-table.mode-unified td:nth-child(9) { width: 150px; }  /* Avg Views */
 .creator-table.mode-unified th:nth-child(10),
-.creator-table.mode-unified td:nth-child(10) { width: 100px; } /* Videos */
+.creator-table.mode-unified td:nth-child(10) { width: 135px; } /* Samples */
 .creator-table.mode-unified th:nth-child(11),
-.creator-table.mode-unified td:nth-child(11) { width: 105px; } /* SMS */
+.creator-table.mode-unified td:nth-child(11) { width: 120px; } /* Videos */
 .creator-table.mode-unified th:nth-child(12),
-.creator-table.mode-unified td:nth-child(12) { width: 105px; } /* Status */
+.creator-table.mode-unified td:nth-child(12) { width: 150px; } /* Commission */
 .creator-table.mode-unified th:nth-child(13),
-.creator-table.mode-unified td:nth-child(13) { width: 115px; } /* Added */
+.creator-table.mode-unified td:nth-child(13) { width: 120px; } /* Enriched */
 
-/* Center align SMS and Status columns in unified mode */
-.creator-table.mode-unified th:nth-child(11),
-.creator-table.mode-unified td:nth-child(11),
-.creator-table.mode-unified th:nth-child(12),
-.creator-table.mode-unified td:nth-child(12) {
+/* Center align Status column in unified mode */
+.creator-table.mode-unified th:nth-child(2),
+.creator-table.mode-unified td:nth-child(2) {
   text-align: center;
 }
 
@@ -235,6 +233,12 @@
   cursor: pointer;
   transition: color 0.15s ease;
   text-align: left;
+}
+
+/* Right-aligned sortable headers */
+.sortable-header.text-right .sortable-header__btn {
+  justify-content: flex-end;
+  text-align: right;
 }
 
 .sortable-header__btn:hover {
@@ -435,7 +439,7 @@
   }
 }
 
-/* Mobile: edge-to-edge table */
+/* Mobile: edge-to-edge table and header wrapping */
 @media (max-width: 768px) {
   .creators-scroll-container {
     margin-left: calc(-1 * var(--space-4));
@@ -443,6 +447,20 @@
     border-radius: 0;
     border-left: none;
     border-right: none;
+  }
+
+  /* Wrap the page header - Date Added and Tags go to second row */
+  .creators-index .page-header {
+    flex-wrap: wrap;
+  }
+
+  .creators-index .page-header__left {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+
+  .creators-index .page-header__right {
+    flex: 0 0 auto;
   }
 
   .filter-tabs--inline {
@@ -462,17 +480,25 @@
     padding: var(--space-1) var(--space-2);
     font-size: var(--text-xs);
   }
+
+  /* Consistent sizing for all filter triggers at this breakpoint */
+  .creators-index .time-filter__trigger,
+  .creators-index .tag-filter__trigger {
+    font-size: var(--text-sm);
+    height: 36px;
+  }
 }
 
-/* Narrow mobile: shrink header elements to fit in one row */
+/* Narrow mobile: wrap header into two rows */
 @media (max-width: 640px) {
   .creators-index .page-header {
+    flex-wrap: wrap;
     gap: var(--space-2);
   }
 
   .creators-index .page-header__left {
     gap: var(--space-2);
-    flex: 1;
+    flex: 1 1 100%;
     min-width: 0;
   }
 
@@ -484,10 +510,11 @@
 
   .creators-index .page-header__right {
     gap: var(--space-2);
-    flex-shrink: 0;
+    flex: 1 1 auto;
+    justify-content: flex-start;
   }
 
-  /* Compact filter buttons on mobile */
+  /* Compact filter buttons on mobile - all same size */
   .creators-index .filter-select {
     min-width: 80px;
     padding-left: var(--space-2);
@@ -496,12 +523,27 @@
     height: 32px;
   }
 
-  .creators-index .tag-filter__trigger {
+  .creators-index .time-filter__trigger {
     min-width: 80px;
     padding-left: var(--space-2);
     padding-right: var(--space-2);
     font-size: var(--text-xs);
     height: 32px;
+  }
+
+  .creators-index .tag-filter__trigger {
+    min-width: 60px;
+    padding-left: var(--space-2);
+    padding-right: var(--space-2);
+    font-size: var(--text-xs);
+    height: 32px;
+  }
+
+  /* Hide data freshness panel text on narrow mobile - icon only */
+  .creators-index .data-freshness__summary {
+    min-width: 32px;
+    height: 32px;
+    padding: 0;
   }
 
   .view-toggle {

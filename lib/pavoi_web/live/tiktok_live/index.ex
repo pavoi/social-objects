@@ -46,6 +46,8 @@ defmodule PavoiWeb.TiktokLive.Index do
       |> assign(:search_query, "")
       |> assign(:status_filter, "all")
       |> assign(:date_filter, "all")
+      |> assign(:sort_by, "started")
+      |> assign(:sort_dir, "desc")
       # Dropdown open states
       |> assign(:show_status_filter, false)
       |> assign(:show_date_filter, false)
@@ -57,6 +59,7 @@ defmodule PavoiWeb.TiktokLive.Index do
       |> assign(:has_comments, false)
       |> assign(:comment_search_query, "")
       |> assign(:stream_stats, [])
+      |> assign(:stream_gmv, nil)
       # Track which stream we're subscribed to for real-time updates
       |> assign(:subscribed_stream_id, nil)
       # Capture form state (dev only)
@@ -162,6 +165,12 @@ defmodule PavoiWeb.TiktokLive.Index do
   end
 
   @impl true
+  def handle_event("sort_column", %{"field" => field, "dir" => dir}, socket) do
+    params = build_query_params(socket, sort_by: field, sort_dir: dir, page: 1)
+    {:noreply, push_patch(socket, to: ~p"/streams?#{params}")}
+  end
+
+  @impl true
   def handle_event("scan_streams", _params, socket) do
     socket =
       case TiktokLiveContext.check_live_status_now("manual") do
@@ -199,6 +208,7 @@ defmodule PavoiWeb.TiktokLive.Index do
       |> assign(:has_comments, false)
       |> assign(:comment_search_query, "")
       |> assign(:stream_stats, [])
+      |> assign(:stream_gmv, nil)
       |> assign(:linked_sessions, [])
       |> assign(:all_sessions, [])
       |> assign(:session_search_query, "")
@@ -650,6 +660,8 @@ defmodule PavoiWeb.TiktokLive.Index do
     |> assign(:search_query, params["q"] || "")
     |> assign(:status_filter, params["status"] || "all")
     |> assign(:date_filter, params["date"] || "all")
+    |> assign(:sort_by, params["sort"] || "started")
+    |> assign(:sort_dir, params["dir"] || "desc")
     |> assign(:page, parse_page(params["page"]))
   end
 
@@ -695,6 +707,13 @@ defmodule PavoiWeb.TiktokLive.Index do
     |> apply_search_filter(assigns.search_query)
     |> apply_status_filter(assigns.status_filter)
     |> apply_date_filter(assigns.date_filter)
+    |> apply_sort_filter(assigns.sort_by, assigns.sort_dir)
+  end
+
+  defp apply_sort_filter(filters, sort_by, sort_dir) do
+    filters
+    |> Keyword.put(:sort_by, sort_by)
+    |> Keyword.put(:sort_dir, sort_dir)
   end
 
   defp apply_search_filter(filters, ""), do: filters
@@ -771,7 +790,14 @@ defmodule PavoiWeb.TiktokLive.Index do
 
   defp load_tab_data(socket, "stats", stream_id) do
     stats = TiktokLiveContext.list_stream_stats(stream_id)
-    assign(socket, :stream_stats, stats)
+    stream = socket.assigns.selected_stream
+
+    # Build GMV data from stored hourly data (if available)
+    gmv_data = build_gmv_from_stored(stream)
+
+    socket
+    |> assign(:stream_stats, stats)
+    |> assign(:stream_gmv, gmv_data)
   end
 
   defp load_tab_data(socket, "sessions", stream_id) do
@@ -848,6 +874,8 @@ defmodule PavoiWeb.TiktokLive.Index do
     search_query: :q,
     status_filter: :status,
     date_filter: :date,
+    sort_by: :sort,
+    sort_dir: :dir,
     page: :page,
     stream_id: :s,
     tab: :tab
@@ -858,6 +886,8 @@ defmodule PavoiWeb.TiktokLive.Index do
       q: socket.assigns.search_query,
       status: socket.assigns.status_filter,
       date: socket.assigns.date_filter,
+      sort: socket.assigns.sort_by,
+      dir: socket.assigns.sort_dir,
       page: socket.assigns.page,
       s: get_stream_id(socket.assigns.selected_stream),
       tab: socket.assigns.active_tab
@@ -883,6 +913,8 @@ defmodule PavoiWeb.TiktokLive.Index do
   defp default_value?({_k, nil}), do: true
   defp default_value?({:status, "all"}), do: true
   defp default_value?({:date, "all"}), do: true
+  defp default_value?({:sort, "started"}), do: true
+  defp default_value?({:dir, "desc"}), do: true
   defp default_value?({:page, 1}), do: true
   defp default_value?({:tab, "comments"}), do: true
   defp default_value?(_), do: false
@@ -1068,4 +1100,29 @@ defmodule PavoiWeb.TiktokLive.Index do
         []
     end
   end
+
+  defp build_gmv_from_stored(nil), do: nil
+  defp build_gmv_from_stored(%{gmv_hourly: nil}), do: nil
+  defp build_gmv_from_stored(%{gmv_hourly: %{"data" => []}}), do: nil
+
+  defp build_gmv_from_stored(%{gmv_hourly: %{"data" => data}} = stream) do
+    hourly =
+      Enum.map(data, fn h ->
+        {:ok, hour, _} = DateTime.from_iso8601(h["hour"])
+
+        %{
+          hour: hour,
+          gmv_cents: h["gmv_cents"],
+          order_count: h["order_count"]
+        }
+      end)
+
+    %{
+      hourly: hourly,
+      total_gmv_cents: stream.gmv_cents,
+      total_orders: stream.gmv_order_count
+    }
+  end
+
+  defp build_gmv_from_stored(_), do: nil
 end

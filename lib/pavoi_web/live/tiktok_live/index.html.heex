@@ -82,7 +82,13 @@
       class="streams-scroll-container"
       phx-viewport-bottom={@has_more && !@loading_streams && "load_more"}
     >
-      <.streams_table streams={@live_streams} on_row_click="navigate_to_stream" />
+      <.streams_table
+        streams={@live_streams}
+        on_row_click="navigate_to_stream"
+        sort_by={@sort_by}
+        sort_dir={@sort_dir}
+        on_sort="sort_column"
+      />
 
       <%= if @loading_streams do %>
         <div class="streams-loading">
@@ -102,6 +108,7 @@
   has_comments={@has_comments}
   comment_search_query={@comment_search_query}
   stream_stats={@stream_stats}
+  stream_gmv={@stream_gmv}
   linked_sessions={@linked_sessions}
   all_sessions={@all_sessions}
   session_search_query={@session_search_query}

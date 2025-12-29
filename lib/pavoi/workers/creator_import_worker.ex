@@ -35,6 +35,7 @@ defmodule Pavoi.Workers.CreatorImportWorker do
 
   require Logger
   alias Pavoi.Creators
+  alias Pavoi.Settings
 
   # Define CSV parser
   NimbleCSV.define(CreatorCSV, separator: ",", escape: "\"")
@@ -59,6 +60,11 @@ defmodule Pavoi.Workers.CreatorImportWorker do
     case result do
       {:ok, counts} ->
         Logger.info("✅ Import completed: #{inspect(counts)}")
+
+        # Update timestamp for video imports
+        if source == "videos" do
+          Settings.update_videos_last_import_at()
+        end
 
         Phoenix.PubSub.broadcast(
           Pavoi.PubSub,

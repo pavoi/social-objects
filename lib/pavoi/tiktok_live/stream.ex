@@ -24,6 +24,9 @@ defmodule Pavoi.TiktokLive.Stream do
     field :total_gifts_value, :integer, default: 0
     field :raw_metadata, :map, default: %{}
     field :cover_image_key, :string
+    field :gmv_cents, :integer
+    field :gmv_order_count, :integer
+    field :gmv_hourly, :map
 
     has_many :comments, Pavoi.TiktokLive.Comment, foreign_key: :stream_id
     has_many :stats, Pavoi.TiktokLive.StreamStat, foreign_key: :stream_id
@@ -50,7 +53,10 @@ defmodule Pavoi.TiktokLive.Stream do
       :total_comments,
       :total_gifts_value,
       :raw_metadata,
-      :cover_image_key
+      :cover_image_key,
+      :gmv_cents,
+      :gmv_order_count,
+      :gmv_hourly
     ])
     |> validate_required([:room_id, :unique_id, :started_at])
   end

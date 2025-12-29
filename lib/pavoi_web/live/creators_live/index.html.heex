@@ -36,6 +36,12 @@
           </option>
         </select>
       </form>
+
+      <%!-- Data Freshness Indicator --%>
+      <.data_freshness_panel
+        videos_last_import_at={@videos_last_import_at}
+        enrichment_last_sync_at={@enrichment_last_sync_at}
+      />
     </div>
 
     <div class="page-header__right">
@@ -60,7 +66,12 @@
           <% end %>
         </div>
       <% else %>
-        <%!-- Tag Filter (only when no items selected) --%>
+        <%!-- Filters (only when no items selected) --%>
+        <.time_filter
+          added_after={@added_after}
+          added_before={@added_before}
+          open={@show_time_filter}
+        />
         <.tag_filter
           available_tags={@available_tags}
           selected_tag_ids={@filter_tag_ids}

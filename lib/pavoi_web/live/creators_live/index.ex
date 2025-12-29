@@ -122,6 +122,12 @@ defmodule PavoiWeb.CreatorsLive.Index do
       |> assign(:show_batch_tag_picker, false)
       |> assign(:picker_selected_tag_ids, [])
       |> assign(:batch_selected_tag_ids, [])
+      # Time filter state
+      |> assign(:added_after, nil)
+      |> assign(:added_before, nil)
+      |> assign(:show_time_filter, false)
+      # Data freshness state
+      |> assign(:videos_last_import_at, Settings.get_videos_last_import_at())
 
     {:ok, socket}
   end
@@ -761,6 +767,34 @@ defmodule PavoiWeb.CreatorsLive.Index do
     {:noreply, push_patch(socket, to: ~p"/creators?#{params}")}
   end
 
+  # Time filter handlers
+  @impl true
+  def handle_event("toggle_time_filter", _params, socket) do
+    {:noreply, assign(socket, :show_time_filter, !socket.assigns.show_time_filter)}
+  end
+
+  @impl true
+  def handle_event("close_time_filter", _params, socket) do
+    {:noreply, assign(socket, :show_time_filter, false)}
+  end
+
+  @impl true
+  def handle_event("apply_time_filter", %{"after" => after_date, "before" => before_date}, socket) do
+    after_val = if after_date == "", do: nil, else: after_date
+    before_val = if before_date == "", do: nil, else: before_date
+
+    socket = assign(socket, :show_time_filter, false)
+    params = build_query_params(socket, added_after: after_val, added_before: before_val, page: 1)
+    {:noreply, push_patch(socket, to: ~p"/creators?#{params}")}
+  end
+
+  @impl true
+  def handle_event("clear_time_filter", _params, socket) do
+    socket = assign(socket, :show_time_filter, false)
+    params = build_query_params(socket, added_after: nil, added_before: nil, page: 1)
+    {:noreply, push_patch(socket, to: ~p"/creators?#{params}")}
+  end
+
   # Batch tag handlers
   @impl true
   def handle_event("show_batch_tag_picker", _params, socket) do
@@ -1082,6 +1116,8 @@ defmodule PavoiWeb.CreatorsLive.Index do
     |> assign(:selected_ids, MapSet.new())
     |> assign(:all_selected_pending, false)
     |> assign(:filter_tag_ids, parse_tag_ids(params["tags"]))
+    |> assign(:added_after, params["after"])
+    |> assign(:added_before, params["before"])
   end
 
   defp parse_outreach_status(nil), do: nil
@@ -1114,7 +1150,9 @@ defmodule PavoiWeb.CreatorsLive.Index do
       per_page: per_page,
       filter_tag_ids: filter_tag_ids,
       outreach_status: outreach_status,
-      brand_id: brand_id
+      brand_id: brand_id,
+      added_after: added_after,
+      added_before: added_before
     } = socket.assigns
 
     opts =
@@ -1124,23 +1162,29 @@ defmodule PavoiWeb.CreatorsLive.Index do
       |> maybe_add_opt(:sort_by, sort_by)
       |> maybe_add_opt(:sort_dir, sort_dir)
       |> maybe_add_opt(:outreach_status, outreach_status)
+      |> maybe_add_opt(:added_after, added_after)
+      |> maybe_add_opt(:added_before, added_before)
       |> maybe_add_tag_filter(filter_tag_ids)
 
     result = Creators.search_creators_unified(opts)
 
-    # Batch load all related data in 3 queries instead of N+1
+    # Batch load all related data in efficient queries instead of N+1
     creator_ids = Enum.map(result.creators, & &1.id)
     outreach_logs_map = Outreach.get_latest_email_outreach_logs(creator_ids)
     sample_counts_map = Creators.batch_count_samples(creator_ids)
     tags_map = Creators.batch_list_tags_for_creators(creator_ids, brand_id)
+    video_counts_map = Creators.batch_count_videos(creator_ids)
+    commission_map = Creators.batch_sum_commission(creator_ids)
 
-    # Add sample counts, tags, and outreach logs to each creator
+    # Add sample counts, tags, video counts, commission, and outreach logs to each creator
     creators_with_data =
       Enum.map(result.creators, fn creator ->
         creator
         |> Map.put(:sample_count, Map.get(sample_counts_map, creator.id, 0))
         |> Map.put(:creator_tags, Map.get(tags_map, creator.id, []))
         |> Map.put(:email_outreach_log, Map.get(outreach_logs_map, creator.id))
+        |> Map.put(:video_count, Map.get(video_counts_map, creator.id, 0))
+        |> Map.put(:total_commission_cents, Map.get(commission_map, creator.id, 0))
       end)
 
     # If loading more (page > 1), append to existing
@@ -1194,7 +1238,9 @@ defmodule PavoiWeb.CreatorsLive.Index do
     creator_id: :c,
     tab: :tab,
     outreach_status: :status,
-    filter_tag_ids: :tags
+    filter_tag_ids: :tags,
+    added_after: :after,
+    added_before: :before
   }
 
   defp build_query_params(socket, overrides) do
@@ -1207,7 +1253,9 @@ defmodule PavoiWeb.CreatorsLive.Index do
       c: get_creator_id(socket.assigns.selected_creator),
       tab: socket.assigns.active_tab,
       status: socket.assigns.outreach_status,
-      tags: format_tag_ids(socket.assigns.filter_tag_ids)
+      tags: format_tag_ids(socket.assigns.filter_tag_ids),
+      after: socket.assigns.added_after,
+      before: socket.assigns.added_before
     }
 
     overrides

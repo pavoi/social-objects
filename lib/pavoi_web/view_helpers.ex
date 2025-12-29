@@ -163,6 +163,34 @@ defmodule PavoiWeb.ViewHelpers do
   end
 
   @doc """
+  Formats GMV (in cents) with compact display for larger values.
+
+  ## Examples
+
+      iex> format_gmv(1234_56)
+      "$1.2k"
+
+      iex> format_gmv(99_00)
+      "$99"
+  """
+  def format_gmv(nil), do: "$0"
+  def format_gmv(0), do: "$0"
+
+  def format_gmv(%Decimal{} = cents) do
+    format_gmv(Decimal.to_integer(cents))
+  end
+
+  def format_gmv(cents) when is_integer(cents) do
+    dollars = cents / 100
+
+    if dollars >= 1000 do
+      "$#{Float.round(dollars / 1000, 1)}k"
+    else
+      "$#{trunc(dollars)}"
+    end
+  end
+
+  @doc """
   Converts cents (integer) to dollars (float).
 
   Used for displaying prices in form inputs where users enter dollar amounts.

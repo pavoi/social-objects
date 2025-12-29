@@ -5,6 +5,7 @@ defmodule PavoiWeb.TiktokLiveComponents do
   use Phoenix.Component
 
   import PavoiWeb.CoreComponents
+  import PavoiWeb.CreatorComponents, only: [sort_header: 1]
   import PavoiWeb.ViewHelpers
 
   alias Pavoi.TiktokLive.Stream
@@ -74,6 +75,9 @@ defmodule PavoiWeb.TiktokLiveComponents do
   """
   attr :streams, :list, required: true
   attr :on_row_click, :string, default: nil
+  attr :sort_by, :string, default: "started"
+  attr :sort_dir, :string, default: "desc"
+  attr :on_sort, :string, default: nil
 
   def streams_table(assigns) do
     ~H"""
@@ -84,10 +88,45 @@ defmodule PavoiWeb.TiktokLiveComponents do
             <th data-column-id="thumbnail" class="streams-table__th-thumbnail"></th>
             <th data-column-id="title">Title</th>
             <th data-column-id="status">Status</th>
-            <th data-column-id="started">Started</th>
-            <th data-column-id="duration">Duration</th>
-            <th data-column-id="viewers">Viewers</th>
-            <th data-column-id="comments">Comments</th>
+            <.sort_header
+              label="Started"
+              field="started"
+              current={@sort_by}
+              dir={@sort_dir}
+              on_sort={@on_sort}
+            />
+            <.sort_header
+              label="Duration"
+              field="duration"
+              current={@sort_by}
+              dir={@sort_dir}
+              on_sort={@on_sort}
+              class="text-right"
+            />
+            <.sort_header
+              label="Viewers"
+              field="viewers"
+              current={@sort_by}
+              dir={@sort_dir}
+              on_sort={@on_sort}
+              class="text-right"
+            />
+            <.sort_header
+              label="GMV"
+              field="gmv"
+              current={@sort_by}
+              dir={@sort_dir}
+              on_sort={@on_sort}
+              class="text-right"
+            />
+            <.sort_header
+              label="Comments"
+              field="comments"
+              current={@sort_by}
+              dir={@sort_dir}
+              on_sort={@on_sort}
+              class="text-right"
+            />
           </tr>
         </thead>
         <tbody>
@@ -122,6 +161,13 @@ defmodule PavoiWeb.TiktokLiveComponents do
                   {format_number(stream.viewer_count_peak)}
                 <% end %>
               </td>
+              <td class="text-right">
+                <%= if stream.gmv_cents do %>
+                  <span class="text-green-500">{format_gmv(stream.gmv_cents)}</span>
+                <% else %>
+                  <span class="text-secondary">—</span>
+                <% end %>
+              </td>
               <td class="text-right">{format_number(stream.total_comments)}</td>
             </tr>
           <% end %>
@@ -141,6 +187,7 @@ defmodule PavoiWeb.TiktokLiveComponents do
   attr :has_comments, :boolean, default: false
   attr :comment_search_query, :string, default: ""
   attr :stream_stats, :list, default: []
+  attr :stream_gmv, :map, default: nil
   attr :linked_sessions, :list, default: []
   attr :all_sessions, :list, default: []
   attr :session_search_query, :string, default: ""
@@ -265,6 +312,25 @@ defmodule PavoiWeb.TiktokLiveComponents do
                 </span>
               </div>
             <% end %>
+            <%= if @stream.gmv_cents && @stream.gmv_cents > 0 do %>
+              <div class="stream-modal-stat stream-modal-stat--highlight">
+                <span class="stream-modal-stat__label">
+                  GMV
+                  <span
+                    class="stream-modal-stat__info"
+                    title="Gross Merchandise Value: Total order revenue during stream hours. This is correlation, not direct attribution—orders may or may not be stream-driven."
+                  >
+                    <.icon name="hero-information-circle" class="size-3.5" />
+                  </span>
+                </span>
+                <span class="stream-modal-stat__value">
+                  {format_gmv(@stream.gmv_cents)}
+                </span>
+                <span class="stream-modal-stat__subvalue">
+                  {@stream.gmv_order_count || 0} orders
+                </span>
+              </div>
+            <% end %>
           </div>
 
           <div class="stream-modal-tabs">
@@ -295,14 +361,6 @@ defmodule PavoiWeb.TiktokLiveComponents do
             >
               Stats
             </button>
-            <button
-              type="button"
-              class={["tab", @active_tab == "raw" && "tab--active"]}
-              phx-click="change_tab"
-              phx-value-tab="raw"
-            >
-              Raw Data
-            </button>
           </div>
 
           <div class="stream-modal-content">
@@ -321,9 +379,7 @@ defmodule PavoiWeb.TiktokLiveComponents do
                   product_interest={@product_interest}
                 />
               <% "stats" -> %>
-                <.stats_tab stream_stats={@stream_stats} />
-              <% "raw" -> %>
-                <.raw_data_tab metadata={@stream.raw_metadata} />
+                <.stats_tab stream_stats={@stream_stats} stream_gmv={@stream_gmv} />
             <% end %>
           </div>
         </div>
@@ -486,9 +542,10 @@ defmodule PavoiWeb.TiktokLiveComponents do
   Renders the stats tab with viewer chart.
   """
   attr :stream_stats, :list, required: true
+  attr :stream_gmv, :map, default: nil
 
   def stats_tab(assigns) do
-    chart_data = build_chart_data(assigns.stream_stats)
+    chart_data = build_chart_data(assigns.stream_stats, assigns.stream_gmv)
     assigns = assign(assigns, :chart_data, chart_data)
 
     ~H"""
@@ -511,27 +568,21 @@ defmodule PavoiWeb.TiktokLiveComponents do
           </canvas>
         </div>
         <div class="stats-summary">
+          <div class="stats-legend">
+            <span class="stats-legend__item stats-legend__item--viewers">
+              <span class="stats-legend__color"></span> Viewers
+            </span>
+            <%= if @stream_gmv && length(@stream_gmv.hourly) > 0 do %>
+              <span class="stats-legend__item stats-legend__item--gmv">
+                <span class="stats-legend__color"></span> GMV
+              </span>
+            <% end %>
+          </div>
           <p class="text-secondary text-sm">
             {length(@stream_stats)} data points recorded
           </p>
         </div>
       <% end %>
-    </div>
-    """
-  end
-
-  @doc """
-  Renders the raw data tab with JSON viewer.
-  """
-  attr :metadata, :map, required: true
-
-  def raw_data_tab(assigns) do
-    formatted_json = Jason.encode!(assigns.metadata, pretty: true)
-    assigns = assign(assigns, :formatted_json, formatted_json)
-
-    ~H"""
-    <div class="raw-data-tab">
-      <pre class="json-viewer"><code>{@formatted_json}</code></pre>
     </div>
     """
   end
@@ -623,7 +674,7 @@ defmodule PavoiWeb.TiktokLiveComponents do
     end
   end
 
-  defp build_chart_data(stats) when is_list(stats) do
+  defp build_chart_data(stats, gmv_data) when is_list(stats) do
     labels =
       Enum.map(stats, fn stat ->
         Calendar.strftime(stat.recorded_at, "%H:%M")
@@ -631,18 +682,50 @@ defmodule PavoiWeb.TiktokLiveComponents do
 
     viewer_data = Enum.map(stats, & &1.viewer_count)
 
-    %{
-      labels: labels,
-      datasets: [
-        %{
-          label: "Viewers",
-          data: viewer_data,
-          borderColor: "rgb(59, 130, 246)",
-          backgroundColor: "rgba(59, 130, 246, 0.1)",
-          fill: true,
-          tension: 0.3
+    datasets = [
+      %{
+        label: "Viewers",
+        data: viewer_data,
+        borderColor: "rgb(59, 130, 246)",
+        backgroundColor: "rgba(59, 130, 246, 0.1)",
+        fill: true,
+        tension: 0.3,
+        yAxisID: "y"
+      }
+    ]
+
+    # Add GMV dataset if hourly data is available
+    {datasets, has_gmv} =
+      if gmv_data && length(gmv_data.hourly) > 0 do
+        gmv_by_hour = Map.new(gmv_data.hourly, fn h -> {h.hour, h.gmv_cents} end)
+
+        # Replicate GMV value across all data points within each hour
+        # This creates a stepped line effect where GMV is constant per hour
+        gmv_data_points =
+          Enum.map(stats, fn stat ->
+            hour = DateTime.truncate(stat.recorded_at, :second)
+            hour = %{hour | minute: 0, second: 0}
+            Map.get(gmv_by_hour, hour, 0) / 100
+          end)
+
+        gmv_dataset = %{
+          label: "GMV",
+          data: gmv_data_points,
+          borderColor: "rgb(34, 197, 94)",
+          backgroundColor: "transparent",
+          borderDash: [5, 5],
+          stepped: true,
+          fill: false,
+          tension: 0,
+          pointRadius: 0,
+          yAxisID: "y1"
         }
-      ]
-    }
+
+        {datasets ++ [gmv_dataset], true}
+      else
+        {datasets, false}
+      end
+
+    %{labels: labels, datasets: datasets, hasGmv: has_gmv}
   end
 end

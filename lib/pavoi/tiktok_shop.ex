@@ -448,6 +448,127 @@ defmodule Pavoi.TiktokShop do
   defp maybe_add_filter(body, key, value), do: Map.put(body, key, value)
 
   # =============================================================================
+  # Orders API
+  # =============================================================================
+
+  @orders_search_path "/order/202309/orders/search"
+
+  @doc """
+  Fetches all orders within a time range.
+
+  ## Parameters
+    - start_time: DateTime for the start of the range (inclusive)
+    - end_time: DateTime for the end of the range (exclusive)
+    - opts: Additional options
+      - page_size: Number of results per page (default: 100)
+
+  ## Returns
+    {:ok, [order]} - List of orders with payment info
+    {:error, reason} - Error details
+
+  ## Example
+      # Get orders during a stream
+      fetch_orders_in_range(stream.started_at, stream.ended_at)
+  """
+  def fetch_orders_in_range(%DateTime{} = start_time, %DateTime{} = end_time, opts \\ []) do
+    page_size = Keyword.get(opts, :page_size, 100)
+
+    body = %{
+      "create_time_ge" => DateTime.to_unix(start_time),
+      "create_time_lt" => DateTime.to_unix(end_time)
+    }
+
+    fetch_all_orders_pages(body, page_size, nil, [])
+  end
+
+  defp fetch_all_orders_pages(body, page_size, page_token, acc) do
+    params =
+      if page_token,
+        do: %{page_size: page_size, page_token: page_token},
+        else: %{page_size: page_size}
+
+    case make_api_request(:post, @orders_search_path, params, body) do
+      {:ok, %{"code" => 0, "data" => %{"orders" => orders} = data}} when is_list(orders) ->
+        new_acc = acc ++ orders
+        next_token = Map.get(data, "next_page_token")
+
+        if next_token && next_token != "" && length(acc) < 1000 do
+          # Rate limit protection
+          Process.sleep(300)
+          fetch_all_orders_pages(body, page_size, next_token, new_acc)
+        else
+          {:ok, new_acc}
+        end
+
+      {:ok, %{"code" => 0, "data" => _}} ->
+        # No orders field means empty result
+        {:ok, acc}
+
+      {:ok, %{"code" => code, "message" => message}} ->
+        {:error, "API error [#{code}]: #{message}"}
+
+      {:error, reason} ->
+        {:error, reason}
+    end
+  end
+
+  @doc """
+  Calculates hourly GMV from a list of orders.
+
+  Groups orders by hour and sums the payment amounts.
+
+  ## Returns
+    A list of maps with :hour (DateTime truncated to hour) and :gmv_cents
+  """
+  def calculate_hourly_gmv(orders) when is_list(orders) do
+    orders
+    |> Enum.filter(&valid_order_for_gmv?/1)
+    |> Enum.group_by(&order_hour/1)
+    |> Enum.map(fn {hour, hour_orders} ->
+      gmv_cents = Enum.reduce(hour_orders, 0, &sum_order_amount/2)
+      %{hour: hour, gmv_cents: gmv_cents, order_count: length(hour_orders)}
+    end)
+    |> Enum.sort_by(& &1.hour, DateTime)
+  end
+
+  defp valid_order_for_gmv?(order) do
+    # Include orders that aren't cancelled
+    status = order["status"]
+    status not in ["CANCELLED", "CANCEL"]
+  end
+
+  defp order_hour(order) do
+    case order["create_time"] do
+      unix when is_integer(unix) ->
+        unix
+        |> DateTime.from_unix!()
+        |> DateTime.truncate(:second)
+        |> Map.put(:minute, 0)
+        |> Map.put(:second, 0)
+
+      _ ->
+        # Fallback for orders without timestamp
+        DateTime.utc_now() |> Map.put(:minute, 0) |> Map.put(:second, 0)
+    end
+  end
+
+  defp sum_order_amount(order, acc) do
+    amount =
+      case get_in(order, ["payment", "total_amount"]) do
+        amount when is_binary(amount) ->
+          case Float.parse(amount) do
+            {val, _} -> round(val * 100)
+            :error -> 0
+          end
+
+        _ ->
+          0
+      end
+
+    acc + amount
+  end
+
+  # =============================================================================
   # Token Storage
   # =============================================================================
 

@@ -54,13 +54,15 @@ defmodule Pavoi.TiktokLive do
 
   - `:status` - Filter by status (:capturing, :ended, :failed)
   - `:unique_id` - Filter by TikTok username
+  - `:sort_by` - Field to sort by ("started", "viewers", "gmv", "comments", "duration")
+  - `:sort_dir` - Direction ("asc" or "desc", default "desc")
   - `:limit` - Limit number of results
   - `:offset` - Offset for pagination
   """
   def list_streams(opts) do
     Stream
     |> apply_filters(opts)
-    |> order_by([s], desc: s.started_at)
+    |> apply_sorting(opts)
     |> Repo.all()
   end
 
@@ -140,6 +142,42 @@ defmodule Pavoi.TiktokLive do
       {:error, :already_ended}
     end
   end
+
+  @doc """
+  Updates a stream's GMV data.
+
+  `gmv_data` should be a map with `:total_gmv_cents`, `:total_orders`, and `:hourly` keys.
+  The `:hourly` key should contain a list of maps with `:hour`, `:gmv_cents`, and `:order_count`.
+  """
+  def update_stream_gmv(stream_id, gmv_data) do
+    stream = get_stream!(stream_id)
+
+    # Convert hourly data to serializable format (DateTime keys to ISO strings)
+    hourly_map = serialize_hourly_gmv(gmv_data.hourly)
+
+    stream
+    |> Stream.changeset(%{
+      gmv_cents: gmv_data.total_gmv_cents,
+      gmv_order_count: gmv_data.total_orders,
+      gmv_hourly: hourly_map
+    })
+    |> Repo.update()
+  end
+
+  defp serialize_hourly_gmv(hourly) when is_list(hourly) do
+    %{
+      "data" =>
+        Enum.map(hourly, fn h ->
+          %{
+            "hour" => DateTime.to_iso8601(h.hour),
+            "gmv_cents" => h.gmv_cents,
+            "order_count" => h.order_count
+          }
+        end)
+    }
+  end
+
+  defp serialize_hourly_gmv(_), do: nil
 
   ## Comments
 
@@ -496,6 +534,48 @@ defmodule Pavoi.TiktokLive do
       _, q ->
         q
     end)
+  end
+
+  defp apply_sorting(query, opts) do
+    sort_by = Keyword.get(opts, :sort_by, "started")
+    sort_dir = Keyword.get(opts, :sort_dir, "desc")
+
+    dir = if sort_dir == "asc", do: :asc, else: :desc
+
+    case sort_by do
+      "started" ->
+        order_by(query, [s], [{^dir, s.started_at}])
+
+      "viewers" ->
+        order_by(query, [s], [{^dir, coalesce(s.viewer_count_peak, 0)}, {^dir, s.started_at}])
+
+      "gmv" ->
+        order_by(query, [s], [{^dir, coalesce(s.gmv_cents, 0)}, {^dir, s.started_at}])
+
+      "comments" ->
+        order_by(query, [s], [{^dir, coalesce(s.total_comments, 0)}, {^dir, s.started_at}])
+
+      "duration" ->
+        # Duration is calculated as ended_at - started_at
+        # For ongoing streams (ended_at is nil), treat as 0 for sorting
+        order_by(
+          query,
+          [s],
+          [
+            {^dir,
+             fragment(
+               "COALESCE(EXTRACT(EPOCH FROM (? - ?)), 0)",
+               s.ended_at,
+               s.started_at
+             )},
+            {^dir, s.started_at}
+          ]
+        )
+
+      _ ->
+        # Default to started_at desc
+        order_by(query, [s], [{^dir, s.started_at}])
+    end
   end
 
   defp get_active_capture(room_id) do

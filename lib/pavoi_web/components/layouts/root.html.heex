@@ -29,6 +29,30 @@
         document.querySelector('meta[name="theme-color"]')?.setAttribute('content', themeColor);
       })();
     </script>
+    <%!-- Column Width Restoration: Apply saved widths before table renders to prevent FOUC --%>
+    <script>
+      (function() {
+        const PREFIX = 'table-columns-';
+        const tables = ['creators-unified', 'creators-crm', 'creators-outreach', 'streams'];
+        let css = '';
+        tables.forEach(tableId => {
+          try {
+            const saved = localStorage.getItem(PREFIX + tableId);
+            if (!saved) return;
+            const widths = JSON.parse(saved);
+            Object.entries(widths).forEach(([colId, width]) => {
+              css += `[data-table-id="${tableId}"] th[data-column-id="${colId}"]{width:${width}px!important}`;
+            });
+          } catch (e) {}
+        });
+        if (css) {
+          const style = document.createElement('style');
+          style.id = 'saved-column-widths';
+          style.textContent = css;
+          document.head.appendChild(style);
+        }
+      })();
+    </script>
     <link phx-track-static rel="stylesheet" href={~p"/assets/js/app.css"} />
     <script defer phx-track-static type="module" src={~p"/assets/js/app.js"}>
     </script>

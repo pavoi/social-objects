@@ -102,6 +102,8 @@ defmodule Pavoi.Creators do
       |> apply_creator_badge_filter(Keyword.get(opts, :badge_level))
       |> apply_creator_tag_filter(Keyword.get(opts, :tag_ids))
       |> apply_outreach_status_filter(Keyword.get(opts, :outreach_status))
+      |> apply_added_after_filter(Keyword.get(opts, :added_after))
+      |> apply_added_before_filter(Keyword.get(opts, :added_before))
 
     total = Repo.aggregate(query, :count)
 
@@ -130,6 +132,35 @@ defmodule Pavoi.Creators do
   end
 
   defp apply_outreach_status_filter(query, _), do: query
+
+  defp apply_added_after_filter(query, nil), do: query
+
+  defp apply_added_after_filter(query, %Date{} = date) do
+    datetime = DateTime.new!(date, ~T[00:00:00], "Etc/UTC")
+    where(query, [c], c.inserted_at >= ^datetime)
+  end
+
+  defp apply_added_after_filter(query, date_string) when is_binary(date_string) do
+    case Date.from_iso8601(date_string) do
+      {:ok, date} -> apply_added_after_filter(query, date)
+      {:error, _} -> query
+    end
+  end
+
+  defp apply_added_before_filter(query, nil), do: query
+
+  defp apply_added_before_filter(query, %Date{} = date) do
+    # End of day for the "before" date
+    datetime = DateTime.new!(Date.add(date, 1), ~T[00:00:00], "Etc/UTC")
+    where(query, [c], c.inserted_at < ^datetime)
+  end
+
+  defp apply_added_before_filter(query, date_string) when is_binary(date_string) do
+    case Date.from_iso8601(date_string) do
+      {:ok, date} -> apply_added_before_filter(query, date)
+      {:error, _} -> query
+    end
+  end
 
   # Unified sort supporting all columns from both CRM and Outreach modes
   defp apply_unified_sort(query, "sms_consent", "asc"),
@@ -202,6 +233,31 @@ defmodule Pavoi.Creators do
 
   defp apply_creator_sort(query, "videos", "asc"),
     do: order_by(query, [c], asc_nulls_last: c.total_videos)
+
+  # Note: videos_posted and commission are computed from creator_videos table via subquery
+  defp apply_creator_sort(query, "videos_posted", dir) do
+    video_counts =
+      from(cv in CreatorVideo,
+        group_by: cv.creator_id,
+        select: %{creator_id: cv.creator_id, count: count(cv.id)}
+      )
+
+    query
+    |> join(:left, [c], vc in subquery(video_counts), on: vc.creator_id == c.id)
+    |> order_by([c, vc], [{^sort_dir_atom(dir), coalesce(vc.count, 0)}])
+  end
+
+  defp apply_creator_sort(query, "commission", dir) do
+    commission_sums =
+      from(cv in CreatorVideo,
+        group_by: cv.creator_id,
+        select: %{creator_id: cv.creator_id, total: coalesce(sum(cv.est_commission_cents), 0)}
+      )
+
+    query
+    |> join(:left, [c], cs in subquery(commission_sums), on: cs.creator_id == c.id)
+    |> order_by([c, cs], [{^sort_dir_atom(dir), coalesce(cs.total, 0)}])
+  end
 
   defp apply_creator_sort(query, "name", "asc"),
     do: order_by(query, [c], asc_nulls_last: c.first_name, asc_nulls_last: c.last_name)
@@ -598,6 +654,42 @@ defmodule Pavoi.Creators do
   def count_videos_for_creator(creator_id) do
     from(cv in CreatorVideo, where: cv.creator_id == ^creator_id)
     |> Repo.aggregate(:count)
+  end
+
+  @doc """
+  Batch gets video counts for multiple creators.
+  Returns a map of creator_id => count.
+  """
+  def batch_count_videos(creator_ids) when is_list(creator_ids) do
+    if creator_ids == [] do
+      %{}
+    else
+      from(cv in CreatorVideo,
+        where: cv.creator_id in ^creator_ids,
+        group_by: cv.creator_id,
+        select: {cv.creator_id, count(cv.id)}
+      )
+      |> Repo.all()
+      |> Map.new()
+    end
+  end
+
+  @doc """
+  Batch sums commission earned (est_commission_cents) for multiple creators.
+  Returns a map of creator_id => total_commission_cents.
+  """
+  def batch_sum_commission(creator_ids) when is_list(creator_ids) do
+    if creator_ids == [] do
+      %{}
+    else
+      from(cv in CreatorVideo,
+        where: cv.creator_id in ^creator_ids,
+        group_by: cv.creator_id,
+        select: {cv.creator_id, coalesce(sum(cv.est_commission_cents), 0)}
+      )
+      |> Repo.all()
+      |> Map.new()
+    end
   end
 
   ## Video Products

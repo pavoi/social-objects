@@ -299,6 +299,178 @@ defmodule PavoiWeb.CreatorComponents do
   end
 
   @doc """
+  Renders a data freshness status indicator.
+  Shows last sync times for various data sources with color-coded staleness indicators on hover.
+  """
+  attr :videos_last_import_at, :any, default: nil
+  attr :enrichment_last_sync_at, :any, default: nil
+
+  def data_freshness_panel(assigns) do
+    assigns =
+      assigns
+      |> assign(:videos_status, freshness_status(assigns.videos_last_import_at))
+      |> assign(:enrichment_status, freshness_status(assigns.enrichment_last_sync_at))
+
+    ~H"""
+    <div class="data-freshness">
+      <div class="data-freshness__summary">
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke-width="1.5"
+          stroke="currentColor"
+          class="data-freshness__icon"
+        >
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z"
+          />
+        </svg>
+        <%= if has_stale_data?([@videos_status, @enrichment_status]) do %>
+          <span class="data-freshness__warning">!</span>
+        <% end %>
+      </div>
+
+      <div class="data-freshness__panel">
+        <div class="data-freshness__header">Data Freshness</div>
+        <div class="data-freshness__item">
+          <span class={"data-freshness__dot data-freshness__dot--#{@videos_status.level}"} />
+          <div class="data-freshness__label">
+            <strong>Video/Commission Data</strong>
+            <span class="data-freshness__source">CSV Import</span>
+          </div>
+          <span class="data-freshness__time">{@videos_status.text}</span>
+        </div>
+
+        <div class="data-freshness__item">
+          <span class={"data-freshness__dot data-freshness__dot--#{@enrichment_status.level}"} />
+          <div class="data-freshness__label">
+            <strong>Creator Metrics</strong>
+            <span class="data-freshness__source">TikTok API</span>
+          </div>
+          <span class="data-freshness__time">{@enrichment_status.text}</span>
+        </div>
+
+        <div class="data-freshness__legend">
+          <span><span class="data-freshness__dot data-freshness__dot--fresh" /> &lt;3 days</span>
+          <span><span class="data-freshness__dot data-freshness__dot--aging" /> 3-7 days</span>
+          <span><span class="data-freshness__dot data-freshness__dot--stale" /> &gt;7 days</span>
+        </div>
+      </div>
+    </div>
+    """
+  end
+
+  defp freshness_status(nil) do
+    %{level: "stale", text: "Never synced", days: nil}
+  end
+
+  defp freshness_status(datetime) do
+    days = DateTime.diff(DateTime.utc_now(), datetime, :day)
+
+    cond do
+      days < 3 ->
+        %{level: "fresh", text: format_relative_time(datetime), days: days}
+
+      days < 7 ->
+        %{level: "aging", text: format_relative_time(datetime), days: days}
+
+      true ->
+        %{level: "stale", text: format_relative_time(datetime), days: days}
+    end
+  end
+
+  defp has_stale_data?(statuses) do
+    Enum.any?(statuses, fn s -> s.level == "stale" end)
+  end
+
+  @doc """
+  Renders the time filter dropdown for filtering creators by when they were added.
+  """
+  attr :added_after, :string, default: nil
+  attr :added_before, :string, default: nil
+  attr :open, :boolean, default: false
+
+  def time_filter(assigns) do
+    has_filter = assigns.added_after || assigns.added_before
+
+    label =
+      cond do
+        assigns.added_after && assigns.added_before ->
+          "#{format_short_date(assigns.added_after)} - #{format_short_date(assigns.added_before)}"
+
+        assigns.added_after ->
+          "After #{format_short_date(assigns.added_after)}"
+
+        assigns.added_before ->
+          "Before #{format_short_date(assigns.added_before)}"
+
+        true ->
+          "Date Added"
+      end
+
+    assigns = assign(assigns, has_filter: has_filter, label: label)
+
+    ~H"""
+    <div class="time-filter" phx-click-away={@open && "close_time_filter"}>
+      <button
+        type="button"
+        class={["time-filter__trigger", @has_filter && "time-filter__trigger--active"]}
+        phx-click="toggle_time_filter"
+      >
+        <.icon name="hero-calendar" class="size-4" />
+        <span>{@label}</span>
+        <%= if @has_filter do %>
+          <span
+            class="time-filter__clear-x"
+            phx-click="clear_time_filter"
+            title="Clear filter"
+          >
+            ×
+          </span>
+        <% else %>
+          <.icon name="hero-chevron-down" class="size-4" />
+        <% end %>
+      </button>
+
+      <%= if @open do %>
+        <div class="time-filter__dropdown">
+          <form phx-submit="apply_time_filter" class="time-filter__form">
+            <div class="time-filter__field">
+              <label>Added after</label>
+              <input type="date" name="after" value={@added_after} />
+            </div>
+            <div class="time-filter__field">
+              <label>Added before</label>
+              <input type="date" name="before" value={@added_before} />
+            </div>
+            <div class="time-filter__actions">
+              <button type="button" class="btn btn--ghost btn--sm" phx-click="clear_time_filter">
+                Clear
+              </button>
+              <button type="submit" class="btn btn--primary btn--sm">
+                Apply
+              </button>
+            </div>
+          </form>
+        </div>
+      <% end %>
+    </div>
+    """
+  end
+
+  defp format_short_date(nil), do: ""
+
+  defp format_short_date(date_string) when is_binary(date_string) do
+    case Date.from_iso8601(date_string) do
+      {:ok, date} -> Calendar.strftime(date, "%b %d")
+      {:error, _} -> date_string
+    end
+  end
+
+  @doc """
   Renders the status filter dropdown for filtering by outreach status.
   """
   attr :current_status, :string, default: nil
@@ -590,23 +762,7 @@ defmodule PavoiWeb.CreatorComponents do
     end
   end
 
-  @doc """
-  Formats cents as currency.
-
-  ## Examples
-
-      format_gmv(123456) # => "$1,235"
-      format_gmv(nil) # => "$0"
-  """
-  def format_gmv(nil), do: "$0"
-  def format_gmv(0), do: "$0"
-
-  def format_gmv(cents) when is_integer(cents) do
-    dollars = div(cents, 100)
-    "$#{format_number(dollars)}"
-  end
-
-  # format_number/1 is now imported from PavoiWeb.ViewHelpers
+  # format_gmv/1 and format_number/1 are imported from PavoiWeb.ViewHelpers
 
   @doc """
   Returns the creator's display name (full name, or "-" if none).
@@ -1029,7 +1185,25 @@ defmodule PavoiWeb.CreatorComponents do
               on_sort={@on_sort}
               class="text-right"
             />
-            <%!-- 11. Enriched --%>
+            <%!-- 11. Videos Posted --%>
+            <.sort_header
+              label="Videos"
+              field="videos_posted"
+              current={@sort_by}
+              dir={@sort_dir}
+              on_sort={@on_sort}
+              class="text-right"
+            />
+            <%!-- 12. Commission --%>
+            <.sort_header
+              label="Commission"
+              field="commission"
+              current={@sort_by}
+              dir={@sort_dir}
+              on_sort={@on_sort}
+              class="text-right"
+            />
+            <%!-- 13. Enriched --%>
             <.sort_header
               label="Enriched"
               field="enriched"
@@ -1105,7 +1279,11 @@ defmodule PavoiWeb.CreatorComponents do
               <td class="text-right">{format_number(creator.avg_video_views)}</td>
               <%!-- 10. Samples --%>
               <td class="text-right">{creator.sample_count || 0}</td>
-              <%!-- 11. Enriched --%>
+              <%!-- 11. Videos Posted --%>
+              <td class="text-right">{creator.video_count || 0}</td>
+              <%!-- 12. Commission --%>
+              <td class="text-right">{format_gmv(creator.total_commission_cents)}</td>
+              <%!-- 13. Enriched --%>
               <td class="text-secondary text-xs">
                 {if creator.last_enriched_at,
                   do: format_relative_time(creator.last_enriched_at),

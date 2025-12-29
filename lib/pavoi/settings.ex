@@ -183,6 +183,41 @@ defmodule Pavoi.Settings do
   end
 
   @doc """
+  Gets the last creator videos import timestamp.
+
+  Returns nil if never imported or a DateTime if imported before.
+  """
+  def get_videos_last_import_at do
+    case Repo.get_by(SystemSetting, key: "videos_last_import_at") do
+      nil -> nil
+      setting -> parse_datetime(setting.value)
+    end
+  end
+
+  @doc """
+  Updates the last creator videos import timestamp to the current time.
+  """
+  def update_videos_last_import_at do
+    now = DateTime.utc_now() |> DateTime.to_iso8601()
+
+    case Repo.get_by(SystemSetting, key: "videos_last_import_at") do
+      nil ->
+        %SystemSetting{}
+        |> SystemSetting.changeset(%{
+          key: "videos_last_import_at",
+          value: now,
+          value_type: "datetime"
+        })
+        |> Repo.insert()
+
+      setting ->
+        setting
+        |> SystemSetting.changeset(%{value: now})
+        |> Repo.update()
+    end
+  end
+
+  @doc """
   Gets a generic string setting by key.
 
   Returns nil if the setting doesn't exist.
