@@ -65,23 +65,16 @@
 .creators-scroll-container {
   height: calc(100vh - 220px); /* viewport minus navbar and page header */
   overflow-y: auto;
+  overflow-x: auto;
   border-radius: var(--radius-md);
   border: 1px solid var(--color-border);
   background: var(--color-surface-primary);
-}
-
-/* Table wrapper - no longer scrollable, just contains table */
-.creator-table-wrapper {
-  /* Scrolling moved to .creators-scroll-container for phx-viewport-bottom to work */
 }
 
 .creator-table {
   width: 100%;
   border-collapse: collapse;
   font-size: var(--text-sm);
-  table-layout: fixed;
-  /* Prevent horizontal shift by maintaining consistent width */
-  min-width: 1200px;
 }
 
 .creator-table th {
@@ -97,7 +90,6 @@
   top: 0;
   z-index: 10;
 }
-
 
 /* Checkbox column width (shared) */
 .creator-table th.col-checkbox,
@@ -173,12 +165,9 @@
 .creator-table.mode-outreach:not(.has-checkbox) td:nth-child(8) { width: 125px; }  /* Sent (when visible) */
 
 /* =============================================================================
-   UNIFIED MODE - All 13 columns
-   Columns: Checkbox, Status, Creator, Email, Tags, Followers, GMV, Video GMV, Avg Views, Samples, Videos, Commission, Enriched
+   UNIFIED MODE - 11 columns
+   Columns: Checkbox, Status, Creator, Email, Tags, Followers, GMV, Avg Views, Samples, Videos, Commission
    ============================================================================= */
-.creator-table.mode-unified {
-  min-width: 1600px;
-}
 
 .creator-table.mode-unified th:nth-child(1),
 .creator-table.mode-unified td:nth-child(1) { width: 55px; }   /* Checkbox */
@@ -187,25 +176,21 @@
 .creator-table.mode-unified th:nth-child(3),
 .creator-table.mode-unified td:nth-child(3) { width: 260px; }  /* Creator */
 .creator-table.mode-unified th:nth-child(4),
-.creator-table.mode-unified td:nth-child(4) { width: 220px; }  /* Email */
+.creator-table.mode-unified td:nth-child(4) { width: 240px; }  /* Email */
 .creator-table.mode-unified th:nth-child(5),
-.creator-table.mode-unified td:nth-child(5) { width: 170px; }  /* Tags */
+.creator-table.mode-unified td:nth-child(5) { width: 175px; }  /* Tags */
 .creator-table.mode-unified th:nth-child(6),
 .creator-table.mode-unified td:nth-child(6) { width: 125px; }  /* Followers */
 .creator-table.mode-unified th:nth-child(7),
 .creator-table.mode-unified td:nth-child(7) { width: 115px; }  /* GMV */
 .creator-table.mode-unified th:nth-child(8),
-.creator-table.mode-unified td:nth-child(8) { width: 150px; }  /* Video GMV */
+.creator-table.mode-unified td:nth-child(8) { width: 150px; }  /* Avg Views */
 .creator-table.mode-unified th:nth-child(9),
-.creator-table.mode-unified td:nth-child(9) { width: 150px; }  /* Avg Views */
+.creator-table.mode-unified td:nth-child(9) { width: 135px; }  /* Samples */
 .creator-table.mode-unified th:nth-child(10),
-.creator-table.mode-unified td:nth-child(10) { width: 135px; } /* Samples */
+.creator-table.mode-unified td:nth-child(10) { width: 140px; } /* Videos */
 .creator-table.mode-unified th:nth-child(11),
-.creator-table.mode-unified td:nth-child(11) { width: 120px; } /* Videos */
-.creator-table.mode-unified th:nth-child(12),
-.creator-table.mode-unified td:nth-child(12) { width: 150px; } /* Commission */
-.creator-table.mode-unified th:nth-child(13),
-.creator-table.mode-unified td:nth-child(13) { width: 120px; } /* Enriched */
+.creator-table.mode-unified td:nth-child(11) { width: 175px; } /* Commission */
 
 /* Center align Status column in unified mode */
 .creator-table.mode-unified th:nth-child(2),

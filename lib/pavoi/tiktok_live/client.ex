@@ -8,7 +8,7 @@ defmodule Pavoi.TiktokLive.Client do
 
   Note: TikTok does not provide an official API for live stream data.
   This implementation scrapes TikTok's live page to detect live status.
-  The actual WebSocket connection is handled by Euler Stream's hosted service.
+  The actual WebSocket connection is handled by the TikTok Bridge service.
   """
 
   require Logger

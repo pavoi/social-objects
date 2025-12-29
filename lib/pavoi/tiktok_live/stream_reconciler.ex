@@ -88,12 +88,21 @@ defmodule Pavoi.TiktokLive.StreamReconciler do
   defp reconcile_orphaned_stream(stream) do
     case Client.fetch_room_info(stream.unique_id) do
       {:ok, %{is_live: true, room_id: room_id}} when room_id == stream.room_id ->
-        # Stream is still live with same room_id, restart capture
-        Logger.info(
-          "Stream #{stream.id} (@#{stream.unique_id}) is still live, restarting capture"
-        )
+        # Check if another stream is already capturing this room_id
+        if another_stream_capturing_room?(stream.id, room_id) do
+          Logger.info(
+            "Stream #{stream.id} (@#{stream.unique_id}) - another stream already capturing, marking as ended"
+          )
 
-        restart_capture(stream)
+          mark_stream_ended(stream)
+        else
+          # Stream is still live with same room_id, restart capture
+          Logger.info(
+            "Stream #{stream.id} (@#{stream.unique_id}) is still live, restarting capture"
+          )
+
+          restart_capture(stream)
+        end
 
       {:ok, %{is_live: true}} ->
         # Live but different room_id means this is a new stream
@@ -253,13 +262,22 @@ defmodule Pavoi.TiktokLive.StreamReconciler do
   defp check_and_recover_ended_stream(stream) do
     case Client.fetch_room_info(stream.unique_id) do
       {:ok, %{is_live: true, room_id: room_id}} when room_id == stream.room_id ->
-        # Stream is still live with same room_id - this shouldn't have ended!
-        Logger.info(
-          "Stream #{stream.id} (@#{stream.unique_id}) is still live with same room_id, recovering"
-        )
+        # Check if another stream is already capturing this room_id
+        if another_stream_capturing_room?(stream.id, room_id) do
+          Logger.debug(
+            "Stream #{stream.id} (@#{stream.unique_id}) - another stream already capturing room_id #{room_id}, skipping"
+          )
 
-        recover_stream(stream)
-        true
+          false
+        else
+          # Stream is still live with same room_id - this shouldn't have ended!
+          Logger.info(
+            "Stream #{stream.id} (@#{stream.unique_id}) is still live with same room_id, recovering"
+          )
+
+          recover_stream(stream)
+          true
+        end
 
       {:ok, %{is_live: true, room_id: new_room_id}} ->
         # Different room_id means it's a new stream - don't recover old one
@@ -273,6 +291,14 @@ defmodule Pavoi.TiktokLive.StreamReconciler do
         # Not live or error - stream correctly ended
         false
     end
+  end
+
+  defp another_stream_capturing_room?(current_stream_id, room_id) do
+    Stream
+    |> where([s], s.room_id == ^room_id)
+    |> where([s], s.status == :capturing)
+    |> where([s], s.id != ^current_stream_id)
+    |> Repo.exists?()
   end
 
   defp recover_stream(stream) do

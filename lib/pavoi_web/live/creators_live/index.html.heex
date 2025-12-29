@@ -41,6 +41,7 @@
       <.data_freshness_panel
         videos_last_import_at={@videos_last_import_at}
         enrichment_last_sync_at={@enrichment_last_sync_at}
+        bigquery_last_sync_at={@bigquery_last_sync_at}
       />
     </div>
 
@@ -87,16 +88,20 @@
             <% else %>
               <span class="time-preset-filter__active-value">
                 <%= case @time_preset do %>
-                  <% "7d" -> %>7d
-                  <% "30d" -> %>30d
-                  <% "90d" -> %>90d
-                  <% _ -> %>•
+                  <% "7d" -> %>
+                    7d
+                  <% "30d" -> %>
+                    30d
+                  <% "90d" -> %>
+                    90d
+                  <% _ -> %>
+                    •
                 <% end %>
               </span>
             <% end %>
           </div>
           <div class="time-preset-filter__content">
-            <span class="filter-label">Added:</span>
+            <span class="filter-label">Period:</span>
             <div class="preset-buttons">
               <button
                 type="button"
@@ -166,6 +171,7 @@
         sort_by={@sort_by}
         sort_dir={@sort_dir}
         on_sort="sort_column"
+        delta_period={@delta_period}
       />
 
       <%= if @loading_creators do %>

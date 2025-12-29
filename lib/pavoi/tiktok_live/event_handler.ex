@@ -27,6 +27,8 @@ defmodule Pavoi.TiktokLive.EventHandler do
   @stats_interval_ms 30_000
   # Max msg_ids to track for deduplication (prevents unbounded memory growth)
   @max_seen_msg_ids 5_000
+  # Only persist viewer count to DB every N ms (reduces query spam)
+  @viewer_count_persist_interval_ms 5_000
 
   defmodule State do
     @moduledoc false
@@ -37,7 +39,8 @@ defmodule Pavoi.TiktokLive.EventHandler do
       :stats,
       :flush_timer_ref,
       :stats_timer_ref,
-      :seen_msg_ids
+      :seen_msg_ids,
+      :last_viewer_count_persist
     ]
   end
 
@@ -98,7 +101,8 @@ defmodule Pavoi.TiktokLive.EventHandler do
       },
       flush_timer_ref: schedule_flush(),
       stats_timer_ref: schedule_stats_save(),
-      seen_msg_ids: MapSet.new()
+      seen_msg_ids: MapSet.new(),
+      last_viewer_count_persist: System.monotonic_time(:millisecond)
     }
 
     {:ok, state}
@@ -167,7 +171,6 @@ defmodule Pavoi.TiktokLive.EventHandler do
 
     # Skip if we've already seen this message (prevents duplicate UI broadcasts)
     if msg_id && MapSet.member?(state.seen_msg_ids, msg_id) do
-      Logger.debug("Skipping duplicate comment with msg_id: #{msg_id}")
       state
     else
       # Add comment to batch
@@ -211,21 +214,29 @@ defmodule Pavoi.TiktokLive.EventHandler do
         viewer_count_peak: peak
     }
 
-    # Update current and peak viewer count in database
-    updates =
-      if peak > state.stream.viewer_count_peak do
-        %{viewer_count_current: viewer_count, viewer_count_peak: peak}
-      else
-        %{viewer_count_current: viewer_count}
-      end
-
-    state.stream
-    |> Stream.changeset(updates)
-    |> Repo.update()
-
+    # Always broadcast to UI for real-time display
     broadcast_to_stream(state.stream_id, {:viewer_count, viewer_count})
 
-    %{state | stats: new_stats}
+    # Only persist to DB periodically (reduces query spam significantly)
+    now = System.monotonic_time(:millisecond)
+    elapsed = now - state.last_viewer_count_persist
+
+    if elapsed >= @viewer_count_persist_interval_ms do
+      updates =
+        if peak > state.stream.viewer_count_peak do
+          %{viewer_count_current: viewer_count, viewer_count_peak: peak}
+        else
+          %{viewer_count_current: viewer_count}
+        end
+
+      state.stream
+      |> Stream.changeset(updates)
+      |> Repo.update(log: false)
+
+      %{state | stats: new_stats, last_viewer_count_persist: now}
+    else
+      %{state | stats: new_stats}
+    end
   end
 
   defp process_event(%{type: :like} = event, state) do
@@ -376,7 +387,7 @@ defmodule Pavoi.TiktokLive.EventHandler do
   end
 
   defp process_event(%{type: type} = event, state) do
-    Logger.debug("Unhandled event type: #{type}")
+    # Silently broadcast unhandled event types (social, etc.)
     broadcast_to_stream(state.stream_id, {type, event})
     state
   end
@@ -407,13 +418,12 @@ defmodule Pavoi.TiktokLive.EventHandler do
 
     case Repo.insert_all(Comment, comments,
            on_conflict: :nothing,
-           conflict_target: [:stream_id, :tiktok_user_id, :commented_at]
+           conflict_target: [:stream_id, :tiktok_user_id, :commented_at],
+           log: false
          ) do
       {count, _} when count > 0 ->
-        Logger.debug("Inserted #{count} comments for stream #{state.stream_id}")
-
-        # Update total comment count on stream
-        update_stream_field(state.stream, :total_comments, state.stats.comment_count)
+        # Update total comment count on stream (silent - high frequency)
+        update_stream_field(state.stream, :total_comments, state.stats.comment_count, log: false)
 
       _ ->
         :ok
@@ -471,10 +481,10 @@ defmodule Pavoi.TiktokLive.EventHandler do
   defp cancel_timer(nil), do: :ok
   defp cancel_timer(ref), do: Process.cancel_timer(ref)
 
-  defp update_stream_field(stream, field, value) do
+  defp update_stream_field(stream, field, value, opts \\ []) do
     stream
     |> Stream.changeset(%{field => value})
-    |> Repo.update()
+    |> Repo.update(opts)
   end
 
   defp upsert_stream_product(_stream_id, %{tiktok_product_id: nil}, _now), do: :ok

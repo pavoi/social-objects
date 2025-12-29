@@ -78,6 +78,7 @@ defmodule PavoiWeb.TiktokLiveComponents do
   attr :sort_by, :string, default: "started"
   attr :sort_dir, :string, default: "desc"
   attr :on_sort, :string, default: nil
+  attr :streams_sentiment, :map, default: %{}
 
   def streams_table(assigns) do
     ~H"""
@@ -127,6 +128,7 @@ defmodule PavoiWeb.TiktokLiveComponents do
               on_sort={@on_sort}
               class="text-right"
             />
+            <th data-column-id="sentiment" class="text-center">Sentiment</th>
           </tr>
         </thead>
         <tbody>
@@ -180,6 +182,9 @@ defmodule PavoiWeb.TiktokLiveComponents do
                 <% end %>
               </td>
               <td class="text-right">{format_number(stream.total_comments)}</td>
+              <td class="text-center">
+                <.stream_sentiment_indicator sentiment={Map.get(@streams_sentiment, stream.id)} />
+              </td>
             </tr>
           <% end %>
         </tbody>
@@ -365,6 +370,14 @@ defmodule PavoiWeb.TiktokLiveComponents do
             </button>
             <button
               type="button"
+              class={["tab", @active_tab == "stats" && "tab--active"]}
+              phx-click="change_tab"
+              phx-value-tab="stats"
+            >
+              Stats
+            </button>
+            <button
+              type="button"
               class={["tab", @active_tab == "sessions" && "tab--active"]}
               phx-click="change_tab"
               phx-value-tab="sessions"
@@ -373,14 +386,6 @@ defmodule PavoiWeb.TiktokLiveComponents do
               <%= if length(@linked_sessions) > 0 do %>
                 <span class="tab__badge">{length(@linked_sessions)}</span>
               <% end %>
-            </button>
-            <button
-              type="button"
-              class={["tab", @active_tab == "stats" && "tab--active"]}
-              phx-click="change_tab"
-              phx-value-tab="stats"
-            >
-              Stats
             </button>
           </div>
 
@@ -585,6 +590,8 @@ defmodule PavoiWeb.TiktokLiveComponents do
             id="viewer-chart"
             phx-hook="ViewerChart"
             data-chart-data={Jason.encode!(@chart_data)}
+            role="img"
+            aria-label="Viewer count over time chart"
           >
           </canvas>
         </div>
@@ -606,6 +613,371 @@ defmodule PavoiWeb.TiktokLiveComponents do
       <% end %>
     </div>
     """
+  end
+
+  @doc """
+  Renders page-level tabs for Streams/Analytics navigation.
+  """
+  attr :active_tab, :string, default: "streams"
+
+  def page_tabs(assigns) do
+    ~H"""
+    <div class="page-tabs">
+      <button
+        type="button"
+        class={["page-tab", @active_tab == "streams" && "page-tab--active"]}
+        phx-click="change_page_tab"
+        phx-value-tab="streams"
+      >
+        Streams
+      </button>
+      <button
+        type="button"
+        class={["page-tab", @active_tab == "analytics" && "page-tab--active"]}
+        phx-click="change_page_tab"
+        phx-value-tab="analytics"
+      >
+        Analytics
+      </button>
+    </div>
+    """
+  end
+
+  @doc """
+  Renders the full analytics tab with charts and comments table.
+  """
+  attr :stream_id, :integer, default: nil
+  attr :streams, :list, default: []
+  attr :sentiment_breakdown, :map, default: nil
+  attr :category_breakdown, :list, default: []
+  # Pre-computed JSON strings to prevent chart re-renders when filters change
+  attr :sentiment_chart_json, :string, default: nil
+  attr :category_chart_json, :string, default: nil
+  attr :comments, :list, default: []
+  attr :comments_total, :integer, default: 0
+  attr :has_more, :boolean, default: false
+  attr :search_query, :string, default: ""
+  attr :sentiment_filter, :atom, default: nil
+  attr :category_filter, :atom, default: nil
+  attr :loading, :boolean, default: false
+
+  def analytics_tab(assigns) do
+    # Check if charts have data (for conditional rendering)
+    has_sentiment_data = assigns.sentiment_breakdown && assigns.sentiment_breakdown.total > 0
+    has_category_data = length(assigns.category_breakdown) > 0
+
+    assigns =
+      assigns
+      |> assign(:has_sentiment_data, has_sentiment_data)
+      |> assign(:has_category_data, has_category_data)
+
+    ~H"""
+    <div class="analytics-tab">
+      <div class="analytics-tab__header">
+        <span class="analytics-tab__header-label">Showing analytics for:</span>
+        <form phx-change="analytics_select_stream">
+          <select name="stream_id" class="filter-select analytics-tab__stream-select">
+            <option value="" selected={is_nil(@stream_id)}>All Streams</option>
+            <%= for stream <- @streams do %>
+              <option value={stream.id} selected={@stream_id == stream.id}>
+                {format_stream_option(stream)}
+              </option>
+            <% end %>
+          </select>
+        </form>
+      </div>
+
+      <%!--
+        Charts section uses phx-update="ignore" to prevent LiveView from patching it
+        when comment filters/search/pagination change. The ID includes the stream_id so
+        that when the stream selector changes, a NEW element is created (triggering fresh
+        hook mounts with new data). Simple conditional rendering is used since the
+        ignored section won't be patched anyway.
+      --%>
+      <div
+        id={"analytics-charts-#{@stream_id || "all"}"}
+        class="analytics-tab__charts"
+        phx-update="ignore"
+      >
+        <div class="analytics-chart-card analytics-chart-card--sentiment">
+          <h3 class="analytics-chart-card__title">Sentiment</h3>
+          <div class="analytics-chart-card__chart-wrapper">
+            <%= if @has_sentiment_data do %>
+              <div class="analytics-chart-card__chart">
+                <canvas
+                  id={"sentiment-chart-#{@stream_id || "all"}"}
+                  phx-hook="SentimentChart"
+                  data-chart-data={@sentiment_chart_json || "{}"}
+                  role="img"
+                  aria-label="Comment sentiment breakdown chart"
+                >
+                </canvas>
+              </div>
+            <% else %>
+              <div class="analytics-chart-card__empty">
+                No classified comments
+              </div>
+            <% end %>
+          </div>
+        </div>
+
+        <div class="analytics-chart-card analytics-chart-card--categories">
+          <h3 class="analytics-chart-card__title">Comment Categories</h3>
+          <div class="analytics-chart-card__chart-wrapper">
+            <%= if @has_category_data do %>
+              <div class="analytics-chart-card__chart">
+                <canvas
+                  id={"category-chart-#{@stream_id || "all"}"}
+                  phx-hook="CategoryChart"
+                  data-chart-data={@category_chart_json || "{}"}
+                  role="img"
+                  aria-label="Comment categories breakdown chart"
+                >
+                </canvas>
+              </div>
+            <% else %>
+              <div class="analytics-chart-card__empty">
+                No classified comments
+              </div>
+            <% end %>
+          </div>
+        </div>
+      </div>
+
+      <.analytics_comments_table
+        comments={@comments}
+        total={@comments_total}
+        has_more={@has_more}
+        search_query={@search_query}
+        sentiment_filter={@sentiment_filter}
+        category_filter={@category_filter}
+        show_stream_column={is_nil(@stream_id)}
+        loading={@loading}
+      />
+    </div>
+    """
+  end
+
+  @doc """
+  Renders the analytics comments table with filters.
+  """
+  attr :comments, :list, default: []
+  attr :total, :integer, default: 0
+  attr :has_more, :boolean, default: false
+  attr :search_query, :string, default: ""
+  attr :sentiment_filter, :atom, default: nil
+  attr :category_filter, :atom, default: nil
+  attr :show_stream_column, :boolean, default: true
+  attr :loading, :boolean, default: false
+
+  def analytics_comments_table(assigns) do
+    ~H"""
+    <div class="analytics-comments">
+      <div class="analytics-comments__header">
+        <h3 class="analytics-comments__title">Comments</h3>
+        <span class="analytics-comments__count">({format_number(@total)})</span>
+
+        <div class="analytics-comments__filters">
+          <div class="analytics-comments__search">
+            <.search_input
+              value={@search_query}
+              on_change="analytics_search"
+              placeholder="Search comments..."
+            />
+          </div>
+
+          <form phx-change="analytics_filter_sentiment">
+            <select name="sentiment" class="filter-select">
+              <option value="" selected={is_nil(@sentiment_filter)}>All Sentiment</option>
+              <option value="positive" selected={@sentiment_filter == :positive}>Positive</option>
+              <option value="neutral" selected={@sentiment_filter == :neutral}>Neutral</option>
+              <option value="negative" selected={@sentiment_filter == :negative}>Negative</option>
+            </select>
+          </form>
+
+          <form phx-change="analytics_filter_category">
+            <select name="category" class="filter-select">
+              <option value="" selected={is_nil(@category_filter)}>All Categories</option>
+              <option value="praise_compliment" selected={@category_filter == :praise_compliment}>
+                Praise
+              </option>
+              <option value="question_confusion" selected={@category_filter == :question_confusion}>
+                Questions
+              </option>
+              <option value="product_request" selected={@category_filter == :product_request}>
+                Product Requests
+              </option>
+              <option value="concern_complaint" selected={@category_filter == :concern_complaint}>
+                Concerns
+              </option>
+              <option value="technical_issue" selected={@category_filter == :technical_issue}>
+                Technical Issues
+              </option>
+              <option value="flash_sale" selected={@category_filter == :flash_sale}>
+                Flash Sale
+              </option>
+              <option value="general" selected={@category_filter == :general}>General</option>
+            </select>
+          </form>
+        </div>
+      </div>
+
+      <%= if Enum.empty?(@comments) do %>
+        <div class="analytics-comments__empty">
+          No comments found matching your filters
+        </div>
+      <% else %>
+        <div
+          id="analytics-comments-list"
+          class="analytics-comments-scroll-container"
+          phx-viewport-bottom={@has_more && !@loading && "analytics_load_more"}
+        >
+          <table class="analytics-comments-table">
+            <thead>
+              <tr>
+                <th>Comment</th>
+                <th>User</th>
+                <%= if @show_stream_column do %>
+                  <th>Stream</th>
+                <% end %>
+                <th>Sentiment</th>
+                <th>Category</th>
+              </tr>
+            </thead>
+            <tbody>
+              <%= for comment <- @comments do %>
+                <tr>
+                  <td class="analytics-comments-table__comment" title={comment.comment_text}>
+                    {comment.comment_text}
+                  </td>
+                  <td class="analytics-comments-table__user">@{comment.tiktok_username}</td>
+                  <%= if @show_stream_column do %>
+                    <td class="analytics-comments-table__stream">
+                      <%= if comment.stream do %>
+                        <button
+                          type="button"
+                          class="analytics-comments-table__stream-link"
+                          phx-click="navigate_to_stream"
+                          phx-value-id={comment.stream.id}
+                        >
+                          {format_stream_option(comment.stream)}
+                        </button>
+                      <% else %>
+                        <span class="text-tertiary">Unknown</span>
+                      <% end %>
+                    </td>
+                  <% end %>
+                  <td>
+                    <.sentiment_badge sentiment={comment.sentiment} />
+                  </td>
+                  <td>
+                    <.category_badge category={comment.category} />
+                  </td>
+                </tr>
+              <% end %>
+            </tbody>
+          </table>
+
+          <%= if @loading do %>
+            <div class="analytics-comments-loading">
+              <div class="spinner"></div>
+              <span>Loading more comments...</span>
+            </div>
+          <% end %>
+        </div>
+      <% end %>
+    </div>
+    """
+  end
+
+  @doc """
+  Renders a sentiment badge.
+  """
+  attr :sentiment, :atom, default: nil
+
+  def sentiment_badge(assigns) do
+    {label, class} =
+      case assigns.sentiment do
+        :positive -> {"Positive", "sentiment-badge--positive"}
+        :neutral -> {"Neutral", "sentiment-badge--neutral"}
+        :negative -> {"Negative", "sentiment-badge--negative"}
+        _ -> {"—", ""}
+      end
+
+    assigns = assign(assigns, label: label, class: class)
+
+    ~H"""
+    <span class={["sentiment-badge", @class]}>{@label}</span>
+    """
+  end
+
+  @doc """
+  Renders a category badge.
+  """
+  attr :category, :atom, default: nil
+
+  def category_badge(assigns) do
+    {label, class} =
+      case assigns.category do
+        :praise_compliment -> {"Praise", "category-badge--praise_compliment"}
+        :question_confusion -> {"Question", "category-badge--question_confusion"}
+        :product_request -> {"Product Request", "category-badge--product_request"}
+        :concern_complaint -> {"Concern", "category-badge--concern_complaint"}
+        :technical_issue -> {"Technical", "category-badge--technical_issue"}
+        :flash_sale -> {"Flash Sale", "category-badge--flash_sale"}
+        :general -> {"General", "category-badge--general"}
+        _ -> {"—", ""}
+      end
+
+    assigns = assign(assigns, label: label, class: class)
+
+    ~H"""
+    <span class={["category-badge", @class]}>{@label}</span>
+    """
+  end
+
+  @doc """
+  Renders a mini sentiment bar for the streams table.
+  """
+  attr :sentiment, :map, default: nil
+
+  def stream_sentiment_indicator(assigns) do
+    ~H"""
+    <%= if @sentiment && (@sentiment.positive_percent > 0 || @sentiment.negative_percent > 0) do %>
+      <div
+        class="stream-sentiment-mini"
+        title={"#{@sentiment.positive_percent}% positive, #{@sentiment.negative_percent}% negative"}
+      >
+        <div class="stream-sentiment-mini__positive" style={"width: #{@sentiment.positive_percent}%"}>
+        </div>
+        <div
+          class="stream-sentiment-mini__neutral"
+          style={"width: #{100 - @sentiment.positive_percent - @sentiment.negative_percent}%"}
+        >
+        </div>
+        <div class="stream-sentiment-mini__negative" style={"width: #{@sentiment.negative_percent}%"}>
+        </div>
+      </div>
+    <% else %>
+      <div class="stream-sentiment-mini stream-sentiment-mini--empty"></div>
+    <% end %>
+    """
+  end
+
+  # Chart data building functions moved to LiveView for stable rendering
+  # (see lib/pavoi_web/live/tiktok_live/index.ex - build_sentiment_chart_json/1, build_category_chart_json/1)
+
+  defp format_stream_option(nil), do: "Unknown"
+
+  defp format_stream_option(%{unique_id: unique_id, started_at: started_at}) do
+    date_str =
+      if started_at do
+        Calendar.strftime(started_at, "%b %d")
+      else
+        "No date"
+      end
+
+    "@#{unique_id} - #{date_str}"
   end
 
   # Helper functions

@@ -19,6 +19,8 @@ import TagPickerPosition from "./hooks/tag_picker_position"
 import ColumnResize from "./hooks/column_resize"
 import TagOverflow from "./hooks/tag_overflow"
 import ImageLightbox from "./hooks/image_lightbox"
+import SentimentChart from "./hooks/sentiment_chart"
+import CategoryChart from "./hooks/category_chart"
 
 const Hooks = {
   SessionHostKeyboard,
@@ -39,7 +41,9 @@ const Hooks = {
   TagPickerPosition,
   ColumnResize,
   TagOverflow,
-  ImageLightbox
+  ImageLightbox,
+  SentimentChart,
+  CategoryChart,
 }
 
 export default Hooks

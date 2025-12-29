@@ -692,6 +692,92 @@ defmodule Pavoi.Creators do
     end
   end
 
+  @doc """
+  Batch loads snapshot deltas for multiple creators over a date range.
+
+  Returns a map of creator_id => %{
+    gmv_delta: integer | nil,
+    follower_delta: integer | nil,
+    start_date: Date | nil,
+    end_date: Date | nil,
+    has_complete_data: boolean
+  }
+  """
+  def batch_load_snapshot_deltas([], _days_back), do: %{}
+
+  def batch_load_snapshot_deltas(creator_ids, days_back) when is_list(creator_ids) do
+    end_date = Date.utc_today()
+    start_date = Date.add(end_date, -days_back)
+
+    # Query all snapshots in the date range for these creators
+    snapshots =
+      from(s in CreatorPerformanceSnapshot,
+        where: s.creator_id in ^creator_ids,
+        where: s.snapshot_date >= ^start_date and s.snapshot_date <= ^end_date,
+        where: s.source == "tiktok_marketplace",
+        select: %{
+          creator_id: s.creator_id,
+          snapshot_date: s.snapshot_date,
+          gmv_cents: s.gmv_cents,
+          follower_count: s.follower_count
+        },
+        order_by: [asc: s.creator_id, asc: s.snapshot_date]
+      )
+      |> Repo.all()
+
+    # Group by creator_id and compute deltas
+    snapshots
+    |> Enum.group_by(& &1.creator_id)
+    |> Enum.map(fn {creator_id, creator_snapshots} ->
+      compute_snapshot_delta(creator_id, creator_snapshots, start_date, end_date)
+    end)
+    |> Map.new()
+  end
+
+  defp compute_snapshot_delta(creator_id, [], _requested_start, _requested_end) do
+    {creator_id,
+     %{
+       gmv_delta: nil,
+       follower_delta: nil,
+       start_date: nil,
+       end_date: nil,
+       has_complete_data: false
+     }}
+  end
+
+  defp compute_snapshot_delta(creator_id, [single], _requested_start, _requested_end) do
+    # Only one snapshot - can show where data starts but no delta
+    {creator_id,
+     %{
+       gmv_delta: nil,
+       follower_delta: nil,
+       start_date: single.snapshot_date,
+       end_date: single.snapshot_date,
+       has_complete_data: false
+     }}
+  end
+
+  defp compute_snapshot_delta(creator_id, snapshots, requested_start, requested_end) do
+    first = List.first(snapshots)
+    last = List.last(snapshots)
+
+    # Check if we have data at both requested boundaries
+    has_complete = first.snapshot_date == requested_start and last.snapshot_date == requested_end
+
+    {creator_id,
+     %{
+       gmv_delta: safe_subtract(last.gmv_cents, first.gmv_cents),
+       follower_delta: safe_subtract(last.follower_count, first.follower_count),
+       start_date: first.snapshot_date,
+       end_date: last.snapshot_date,
+       has_complete_data: has_complete
+     }}
+  end
+
+  defp safe_subtract(nil, _), do: nil
+  defp safe_subtract(_, nil), do: nil
+  defp safe_subtract(a, b), do: a - b
+
   ## Video Products
 
   @doc """

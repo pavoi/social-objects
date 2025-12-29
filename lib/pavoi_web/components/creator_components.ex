@@ -28,6 +28,83 @@ defmodule PavoiWeb.CreatorComponents do
   }
 
   @doc """
+  Displays a metric with its delta and data quality indicator.
+
+  Shows the current value with an optional delta below it.
+  When data is incomplete, shows an asterisk with a tooltip.
+
+  ## Examples
+
+      <.metric_with_delta
+        current={creator.total_gmv_cents}
+        delta={creator.snapshot_delta.gmv_delta}
+        start_date={creator.snapshot_delta.start_date}
+        has_complete_data={creator.snapshot_delta.has_complete_data}
+        format={:gmv}
+      />
+  """
+  attr :current, :any, required: true
+  attr :delta, :any, default: nil
+  attr :start_date, :any, default: nil
+  attr :has_complete_data, :boolean, default: false
+  attr :format, :atom, default: :number
+
+  def metric_with_delta(assigns) do
+    ~H"""
+    <div class="metric-with-delta">
+      <span class="metric-current">
+        <%= case @format do %>
+          <% :gmv -> %>
+            {format_gmv(@current)}
+          <% :number -> %>
+            {format_number(@current)}
+        <% end %>
+      </span>
+      <%= cond do %>
+        <% @delta && @has_complete_data -> %>
+          <%!-- Full data available - show delta normally --%>
+          <span class={["metric-delta", delta_class(@delta)]}>
+            {format_delta(@delta, @format)}
+          </span>
+        <% @delta -> %>
+          <%!-- Partial data - show delta with date qualifier --%>
+          <span class={["metric-delta", delta_class(@delta)]}>
+            {format_delta(@delta, @format)}
+            <span class="metric-delta-qualifier">
+              since {Calendar.strftime(@start_date, "%b %d")}
+            </span>
+          </span>
+        <% true -> %>
+          <%!-- No snapshot data at all --%>
+          <span class="metric-delta metric-delta--no-data">
+            no history
+          </span>
+      <% end %>
+    </div>
+    """
+  end
+
+  defp delta_class(delta) when is_integer(delta) and delta > 0, do: "delta-positive"
+  defp delta_class(delta) when is_integer(delta) and delta < 0, do: "delta-negative"
+  defp delta_class(_), do: "delta-neutral"
+
+  defp format_delta(delta, :gmv) when is_integer(delta) and delta > 0,
+    do: "+#{format_gmv(delta)}"
+
+  defp format_delta(delta, :gmv) when is_integer(delta) and delta < 0,
+    do: format_gmv(delta)
+
+  defp format_delta(_delta, :gmv), do: "$0"
+
+  defp format_delta(delta, :number) when is_integer(delta) and delta > 0,
+    do: "+#{format_number(delta)}"
+
+  defp format_delta(delta, :number) when is_integer(delta) and delta < 0,
+    do: format_number(delta)
+
+  defp format_delta(_delta, :number), do: "0"
+
+  @doc """
   Renders tag pills for a creator's tags.
 
   ## Examples
@@ -304,12 +381,14 @@ defmodule PavoiWeb.CreatorComponents do
   """
   attr :videos_last_import_at, :any, default: nil
   attr :enrichment_last_sync_at, :any, default: nil
+  attr :bigquery_last_sync_at, :any, default: nil
 
   def data_freshness_panel(assigns) do
     assigns =
       assigns
       |> assign(:videos_status, freshness_status(assigns.videos_last_import_at))
       |> assign(:enrichment_status, freshness_status(assigns.enrichment_last_sync_at))
+      |> assign(:bigquery_status, freshness_status(assigns.bigquery_last_sync_at))
 
     ~H"""
     <div class="data-freshness">
@@ -328,29 +407,39 @@ defmodule PavoiWeb.CreatorComponents do
             d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z"
           />
         </svg>
-        <%= if has_stale_data?([@videos_status, @enrichment_status]) do %>
+        <%= if has_stale_data?([@videos_status, @enrichment_status, @bigquery_status]) do %>
           <span class="data-freshness__warning">!</span>
         <% end %>
       </div>
 
       <div class="data-freshness__panel">
         <div class="data-freshness__header">Data Freshness</div>
+
         <div class="data-freshness__item">
-          <span class={"data-freshness__dot data-freshness__dot--#{@videos_status.level}"} />
+          <span class={"data-freshness__dot data-freshness__dot--#{@bigquery_status.level}"} />
           <div class="data-freshness__label">
-            <strong>Video/Commission Data</strong>
-            <span class="data-freshness__source">CSV Import</span>
+            <strong>Shop Orders</strong>
+            <span class="data-freshness__source">Auto-synced</span>
           </div>
-          <span class="data-freshness__time">{@videos_status.text}</span>
+          <span class="data-freshness__time">{@bigquery_status.text}</span>
         </div>
 
         <div class="data-freshness__item">
           <span class={"data-freshness__dot data-freshness__dot--#{@enrichment_status.level}"} />
           <div class="data-freshness__label">
-            <strong>Creator Metrics</strong>
-            <span class="data-freshness__source">TikTok API</span>
+            <strong>Creator Profiles</strong>
+            <span class="data-freshness__source">Auto-synced</span>
           </div>
           <span class="data-freshness__time">{@enrichment_status.text}</span>
+        </div>
+
+        <div class="data-freshness__item">
+          <span class={"data-freshness__dot data-freshness__dot--#{@videos_status.level}"} />
+          <div class="data-freshness__label">
+            <strong>Video Performance</strong>
+            <span class="data-freshness__source">Manual CSV</span>
+          </div>
+          <span class="data-freshness__time">{@videos_status.text}</span>
         </div>
 
         <div class="data-freshness__legend">
@@ -1003,13 +1092,20 @@ defmodule PavoiWeb.CreatorComponents do
   attr :on_sort, :string, default: nil
   attr :selected_ids, :any, default: nil
   attr :total_count, :integer, default: 0
+  attr :delta_period, :integer, default: nil
 
   def unified_creator_table(assigns) do
     all_selected =
       assigns.selected_ids && MapSet.size(assigns.selected_ids) == assigns.total_count &&
         assigns.total_count > 0
 
-    assigns = assign(assigns, :all_selected, all_selected)
+    # Whether time filter is active (shows deltas for GMV/Followers)
+    time_filter_active = assigns.delta_period != nil
+
+    assigns =
+      assigns
+      |> assign(:all_selected, all_selected)
+      |> assign(:time_filter_active, time_filter_active)
 
     ~H"""
     <div class="creator-table-wrapper">
@@ -1018,6 +1114,7 @@ defmodule PavoiWeb.CreatorComponents do
         class="creator-table mode-unified has-checkbox"
         phx-hook="ColumnResize"
         data-table-id="creators-unified"
+        data-time-filter={@delta_period}
       >
         <thead>
           <tr>
@@ -1037,6 +1134,7 @@ defmodule PavoiWeb.CreatorComponents do
               current={@sort_by}
               dir={@sort_dir}
               on_sort={@on_sort}
+              tooltip="Outreach email engagement status"
             />
             <%!-- 3. Avatar + Username --%>
             <.sort_header
@@ -1045,6 +1143,7 @@ defmodule PavoiWeb.CreatorComponents do
               current={@sort_by}
               dir={@sort_dir}
               on_sort={@on_sort}
+              tooltip="TikTok username and display name"
             />
             <%!-- 4. Email --%>
             <.sort_header
@@ -1053,9 +1152,12 @@ defmodule PavoiWeb.CreatorComponents do
               current={@sort_by}
               dir={@sort_dir}
               on_sort={@on_sort}
+              tooltip="Contact email address"
             />
             <%!-- 5. Tags --%>
-            <th class="col-tags" data-column-id="tags">Tags</th>
+            <th class="col-tags" data-column-id="tags" title="Custom tags for organization">
+              Tags
+            </th>
             <%!-- 6. Followers --%>
             <.sort_header
               label="Followers"
@@ -1064,6 +1166,8 @@ defmodule PavoiWeb.CreatorComponents do
               dir={@sort_dir}
               on_sort={@on_sort}
               class="text-right"
+              tooltip="TikTok follower count · Creator Profiles sync"
+              time_filtered={@time_filter_active}
             />
             <%!-- 7. Total GMV --%>
             <.sort_header
@@ -1073,17 +1177,10 @@ defmodule PavoiWeb.CreatorComponents do
               dir={@sort_dir}
               on_sort={@on_sort}
               class="text-right"
+              tooltip="Total gross merchandise value · Creator Profiles sync"
+              time_filtered={@time_filter_active}
             />
-            <%!-- 8. Video GMV --%>
-            <.sort_header
-              label="Video GMV"
-              field="video_gmv"
-              current={@sort_by}
-              dir={@sort_dir}
-              on_sort={@on_sort}
-              class="text-right"
-            />
-            <%!-- 9. Avg Views --%>
+            <%!-- 8. Avg Views --%>
             <.sort_header
               label="Avg Views"
               field="avg_views"
@@ -1091,8 +1188,9 @@ defmodule PavoiWeb.CreatorComponents do
               dir={@sort_dir}
               on_sort={@on_sort}
               class="text-right"
+              tooltip="Average video views · Creator Profiles sync"
             />
-            <%!-- 10. Samples --%>
+            <%!-- 9. Samples --%>
             <.sort_header
               label="Samples"
               field="samples"
@@ -1100,8 +1198,9 @@ defmodule PavoiWeb.CreatorComponents do
               dir={@sort_dir}
               on_sort={@on_sort}
               class="text-right"
+              tooltip="Sample products sent · Shop Orders sync"
             />
-            <%!-- 11. Videos Posted --%>
+            <%!-- 10. Videos Posted --%>
             <.sort_header
               label="Videos"
               field="videos_posted"
@@ -1109,8 +1208,10 @@ defmodule PavoiWeb.CreatorComponents do
               dir={@sort_dir}
               on_sort={@on_sort}
               class="text-right"
+              tooltip="Affiliate videos posted · Manual CSV (may be stale)"
+              manual_import={true}
             />
-            <%!-- 12. Commission --%>
+            <%!-- 11. Commission --%>
             <.sort_header
               label="Commission"
               field="commission"
@@ -1118,14 +1219,8 @@ defmodule PavoiWeb.CreatorComponents do
               dir={@sort_dir}
               on_sort={@on_sort}
               class="text-right"
-            />
-            <%!-- 13. Enriched --%>
-            <.sort_header
-              label="Enriched"
-              field="enriched"
-              current={@sort_by}
-              dir={@sort_dir}
-              on_sort={@on_sort}
+              tooltip="Total commission earned · Manual CSV (may be stale)"
+              manual_import={true}
             />
           </tr>
         </thead>
@@ -1186,25 +1281,41 @@ defmodule PavoiWeb.CreatorComponents do
                 <.tag_cell creator={creator} />
               </td>
               <%!-- 6. Followers --%>
-              <td class="text-right">{format_number(creator.follower_count)}</td>
-              <%!-- 7. Total GMV --%>
-              <td class="text-right">{format_gmv(creator.total_gmv_cents)}</td>
-              <%!-- 8. Video GMV --%>
-              <td class="text-right">{format_gmv(creator.video_gmv_cents)}</td>
-              <%!-- 9. Avg Views --%>
-              <td class="text-right">{format_number(creator.avg_video_views)}</td>
-              <%!-- 10. Samples --%>
-              <td class="text-right">{creator.sample_count || 0}</td>
-              <%!-- 11. Videos Posted --%>
-              <td class="text-right">{creator.video_count || 0}</td>
-              <%!-- 12. Commission --%>
-              <td class="text-right">{format_gmv(creator.total_commission_cents)}</td>
-              <%!-- 13. Enriched --%>
-              <td class="text-secondary text-xs">
-                {if creator.last_enriched_at,
-                  do: format_relative_time(creator.last_enriched_at),
-                  else: "Never"}
+              <td class={["text-right", @time_filter_active && "col-time-filtered"]}>
+                <%= if @delta_period && creator.snapshot_delta do %>
+                  <.metric_with_delta
+                    current={creator.follower_count}
+                    delta={creator.snapshot_delta.follower_delta}
+                    start_date={creator.snapshot_delta.start_date}
+                    has_complete_data={creator.snapshot_delta.has_complete_data}
+                    format={:number}
+                  />
+                <% else %>
+                  {format_number(creator.follower_count)}
+                <% end %>
               </td>
+              <%!-- 7. Total GMV --%>
+              <td class={["text-right", @time_filter_active && "col-time-filtered"]}>
+                <%= if @delta_period && creator.snapshot_delta do %>
+                  <.metric_with_delta
+                    current={creator.total_gmv_cents}
+                    delta={creator.snapshot_delta.gmv_delta}
+                    start_date={creator.snapshot_delta.start_date}
+                    has_complete_data={creator.snapshot_delta.has_complete_data}
+                    format={:gmv}
+                  />
+                <% else %>
+                  {format_gmv(creator.total_gmv_cents)}
+                <% end %>
+              </td>
+              <%!-- 8. Avg Views --%>
+              <td class="text-right">{format_number(creator.avg_video_views)}</td>
+              <%!-- 9. Samples --%>
+              <td class="text-right">{creator.sample_count || 0}</td>
+              <%!-- 10. Videos Posted --%>
+              <td class="text-right">{creator.video_count || 0}</td>
+              <%!-- 11. Commission --%>
+              <td class="text-right">{format_gmv(creator.total_commission_cents)}</td>
             </tr>
           <% end %>
         </tbody>
@@ -1214,7 +1325,7 @@ defmodule PavoiWeb.CreatorComponents do
   end
 
   @doc """
-  Renders a sortable table header.
+  Renders a sortable table header with optional tooltip and time-filter highlighting.
   """
   attr :label, :string, required: true
   attr :field, :string, required: true
@@ -1222,6 +1333,9 @@ defmodule PavoiWeb.CreatorComponents do
   attr :dir, :string, default: "asc"
   attr :on_sort, :string, default: nil
   attr :class, :string, default: nil
+  attr :tooltip, :string, default: nil
+  attr :time_filtered, :boolean, default: false
+  attr :manual_import, :boolean, default: false
 
   def sort_header(assigns) do
     is_active = assigns.current == assigns.field
@@ -1235,7 +1349,13 @@ defmodule PavoiWeb.CreatorComponents do
 
     ~H"""
     <th
-      class={["sortable-header", @class, @is_active && "sortable-header--active"]}
+      class={[
+        "sortable-header",
+        @class,
+        @is_active && "sortable-header--active",
+        @time_filtered && "sortable-header--time-filtered",
+        @manual_import && "sortable-header--manual-import"
+      ]}
       data-column-id={@field}
     >
       <%= if @on_sort do %>
@@ -1247,6 +1367,9 @@ defmodule PavoiWeb.CreatorComponents do
           phx-value-dir={@next_dir}
         >
           {@label}
+          <%= if @manual_import do %>
+            <span class="sortable-header__manual-badge" title="Manual CSV import">!</span>
+          <% end %>
           <span class={["sortable-header__icon", !@is_active && "sortable-header__icon--inactive"]}>
             <svg
               viewBox="0 0 24 24"
@@ -1265,6 +1388,17 @@ defmodule PavoiWeb.CreatorComponents do
         </button>
       <% else %>
         {@label}
+        <%= if @manual_import do %>
+          <span class="sortable-header__manual-badge" title="Manual CSV import">!</span>
+        <% end %>
+      <% end %>
+      <%= if @tooltip do %>
+        <span class="sortable-header__tooltip">
+          {@tooltip}
+          <%= if @time_filtered do %>
+            <span class="sortable-header__tooltip-filter">Showing period change</span>
+          <% end %>
+        </span>
       <% end %>
     </th>
     """
@@ -1603,6 +1737,11 @@ defmodule PavoiWeb.CreatorComponents do
                 >
                   {if @refreshing, do: "Refreshing...", else: "Refresh Data"}
                 </.button>
+                <span class="creator-modal-header__refresh-time">
+                  Last refreshed: {if @creator.last_enriched_at,
+                    do: format_relative_time(@creator.last_enriched_at),
+                    else: "Never"}
+                </span>
               </div>
             </div>
             <div class="creator-modal-tags" data-modal-tag-target={@creator.id}>

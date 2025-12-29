@@ -20,7 +20,7 @@ defmodule Pavoi.TiktokLive do
 
   Required configuration in `config.exs`:
 
-      config :pavoi, :euler_stream_api_key, System.get_env("EULER_STREAM_API_KEY")
+      config :pavoi, :tiktok_bridge_url, System.get_env("TIKTOK_BRIDGE_URL")
 
       config :pavoi, :tiktok_live_monitor,
         accounts: ["pavoi"]
@@ -393,6 +393,220 @@ defmodule Pavoi.TiktokLive do
       select: count(c.id)
     )
     |> Repo.one()
+  end
+
+  @doc """
+  Returns aggregate sentiment breakdown across all streams or a specific stream.
+
+  ## Options
+
+  - `:stream_id` - Filter to a specific stream (optional)
+  """
+  def get_aggregate_sentiment_breakdown(opts \\ []) do
+    stream_id = Keyword.get(opts, :stream_id)
+
+    query =
+      from(c in Comment,
+        where: not is_nil(c.sentiment),
+        where: c.category != :flash_sale,
+        group_by: c.sentiment,
+        select: {c.sentiment, count(c.id)}
+      )
+
+    query =
+      if stream_id do
+        where(query, [c], c.stream_id == ^stream_id)
+      else
+        query
+      end
+
+    results =
+      query
+      |> Repo.all()
+      |> Map.new()
+
+    total = Enum.reduce(results, 0, fn {_, count}, acc -> acc + count end)
+
+    if total == 0 do
+      nil
+    else
+      %{
+        positive: build_sentiment_stat(results[:positive], total),
+        neutral: build_sentiment_stat(results[:neutral], total),
+        negative: build_sentiment_stat(results[:negative], total),
+        total: total
+      }
+    end
+  end
+
+  @doc """
+  Returns aggregate category breakdown across all streams or a specific stream.
+
+  ## Options
+
+  - `:stream_id` - Filter to a specific stream (optional)
+  """
+  def get_aggregate_category_breakdown(opts \\ []) do
+    stream_id = Keyword.get(opts, :stream_id)
+
+    # Get total classified comments (excluding flash sales)
+    total_query =
+      from(c in Comment,
+        where: not is_nil(c.category),
+        where: c.category != :flash_sale,
+        select: count(c.id)
+      )
+
+    total_query =
+      if stream_id do
+        where(total_query, [c], c.stream_id == ^stream_id)
+      else
+        total_query
+      end
+
+    total = Repo.one(total_query)
+
+    if total == 0 do
+      []
+    else
+      # Get counts per category
+      query =
+        from(c in Comment,
+          where: not is_nil(c.category),
+          where: c.category != :flash_sale,
+          group_by: c.category,
+          select: %{
+            category: c.category,
+            count: count(c.id)
+          }
+        )
+
+      query =
+        if stream_id do
+          where(query, [c], c.stream_id == ^stream_id)
+        else
+          query
+        end
+
+      query
+      |> Repo.all()
+      |> Enum.map(fn stat ->
+        %{
+          category: stat.category,
+          count: stat.count,
+          percent: round(stat.count / total * 100)
+        }
+      end)
+      |> Enum.sort_by(& &1.count, :desc)
+    end
+  end
+
+  @doc """
+  Lists classified comments with filtering and pagination.
+
+  ## Options
+
+  - `:stream_id` - Filter to a specific stream
+  - `:sentiment` - Filter by sentiment (:positive, :neutral, :negative)
+  - `:category` - Filter by category atom
+  - `:search` - Search in comment text
+  - `:page` - Page number (default 1)
+  - `:per_page` - Results per page (default 25)
+  """
+  def list_classified_comments(opts \\ []) do
+    page = Keyword.get(opts, :page, 1)
+    per_page = Keyword.get(opts, :per_page, 25)
+    stream_id = Keyword.get(opts, :stream_id)
+    sentiment = Keyword.get(opts, :sentiment)
+    category = Keyword.get(opts, :category)
+    search = Keyword.get(opts, :search)
+
+    query =
+      from(c in Comment,
+        where: not is_nil(c.classified_at),
+        order_by: [desc: c.commented_at],
+        preload: [:stream]
+      )
+
+    query = if stream_id, do: where(query, [c], c.stream_id == ^stream_id), else: query
+    query = if sentiment, do: where(query, [c], c.sentiment == ^sentiment), else: query
+    query = if category, do: where(query, [c], c.category == ^category), else: query
+
+    query =
+      if search && search != "" do
+        search_term = "%#{search}%"
+        where(query, [c], ilike(c.comment_text, ^search_term))
+      else
+        query
+      end
+
+    total =
+      query
+      |> exclude(:preload)
+      |> exclude(:order_by)
+      |> select([c], count(c.id))
+      |> Repo.one()
+
+    comments =
+      query
+      |> limit(^per_page)
+      |> offset(^((page - 1) * per_page))
+      |> Repo.all()
+
+    %{
+      comments: comments,
+      page: page,
+      total: total,
+      has_more: page * per_page < total
+    }
+  end
+
+  @doc """
+  Returns sentiment summary for multiple streams.
+
+  Returns a map of stream_id => %{positive_percent: N, negative_percent: N}
+  """
+  def get_streams_sentiment_summary(stream_ids) when is_list(stream_ids) do
+    if Enum.empty?(stream_ids) do
+      %{}
+    else
+      results =
+        from(c in Comment,
+          where: c.stream_id in ^stream_ids,
+          where: not is_nil(c.sentiment),
+          where: c.category != :flash_sale,
+          group_by: [c.stream_id, c.sentiment],
+          select: %{stream_id: c.stream_id, sentiment: c.sentiment, count: count(c.id)}
+        )
+        |> Repo.all()
+
+      # Group by stream_id and calculate percentages
+      results
+      |> Enum.group_by(& &1.stream_id)
+      |> Enum.map(fn {stream_id, sentiments} ->
+        total = Enum.reduce(sentiments, 0, fn s, acc -> acc + s.count end)
+
+        positive =
+          Enum.find_value(sentiments, 0, fn s -> if s.sentiment == :positive, do: s.count end)
+
+        negative =
+          Enum.find_value(sentiments, 0, fn s -> if s.sentiment == :negative, do: s.count end)
+
+        summary =
+          if total > 0 do
+            %{
+              positive_percent: round(positive / total * 100),
+              negative_percent: round(negative / total * 100)
+            }
+          else
+            nil
+          end
+
+        {stream_id, summary}
+      end)
+      |> Enum.reject(fn {_, v} -> is_nil(v) end)
+      |> Map.new()
+    end
   end
 
   ## Statistics

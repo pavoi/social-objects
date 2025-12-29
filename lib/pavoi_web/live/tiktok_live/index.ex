@@ -48,9 +48,6 @@ defmodule PavoiWeb.TiktokLive.Index do
       |> assign(:date_filter, "all")
       |> assign(:sort_by, "started")
       |> assign(:sort_dir, "desc")
-      # Dropdown open states
-      |> assign(:show_status_filter, false)
-      |> assign(:show_date_filter, false)
       # Modal state
       |> assign(:selected_stream, nil)
       |> assign(:stream_summary, nil)
@@ -78,6 +75,25 @@ defmodule PavoiWeb.TiktokLive.Index do
       |> assign(:all_sessions, [])
       |> assign(:session_search_query, "")
       |> assign(:product_interest, [])
+      # Analytics tab state
+      |> assign(:page_tab, "streams")
+      |> assign(:analytics_stream_id, nil)
+      |> assign(:analytics_sentiment, nil)
+      |> assign(:analytics_category, nil)
+      |> assign(:analytics_search, "")
+      |> assign(:analytics_page, 1)
+      |> assign(:sentiment_breakdown, nil)
+      |> assign(:category_breakdown, [])
+      # Pre-computed chart data JSON to prevent unnecessary re-renders
+      |> assign(:sentiment_chart_json, nil)
+      |> assign(:category_chart_json, nil)
+      |> assign(:analytics_comments, [])
+      |> assign(:analytics_comments_total, 0)
+      |> assign(:analytics_has_more, false)
+      |> assign(:analytics_loading, false)
+      |> assign(:streams_sentiment, %{})
+      |> assign(:all_streams_for_select, [])
+      |> assign(:prev_analytics_stream_id, :not_set)
 
     {:ok, socket}
   end
@@ -88,6 +104,8 @@ defmodule PavoiWeb.TiktokLive.Index do
       socket
       |> apply_params(params)
       |> load_streams()
+      |> load_streams_sentiment()
+      |> maybe_load_analytics_data()
       |> maybe_load_selected_stream(params)
 
     {:noreply, socket}
@@ -95,57 +113,6 @@ defmodule PavoiWeb.TiktokLive.Index do
 
   # Event handlers
 
-  # Status filter dropdown handlers
-  @impl true
-  def handle_event("toggle_streams_status", _params, socket) do
-    {:noreply, assign(socket, :show_status_filter, !socket.assigns.show_status_filter)}
-  end
-
-  @impl true
-  def handle_event("close_streams_status", _params, socket) do
-    {:noreply, assign(socket, :show_status_filter, false)}
-  end
-
-  @impl true
-  def handle_event("change_streams_status", %{"value" => status}, socket) do
-    socket = assign(socket, :show_status_filter, false)
-    params = build_query_params(socket, status_filter: status, page: 1)
-    {:noreply, push_patch(socket, to: ~p"/streams?#{params}")}
-  end
-
-  @impl true
-  def handle_event("clear_streams_status", _params, socket) do
-    socket = assign(socket, :show_status_filter, false)
-    params = build_query_params(socket, status_filter: "all", page: 1)
-    {:noreply, push_patch(socket, to: ~p"/streams?#{params}")}
-  end
-
-  # Date filter dropdown handlers
-  @impl true
-  def handle_event("toggle_streams_date", _params, socket) do
-    {:noreply, assign(socket, :show_date_filter, !socket.assigns.show_date_filter)}
-  end
-
-  @impl true
-  def handle_event("close_streams_date", _params, socket) do
-    {:noreply, assign(socket, :show_date_filter, false)}
-  end
-
-  @impl true
-  def handle_event("change_streams_date", %{"value" => date}, socket) do
-    socket = assign(socket, :show_date_filter, false)
-    params = build_query_params(socket, date_filter: date, page: 1)
-    {:noreply, push_patch(socket, to: ~p"/streams?#{params}")}
-  end
-
-  @impl true
-  def handle_event("clear_streams_date", _params, socket) do
-    socket = assign(socket, :show_date_filter, false)
-    params = build_query_params(socket, date_filter: "all", page: 1)
-    {:noreply, push_patch(socket, to: ~p"/streams?#{params}")}
-  end
-
-  # Legacy event handlers (kept for backwards compatibility, can be removed later)
   @impl true
   def handle_event("filter_status", %{"status" => status}, socket) do
     params = build_query_params(socket, status_filter: status, page: 1)
@@ -328,6 +295,47 @@ defmodule PavoiWeb.TiktokLive.Index do
       |> load_available_sessions()
 
     {:noreply, socket}
+  end
+
+  # Analytics tab event handlers
+
+  @impl true
+  def handle_event("change_page_tab", %{"tab" => tab}, socket) do
+    params = build_query_params(socket, page_tab: tab, analytics_page: 1)
+    {:noreply, push_patch(socket, to: ~p"/streams?#{params}")}
+  end
+
+  @impl true
+  def handle_event("analytics_select_stream", %{"stream_id" => stream_id}, socket) do
+    stream_id = parse_optional_int(stream_id)
+    params = build_query_params(socket, analytics_stream_id: stream_id, analytics_page: 1)
+    {:noreply, push_patch(socket, to: ~p"/streams?#{params}")}
+  end
+
+  @impl true
+  def handle_event("analytics_filter_sentiment", %{"sentiment" => sentiment}, socket) do
+    sentiment = parse_sentiment(sentiment)
+    params = build_query_params(socket, analytics_sentiment: sentiment, analytics_page: 1)
+    {:noreply, push_patch(socket, to: ~p"/streams?#{params}")}
+  end
+
+  @impl true
+  def handle_event("analytics_filter_category", %{"category" => category}, socket) do
+    category = parse_category(category)
+    params = build_query_params(socket, analytics_category: category, analytics_page: 1)
+    {:noreply, push_patch(socket, to: ~p"/streams?#{params}")}
+  end
+
+  @impl true
+  def handle_event("analytics_search", %{"value" => query}, socket) do
+    params = build_query_params(socket, analytics_search: query, analytics_page: 1)
+    {:noreply, push_patch(socket, to: ~p"/streams?#{params}")}
+  end
+
+  @impl true
+  def handle_event("analytics_load_more", _params, socket) do
+    send(self(), :load_more_analytics)
+    {:noreply, assign(socket, :analytics_loading, true)}
   end
 
   @impl true
@@ -576,6 +584,16 @@ defmodule PavoiWeb.TiktokLive.Index do
   end
 
   @impl true
+  def handle_info(:load_more_analytics, socket) do
+    socket =
+      socket
+      |> assign(:analytics_page, socket.assigns.analytics_page + 1)
+      |> load_analytics_comments(append: true)
+
+    {:noreply, socket}
+  end
+
+  @impl true
   def handle_info({:capture_result, {:ok, _stream}}, socket) do
     socket =
       socket
@@ -663,6 +681,13 @@ defmodule PavoiWeb.TiktokLive.Index do
     |> assign(:sort_by, params["sort"] || "started")
     |> assign(:sort_dir, params["dir"] || "desc")
     |> assign(:page, parse_page(params["page"]))
+    # Analytics params
+    |> assign(:page_tab, params["pt"] || "streams")
+    |> assign(:analytics_stream_id, parse_optional_int(params["as"]))
+    |> assign(:analytics_sentiment, parse_sentiment(params["asent"]))
+    |> assign(:analytics_category, parse_category(params["acat"]))
+    |> assign(:analytics_search, params["asq"] || "")
+    |> assign(:analytics_page, parse_page(params["ap"]))
   end
 
   defp parse_page(nil), do: 1
@@ -878,7 +903,14 @@ defmodule PavoiWeb.TiktokLive.Index do
     sort_dir: :dir,
     page: :page,
     stream_id: :s,
-    tab: :tab
+    tab: :tab,
+    # Analytics keys
+    page_tab: :pt,
+    analytics_stream_id: :as,
+    analytics_sentiment: :asent,
+    analytics_category: :acat,
+    analytics_search: :asq,
+    analytics_page: :ap
   }
 
   defp build_query_params(socket, overrides) do
@@ -890,15 +922,27 @@ defmodule PavoiWeb.TiktokLive.Index do
       dir: socket.assigns.sort_dir,
       page: socket.assigns.page,
       s: get_stream_id(socket.assigns.selected_stream),
-      tab: socket.assigns.active_tab
+      tab: socket.assigns.active_tab,
+      # Analytics params
+      pt: socket.assigns.page_tab,
+      as: socket.assigns.analytics_stream_id,
+      asent: format_atom_param(socket.assigns.analytics_sentiment),
+      acat: format_atom_param(socket.assigns.analytics_category),
+      asq: socket.assigns.analytics_search,
+      ap: socket.assigns.analytics_page
     }
 
     overrides
     |> Enum.reduce(base, fn {key, value}, acc ->
-      Map.put(acc, Map.fetch!(@key_mapping, key), value)
+      Map.put(acc, Map.fetch!(@key_mapping, key), format_param_value(value))
     end)
     |> reject_default_values()
   end
+
+  defp format_param_value(value) when is_atom(value) and not is_nil(value),
+    do: Atom.to_string(value)
+
+  defp format_param_value(value), do: value
 
   defp get_stream_id(nil), do: nil
   defp get_stream_id(stream), do: stream.id
@@ -917,6 +961,8 @@ defmodule PavoiWeb.TiktokLive.Index do
   defp default_value?({:dir, "desc"}), do: true
   defp default_value?({:page, 1}), do: true
   defp default_value?({:tab, "comments"}), do: true
+  defp default_value?({:pt, "streams"}), do: true
+  defp default_value?({:ap, 1}), do: true
   defp default_value?(_), do: false
 
   defp maybe_send_stream_report(socket, id) do
@@ -1125,4 +1171,188 @@ defmodule PavoiWeb.TiktokLive.Index do
   end
 
   defp build_gmv_from_stored(_), do: nil
+
+  # Analytics helper functions
+
+  defp parse_optional_int(nil), do: nil
+  defp parse_optional_int(""), do: nil
+
+  defp parse_optional_int(value) when is_binary(value) do
+    case Integer.parse(value) do
+      {int, ""} -> int
+      _ -> nil
+    end
+  end
+
+  defp parse_optional_int(value) when is_integer(value), do: value
+
+  defp parse_sentiment(nil), do: nil
+  defp parse_sentiment(""), do: nil
+  defp parse_sentiment("positive"), do: :positive
+  defp parse_sentiment("neutral"), do: :neutral
+  defp parse_sentiment("negative"), do: :negative
+  defp parse_sentiment(_), do: nil
+
+  defp parse_category(nil), do: nil
+  defp parse_category(""), do: nil
+  defp parse_category("praise_compliment"), do: :praise_compliment
+  defp parse_category("question_confusion"), do: :question_confusion
+  defp parse_category("product_request"), do: :product_request
+  defp parse_category("concern_complaint"), do: :concern_complaint
+  defp parse_category("technical_issue"), do: :technical_issue
+  defp parse_category("flash_sale"), do: :flash_sale
+  defp parse_category("general"), do: :general
+  defp parse_category(_), do: nil
+
+  defp format_atom_param(nil), do: nil
+  defp format_atom_param(atom), do: Atom.to_string(atom)
+
+  defp load_streams_sentiment(socket) do
+    stream_ids = Enum.map(socket.assigns.live_streams, & &1.id)
+
+    sentiment_map =
+      if length(stream_ids) > 0 do
+        TiktokLiveContext.get_streams_sentiment_summary(stream_ids)
+      else
+        %{}
+      end
+
+    assign(socket, :streams_sentiment, sentiment_map)
+  end
+
+  defp maybe_load_analytics_data(socket) do
+    if socket.assigns.page_tab == "analytics" do
+      # Check if stream selection changed (charts only need to reload when stream changes)
+      prev_stream_id = socket.assigns[:prev_analytics_stream_id]
+      curr_stream_id = socket.assigns.analytics_stream_id
+      stream_changed = prev_stream_id != curr_stream_id
+
+      # Check if charts need initial load (nil means never loaded)
+      charts_need_load = is_nil(socket.assigns.sentiment_breakdown) or stream_changed
+
+      socket
+      |> assign(:prev_analytics_stream_id, curr_stream_id)
+      |> load_all_streams_for_select()
+      |> maybe_load_chart_data(charts_need_load)
+      |> load_analytics_comments()
+    else
+      socket
+    end
+  end
+
+  defp load_all_streams_for_select(socket) do
+    # Only load if not already loaded
+    if Enum.empty?(socket.assigns.all_streams_for_select) do
+      streams = TiktokLiveContext.list_streams(limit: 100, sort_by: "started", sort_dir: "desc")
+      assign(socket, :all_streams_for_select, streams)
+    else
+      socket
+    end
+  end
+
+  defp maybe_load_chart_data(socket, false), do: socket
+
+  defp maybe_load_chart_data(socket, true) do
+    opts =
+      [stream_id: socket.assigns.analytics_stream_id]
+      |> Enum.reject(fn {_k, v} -> is_nil(v) end)
+
+    sentiment_breakdown = TiktokLiveContext.get_aggregate_sentiment_breakdown(opts)
+    category_breakdown = TiktokLiveContext.get_aggregate_category_breakdown(opts)
+
+    # Pre-compute chart JSON to prevent re-computation on every component render
+    sentiment_chart_json = build_sentiment_chart_json(sentiment_breakdown)
+    category_chart_json = build_category_chart_json(category_breakdown)
+
+    socket
+    |> assign(:sentiment_breakdown, sentiment_breakdown)
+    |> assign(:category_breakdown, category_breakdown)
+    |> assign(:sentiment_chart_json, sentiment_chart_json)
+    |> assign(:category_chart_json, category_chart_json)
+  end
+
+  # Build pre-computed chart JSON for stable rendering
+  defp build_sentiment_chart_json(nil), do: Jason.encode!(%{labels: [], data: [], colors: []})
+
+  defp build_sentiment_chart_json(breakdown) do
+    Jason.encode!(%{
+      labels: ["Positive", "Neutral", "Negative"],
+      data: [
+        breakdown.positive.percent,
+        breakdown.neutral.percent,
+        breakdown.negative.percent
+      ],
+      colors: [
+        "rgb(34, 197, 94)",
+        "rgb(156, 163, 175)",
+        "rgb(239, 68, 68)"
+      ]
+    })
+  end
+
+  defp build_category_chart_json([]), do: Jason.encode!(%{labels: [], data: [], colors: []})
+
+  defp build_category_chart_json(categories) do
+    category_colors = %{
+      praise_compliment: "rgb(34, 197, 94)",
+      question_confusion: "rgb(59, 130, 246)",
+      product_request: "rgb(168, 85, 247)",
+      concern_complaint: "rgb(239, 68, 68)",
+      technical_issue: "rgb(249, 115, 22)",
+      flash_sale: "rgb(236, 72, 153)",
+      general: "rgb(156, 163, 175)"
+    }
+
+    category_labels = %{
+      praise_compliment: "Praise",
+      question_confusion: "Questions",
+      product_request: "Product Requests",
+      concern_complaint: "Concerns",
+      technical_issue: "Technical Issues",
+      flash_sale: "Flash Sale",
+      general: "General"
+    }
+
+    Jason.encode!(%{
+      labels: Enum.map(categories, fn c -> Map.get(category_labels, c.category, "Unknown") end),
+      data: Enum.map(categories, & &1.count),
+      colors:
+        Enum.map(categories, fn c ->
+          Map.get(category_colors, c.category, "rgb(156, 163, 175)")
+        end)
+    })
+  end
+
+  defp load_analytics_comments(socket, opts \\ []) do
+    append = Keyword.get(opts, :append, false)
+    page = if append, do: socket.assigns.analytics_page, else: 1
+    per_page = 25
+
+    query_opts =
+      [
+        stream_id: socket.assigns.analytics_stream_id,
+        sentiment: socket.assigns.analytics_sentiment,
+        category: socket.assigns.analytics_category,
+        search: socket.assigns.analytics_search,
+        page: page,
+        per_page: per_page
+      ]
+      |> Enum.reject(fn {_k, v} -> is_nil(v) or v == "" end)
+
+    result = TiktokLiveContext.list_classified_comments(query_opts)
+
+    comments =
+      if append do
+        socket.assigns.analytics_comments ++ result.comments
+      else
+        result.comments
+      end
+
+    socket
+    |> assign(:analytics_comments, comments)
+    |> assign(:analytics_comments_total, result.total)
+    |> assign(:analytics_has_more, result.has_more)
+    |> assign(:analytics_page, page)
+    |> assign(:analytics_loading, false)
+  end
 end

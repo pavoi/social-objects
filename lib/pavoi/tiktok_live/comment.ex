@@ -14,6 +14,11 @@ defmodule Pavoi.TiktokLive.Comment do
     field :raw_event, :map, default: %{}
     field :parsed_product_number, :integer
 
+    # Classification fields
+    field :sentiment, Ecto.Enum, values: [:positive, :neutral, :negative]
+    field :category, Ecto.Enum, values: [:concern_complaint, :product_request, :question_confusion, :technical_issue, :praise_compliment, :general, :flash_sale]
+    field :classified_at, :utc_datetime
+
     belongs_to :stream, Pavoi.TiktokLive.Stream
     belongs_to :session_product, Pavoi.Sessions.SessionProduct
 

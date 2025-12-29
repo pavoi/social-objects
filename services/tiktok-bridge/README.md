@@ -130,6 +130,5 @@ http://tiktok-bridge.railway.internal:8080
 
 ## Notes
 
-- This service replaces Euler Stream as the TikTok connection provider
-- Uses `tiktok-live-connector` which still relies on signing servers for TikTok authentication
+- Uses `tiktok-live-connector` which relies on signing servers for TikTok authentication
 - If signing servers become unavailable, consider implementing custom signing with Playwright

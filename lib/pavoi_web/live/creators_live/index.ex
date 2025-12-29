@@ -122,9 +122,8 @@ defmodule PavoiWeb.CreatorsLive.Index do
       |> assign(:show_batch_tag_picker, false)
       |> assign(:picker_selected_tag_ids, [])
       |> assign(:batch_selected_tag_ids, [])
-      # Time filter state
-      |> assign(:added_after, nil)
-      |> assign(:added_before, nil)
+      # Time filter state (delta period in days: nil, 7, 30, 90)
+      |> assign(:delta_period, nil)
       |> assign(:time_preset, "all")
       # Data freshness state
       |> assign(:videos_last_import_at, Settings.get_videos_last_import_at())
@@ -769,8 +768,8 @@ defmodule PavoiWeb.CreatorsLive.Index do
 
   @impl true
   def handle_event("set_time_preset", %{"preset" => preset}, socket) do
-    {added_after, added_before} = preset_to_dates(preset)
-    params = build_query_params(socket, added_after: added_after, added_before: added_before, page: 1)
+    delta_period = preset_to_delta_period(preset)
+    params = build_query_params(socket, delta_period: delta_period, page: 1)
     {:noreply, push_patch(socket, to: ~p"/creators?#{params}")}
   end
 
@@ -870,10 +869,10 @@ defmodule PavoiWeb.CreatorsLive.Index do
   end
 
   # Time preset helpers
-  defp preset_to_dates("7d"), do: {Date.to_iso8601(Date.add(Date.utc_today(), -7)), nil}
-  defp preset_to_dates("30d"), do: {Date.to_iso8601(Date.add(Date.utc_today(), -30)), nil}
-  defp preset_to_dates("90d"), do: {Date.to_iso8601(Date.add(Date.utc_today(), -90)), nil}
-  defp preset_to_dates(_), do: {nil, nil}
+  defp preset_to_delta_period("7d"), do: 7
+  defp preset_to_delta_period("30d"), do: 30
+  defp preset_to_delta_period("90d"), do: 90
+  defp preset_to_delta_period(_), do: nil
 
   defp reload_creator_tags(socket, creator_id) do
     # Update the creator in the list with refreshed tags
@@ -1091,7 +1090,7 @@ defmodule PavoiWeb.CreatorsLive.Index do
   defp job_active?(_job, _now), do: false
 
   defp apply_params(socket, params) do
-    added_after = params["after"]
+    delta_period = parse_delta_period(params["period"])
 
     socket
     |> assign(:search_query, params["q"] || "")
@@ -1103,31 +1102,22 @@ defmodule PavoiWeb.CreatorsLive.Index do
     |> assign(:selected_ids, MapSet.new())
     |> assign(:all_selected_pending, false)
     |> assign(:filter_tag_ids, parse_tag_ids(params["tags"]))
-    |> assign(:added_after, added_after)
-    |> assign(:added_before, params["before"])
-    |> assign(:time_preset, derive_time_preset(added_after))
+    |> assign(:delta_period, delta_period)
+    |> assign(:time_preset, derive_time_preset_from_delta(delta_period))
   end
 
-  defp derive_time_preset(nil), do: "all"
-  defp derive_time_preset(""), do: "all"
+  defp parse_delta_period(nil), do: nil
+  defp parse_delta_period(""), do: nil
+  defp parse_delta_period("7"), do: 7
+  defp parse_delta_period("30"), do: 30
+  defp parse_delta_period("90"), do: 90
+  defp parse_delta_period(_), do: nil
 
-  defp derive_time_preset(date_string) do
-    case Date.from_iso8601(date_string) do
-      {:ok, date} ->
-        today = Date.utc_today()
-        days_ago = Date.diff(today, date)
-
-        cond do
-          days_ago in 6..8 -> "7d"
-          days_ago in 29..31 -> "30d"
-          days_ago in 89..91 -> "90d"
-          true -> "custom"
-        end
-
-      {:error, _} ->
-        "all"
-    end
-  end
+  defp derive_time_preset_from_delta(nil), do: "all"
+  defp derive_time_preset_from_delta(7), do: "7d"
+  defp derive_time_preset_from_delta(30), do: "30d"
+  defp derive_time_preset_from_delta(90), do: "90d"
+  defp derive_time_preset_from_delta(_), do: "all"
 
   defp parse_outreach_status(nil), do: nil
   defp parse_outreach_status(""), do: nil
@@ -1160,8 +1150,7 @@ defmodule PavoiWeb.CreatorsLive.Index do
       filter_tag_ids: filter_tag_ids,
       outreach_status: outreach_status,
       brand_id: brand_id,
-      added_after: added_after,
-      added_before: added_before
+      delta_period: delta_period
     } = socket.assigns
 
     opts =
@@ -1171,8 +1160,6 @@ defmodule PavoiWeb.CreatorsLive.Index do
       |> maybe_add_opt(:sort_by, sort_by)
       |> maybe_add_opt(:sort_dir, sort_dir)
       |> maybe_add_opt(:outreach_status, outreach_status)
-      |> maybe_add_opt(:added_after, added_after)
-      |> maybe_add_opt(:added_before, added_before)
       |> maybe_add_tag_filter(filter_tag_ids)
 
     result = Creators.search_creators_unified(opts)
@@ -1185,15 +1172,33 @@ defmodule PavoiWeb.CreatorsLive.Index do
     video_counts_map = Creators.batch_count_videos(creator_ids)
     commission_map = Creators.batch_sum_commission(creator_ids)
 
-    # Add sample counts, tags, video counts, commission, and outreach logs to each creator
+    # Load snapshot deltas if a time period is selected
+    snapshot_deltas_map =
+      case delta_period do
+        nil -> %{}
+        days -> Creators.batch_load_snapshot_deltas(creator_ids, days)
+      end
+
+    # Default snapshot delta when period is selected but no data exists
+    default_snapshot_delta =
+      if delta_period do
+        %{gmv_delta: nil, follower_delta: nil, start_date: nil, end_date: nil, has_complete_data: false}
+      else
+        nil
+      end
+
+    # Add sample counts, tags, video counts, commission, outreach logs, and snapshot deltas
     creators_with_data =
       Enum.map(result.creators, fn creator ->
+        snapshot_delta = Map.get(snapshot_deltas_map, creator.id, default_snapshot_delta)
+
         creator
         |> Map.put(:sample_count, Map.get(sample_counts_map, creator.id, 0))
         |> Map.put(:creator_tags, Map.get(tags_map, creator.id, []))
         |> Map.put(:email_outreach_log, Map.get(outreach_logs_map, creator.id))
         |> Map.put(:video_count, Map.get(video_counts_map, creator.id, 0))
         |> Map.put(:total_commission_cents, Map.get(commission_map, creator.id, 0))
+        |> Map.put(:snapshot_delta, snapshot_delta)
       end)
 
     # If loading more (page > 1), append to existing
@@ -1248,8 +1253,7 @@ defmodule PavoiWeb.CreatorsLive.Index do
     tab: :tab,
     outreach_status: :status,
     filter_tag_ids: :tags,
-    added_after: :after,
-    added_before: :before
+    delta_period: :period
   }
 
   defp build_query_params(socket, overrides) do
@@ -1263,8 +1267,7 @@ defmodule PavoiWeb.CreatorsLive.Index do
       tab: socket.assigns.active_tab,
       status: socket.assigns.outreach_status,
       tags: format_tag_ids(socket.assigns.filter_tag_ids),
-      after: socket.assigns.added_after,
-      before: socket.assigns.added_before
+      period: socket.assigns.delta_period
     }
 
     overrides

@@ -6,97 +6,119 @@
 />
 
 <div class="container container--xl region tiktok-live-index">
-  <div class="page-header">
-    <div class="page-header__search page-header__search--with-count">
-      <.search_input
-        value={@search_query}
-        on_change="search_streams"
-        placeholder="Search by username or title..."
-      />
-      <span class="search-count">{format_number(@total)} streams</span>
-    </div>
+  <.page_tabs active_tab={@page_tab} />
 
-    <div class="page-header__filters">
-      <form phx-change="filter_status">
-        <select name="status" class="filter-select" value={@status_filter}>
-          <option value="all" selected={@status_filter == "all"}>All Status</option>
-          <option value="capturing" selected={@status_filter == "capturing"}>Live Now</option>
-          <option value="ended" selected={@status_filter == "ended"}>Ended</option>
-          <option value="failed" selected={@status_filter == "failed"}>Failed</option>
-        </select>
-      </form>
+  <%= case @page_tab do %>
+    <% "streams" -> %>
+      <div class="page-header">
+        <div class="page-header__search page-header__search--with-count">
+          <.search_input
+            value={@search_query}
+            on_change="search_streams"
+            placeholder="Search by username or title..."
+          />
+          <span class="search-count">{format_number(@total)} streams</span>
+        </div>
 
-      <form phx-change="filter_date">
-        <select name="date" class="filter-select" value={@date_filter}>
-          <option value="all" selected={@date_filter == "all"}>All Time</option>
-          <option value="today" selected={@date_filter == "today"}>Today</option>
-          <option value="week" selected={@date_filter == "week"}>Last 7 Days</option>
-          <option value="month" selected={@date_filter == "month"}>Last 30 Days</option>
-        </select>
-      </form>
-    </div>
+        <div class="page-header__filters">
+          <form phx-change="filter_status">
+            <select name="status" class="filter-select" value={@status_filter}>
+              <option value="all" selected={@status_filter == "all"}>All Status</option>
+              <option value="capturing" selected={@status_filter == "capturing"}>Live Now</option>
+              <option value="ended" selected={@status_filter == "ended"}>Ended</option>
+              <option value="failed" selected={@status_filter == "failed"}>Failed</option>
+            </select>
+          </form>
 
-    <%= if @dev_mode do %>
-      <form phx-submit="start_capture" class="capture-form">
-        <input
-          type="text"
-          name="unique_id"
-          placeholder="@username"
-          class="input input--sm"
-          value={@capture_input}
-          disabled={@capture_loading}
-        />
-        <button
-          type="submit"
-          class="button button--sm button--primary"
-          disabled={@capture_loading}
+          <form phx-change="filter_date">
+            <select name="date" class="filter-select" value={@date_filter}>
+              <option value="all" selected={@date_filter == "all"}>All Time</option>
+              <option value="today" selected={@date_filter == "today"}>Today</option>
+              <option value="week" selected={@date_filter == "week"}>Last 7 Days</option>
+              <option value="month" selected={@date_filter == "month"}>Last 30 Days</option>
+            </select>
+          </form>
+        </div>
+
+        <%= if @dev_mode do %>
+          <form phx-submit="start_capture" class="capture-form">
+            <input
+              type="text"
+              name="unique_id"
+              placeholder="@username"
+              class="input input--sm"
+              value={@capture_input}
+              disabled={@capture_loading}
+            />
+            <button
+              type="submit"
+              class="button button--sm button--primary"
+              disabled={@capture_loading}
+            >
+              <%= if @capture_loading do %>
+                Connecting...
+              <% else %>
+                Capture
+              <% end %>
+            </button>
+            <%= if @capture_error do %>
+              <span class="capture-error">{@capture_error}</span>
+            <% end %>
+          </form>
+        <% end %>
+      </div>
+
+      <%= if Enum.empty?(@live_streams) do %>
+        <div class="empty-state">
+          <.icon name="hero-video-camera" class="empty-state__icon size-12" />
+          <p class="empty-state__title">No streams found</p>
+          <p class="empty-state__description">
+            <%= if @status_filter != "all" or @date_filter != "all" do %>
+              Try adjusting your filters
+            <% else %>
+              Live streams will appear here when captured
+            <% end %>
+          </p>
+        </div>
+      <% else %>
+        <div
+          id="streams-list"
+          class="streams-scroll-container"
+          phx-viewport-bottom={@has_more && !@loading_streams && "load_more"}
         >
-          <%= if @capture_loading do %>
-            Connecting...
-          <% else %>
-            Capture
+          <.streams_table
+            streams={@live_streams}
+            on_row_click="navigate_to_stream"
+            sort_by={@sort_by}
+            sort_dir={@sort_dir}
+            on_sort="sort_column"
+            streams_sentiment={@streams_sentiment}
+          />
+
+          <%= if @loading_streams do %>
+            <div class="streams-loading">
+              <div class="spinner"></div>
+              <span>Loading more streams...</span>
+            </div>
           <% end %>
-        </button>
-        <%= if @capture_error do %>
-          <span class="capture-error">{@capture_error}</span>
-        <% end %>
-      </form>
-    <% end %>
-  </div>
-
-  <%= if Enum.empty?(@live_streams) do %>
-    <div class="empty-state">
-      <.icon name="hero-video-camera" class="empty-state__icon size-12" />
-      <p class="empty-state__title">No streams found</p>
-      <p class="empty-state__description">
-        <%= if @status_filter != "all" or @date_filter != "all" do %>
-          Try adjusting your filters
-        <% else %>
-          Live streams will appear here when captured
-        <% end %>
-      </p>
-    </div>
-  <% else %>
-    <div
-      id="streams-list"
-      class="streams-scroll-container"
-      phx-viewport-bottom={@has_more && !@loading_streams && "load_more"}
-    >
-      <.streams_table
-        streams={@live_streams}
-        on_row_click="navigate_to_stream"
-        sort_by={@sort_by}
-        sort_dir={@sort_dir}
-        on_sort="sort_column"
-      />
-
-      <%= if @loading_streams do %>
-        <div class="streams-loading">
-          <div class="spinner"></div>
-          <span>Loading more streams...</span>
         </div>
       <% end %>
-    </div>
+    <% "analytics" -> %>
+      <.analytics_tab
+        stream_id={@analytics_stream_id}
+        streams={@all_streams_for_select}
+        sentiment_breakdown={@sentiment_breakdown}
+        category_breakdown={@category_breakdown}
+        sentiment_chart_json={@sentiment_chart_json}
+        category_chart_json={@category_chart_json}
+        comments={@analytics_comments}
+        comments_total={@analytics_comments_total}
+        has_more={@analytics_has_more}
+        search_query={@analytics_search}
+        sentiment_filter={@analytics_sentiment}
+        category_filter={@analytics_category}
+        loading={@analytics_loading}
+      />
   <% end %>
 </div>
 

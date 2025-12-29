@@ -525,12 +525,12 @@ defmodule PavoiWeb.CoreComponents do
                 class={@bigquery_syncing && "button--disabled"}
                 disabled={@bigquery_syncing}
               >
-                {if @bigquery_syncing, do: "Syncing Orders...", else: "Sync TikTok Orders"}
+                {if @bigquery_syncing, do: "Syncing...", else: "Sync Shop Orders"}
               </.button>
               <div class="navbar__sync-meta">
-                Synced: {if @bigquery_last_sync_at,
+                {if @bigquery_last_sync_at,
                   do: format_relative_time(@bigquery_last_sync_at),
-                  else: "Never"}
+                  else: "Never synced"}
               </div>
             </div>
             <div class="navbar__sync-group">
@@ -541,12 +541,12 @@ defmodule PavoiWeb.CoreComponents do
                 class={@enrichment_syncing && "button--disabled"}
                 disabled={@enrichment_syncing}
               >
-                {if @enrichment_syncing, do: "Syncing Creators...", else: "Sync Creators"}
+                {if @enrichment_syncing, do: "Syncing...", else: "Sync Creator Profiles"}
               </.button>
               <div class="navbar__sync-meta">
-                Synced: {if @enrichment_last_sync_at,
+                {if @enrichment_last_sync_at,
                   do: format_relative_time(@enrichment_last_sync_at),
-                  else: "Never"}
+                  else: "Never synced"}
               </div>
             </div>
           <% end %>
