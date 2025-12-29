@@ -27,6 +27,23 @@ defmodule Pavoi.Workers.StreamReportWorker do
 
   @impl Oban.Worker
   def perform(%Oban.Job{args: %{"stream_id" => stream_id}}) do
+    # Guard: only send report if stream is still ended
+    # This prevents reports from being sent if the stream was recovered
+    # (e.g., after a deploy while the stream was still live)
+    stream = TiktokLive.get_stream!(stream_id)
+
+    if stream.status != :ended do
+      Logger.info(
+        "Skipping report for stream #{stream_id} - status is #{stream.status} (stream still active)"
+      )
+
+      {:cancel, :stream_not_ended}
+    else
+      generate_and_send_report(stream_id)
+    end
+  end
+
+  defp generate_and_send_report(stream_id) do
     Logger.info("Generating stream report for stream #{stream_id}")
 
     with {:ok, report_data} <- StreamReport.generate(stream_id),

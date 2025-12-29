@@ -126,6 +126,9 @@ defmodule Pavoi.TiktokLive.StreamReconciler do
         )
     end
 
+    # Cancel any pending report jobs since we're restarting this stream
+    cancel_pending_report_jobs(stream.id)
+
     # Ensure stream is in capturing state (may have been marked ended by stale events)
     {:ok, _stream} =
       stream
@@ -155,6 +158,30 @@ defmodule Pavoi.TiktokLive.StreamReconciler do
     case Repo.query(query) do
       {:ok, %{num_rows: count}} -> count
       {:error, _} -> 0
+    end
+  end
+
+  @doc """
+  Cancels any pending stream report jobs for a specific stream.
+  Called when recovering a stream that was incorrectly marked as ended.
+  """
+  def cancel_pending_report_jobs(stream_id) do
+    query = """
+    UPDATE oban_jobs
+    SET state = 'cancelled', cancelled_at = NOW()
+    WHERE worker = 'Pavoi.Workers.StreamReportWorker'
+      AND args->>'stream_id' = $1
+      AND state IN ('available', 'scheduled')
+    RETURNING id
+    """
+
+    case Repo.query(query, [Integer.to_string(stream_id)]) do
+      {:ok, %{num_rows: count}} when count > 0 ->
+        Logger.info("Cancelled #{count} pending report job(s) for stream #{stream_id}")
+        count
+
+      _ ->
+        0
     end
   end
 
@@ -257,6 +284,9 @@ defmodule Pavoi.TiktokLive.StreamReconciler do
       {:error, _reason} ->
         :ok
     end
+
+    # Cancel any pending report jobs since we're recovering this stream
+    cancel_pending_report_jobs(stream.id)
 
     # Update stream back to capturing status
     {:ok, stream} =
