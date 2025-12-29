@@ -27,6 +27,7 @@ defmodule Pavoi.TiktokLive.Stream do
     field :gmv_cents, :integer
     field :gmv_order_count, :integer
     field :gmv_hourly, :map
+    field :report_sent_at, :utc_datetime
 
     has_many :comments, Pavoi.TiktokLive.Comment, foreign_key: :stream_id
     has_many :stats, Pavoi.TiktokLive.StreamStat, foreign_key: :stream_id

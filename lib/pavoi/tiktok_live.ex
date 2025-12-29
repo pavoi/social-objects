@@ -144,6 +144,27 @@ defmodule Pavoi.TiktokLive do
   end
 
   @doc """
+  Marks a stream's report as sent. Returns {:ok, :marked} or {:error, :already_sent}.
+
+  Uses an atomic update to ensure only one report is ever sent per stream.
+  """
+  def mark_report_sent(stream_id) do
+    sent_at = DateTime.utc_now() |> DateTime.truncate(:second)
+
+    {updated, _} =
+      from(s in Stream,
+        where: s.id == ^stream_id and is_nil(s.report_sent_at)
+      )
+      |> Repo.update_all(set: [report_sent_at: sent_at])
+
+    if updated == 1 do
+      {:ok, :marked}
+    else
+      {:error, :already_sent}
+    end
+  end
+
+  @doc """
   Updates a stream's GMV data.
 
   `gmv_data` should be a map with `:total_gmv_cents`, `:total_orders`, and `:hourly` keys.
@@ -241,6 +262,137 @@ defmodule Pavoi.TiktokLive do
       limit: ^limit
     )
     |> Repo.all()
+  end
+
+  ## Comment Classification Aggregations
+
+  @doc """
+  Returns sentiment breakdown for classified comments in a stream.
+
+  Excludes flash_sale category comments from the totals.
+  Returns a map with counts and percentages:
+
+      %{
+        positive: %{count: 156, percent: 42},
+        neutral: %{count: 167, percent: 45},
+        negative: %{count: 48, percent: 13},
+        total: 371
+      }
+  """
+  def get_sentiment_breakdown(stream_id) do
+    results =
+      from(c in Comment,
+        where: c.stream_id == ^stream_id,
+        where: not is_nil(c.sentiment),
+        where: c.category != :flash_sale,
+        group_by: c.sentiment,
+        select: {c.sentiment, count(c.id)}
+      )
+      |> Repo.all()
+      |> Map.new()
+
+    total = Enum.reduce(results, 0, fn {_, count}, acc -> acc + count end)
+
+    if total == 0 do
+      nil
+    else
+      %{
+        positive: build_sentiment_stat(results[:positive], total),
+        neutral: build_sentiment_stat(results[:neutral], total),
+        negative: build_sentiment_stat(results[:negative], total),
+        total: total
+      }
+    end
+  end
+
+  defp build_sentiment_stat(nil, _total), do: %{count: 0, percent: 0}
+
+  defp build_sentiment_stat(count, total) do
+    %{count: count, percent: round(count / total * 100)}
+  end
+
+  @doc """
+  Returns category breakdown for classified comments in a stream.
+
+  Returns a list of category stats, each with:
+  - `:category` - The category atom
+  - `:count` - Number of comments
+  - `:percent` - Percentage of total classified comments
+  - `:unique_commenters` - Number of unique users
+  - `:examples` - List of up to 2 example comments (text and username)
+
+  Flash sale category is excluded from results.
+  """
+  def get_category_breakdown(stream_id) do
+    # Get total classified comments (excluding flash sales)
+    total =
+      from(c in Comment,
+        where: c.stream_id == ^stream_id,
+        where: not is_nil(c.category),
+        where: c.category != :flash_sale,
+        select: count(c.id)
+      )
+      |> Repo.one()
+
+    if total == 0 do
+      []
+    else
+      # Get counts and unique commenters per category
+      category_stats =
+        from(c in Comment,
+          where: c.stream_id == ^stream_id,
+          where: not is_nil(c.category),
+          where: c.category != :flash_sale,
+          group_by: c.category,
+          select: %{
+            category: c.category,
+            count: count(c.id),
+            unique_commenters: count(c.tiktok_user_id, :distinct)
+          }
+        )
+        |> Repo.all()
+
+      # Fetch examples for each category
+      Enum.map(category_stats, fn stat ->
+        examples = get_category_examples(stream_id, stat.category, 2)
+
+        %{
+          category: stat.category,
+          count: stat.count,
+          percent: round(stat.count / total * 100),
+          unique_commenters: stat.unique_commenters,
+          examples: examples
+        }
+      end)
+      |> Enum.sort_by(& &1.count, :desc)
+    end
+  end
+
+  defp get_category_examples(stream_id, category, limit) do
+    from(c in Comment,
+      where: c.stream_id == ^stream_id,
+      where: c.category == ^category,
+      where: c.comment_text != "",
+      select: %{
+        text: c.comment_text,
+        username: coalesce(c.tiktok_nickname, c.tiktok_username)
+      },
+      order_by: fragment("RANDOM()"),
+      limit: ^limit
+    )
+    |> Repo.all()
+  end
+
+  @doc """
+  Returns the count of comments that have been classified for a stream.
+  """
+  def count_classified_comments(stream_id) do
+    from(c in Comment,
+      where: c.stream_id == ^stream_id,
+      where: not is_nil(c.classified_at),
+      select: count(c.id)
+    )
+    |> Repo.one()
   end
 
   ## Statistics

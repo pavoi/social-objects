@@ -27,23 +27,45 @@ defmodule Pavoi.Workers.StreamReportWorker do
 
   @impl Oban.Worker
   def perform(%Oban.Job{args: %{"stream_id" => stream_id}}) do
-    # Guard: only send report if stream is still ended
-    # This prevents reports from being sent if the stream was recovered
-    # (e.g., after a deploy while the stream was still live)
     stream = TiktokLive.get_stream!(stream_id)
 
-    if stream.status != :ended do
-      Logger.info(
-        "Skipping report for stream #{stream_id} - status is #{stream.status} (stream still active)"
-      )
+    cond do
+      # Guard 1: Only send report if stream is still ended
+      # (prevents reports if stream was resumed after false end detection)
+      stream.status != :ended ->
+        Logger.info(
+          "Skipping report for stream #{stream_id} - status is #{stream.status} (stream resumed)"
+        )
 
-      {:cancel, :stream_not_ended}
-    else
-      generate_and_send_report(stream_id)
+        {:cancel, :stream_not_ended}
+
+      # Guard 2: Only send one report per stream
+      # (prevents duplicates if stream ends multiple times due to resume cycles)
+      stream.report_sent_at != nil ->
+        Logger.info(
+          "Skipping report for stream #{stream_id} - already sent at #{stream.report_sent_at}"
+        )
+
+        {:cancel, :report_already_sent}
+
+      true ->
+        generate_and_send_report(stream_id)
     end
   end
 
   defp generate_and_send_report(stream_id) do
+    # Atomically claim this report to prevent races
+    case TiktokLive.mark_report_sent(stream_id) do
+      {:ok, :marked} ->
+        do_generate_and_send(stream_id)
+
+      {:error, :already_sent} ->
+        Logger.info("Report for stream #{stream_id} claimed by another job")
+        {:cancel, :report_already_sent}
+    end
+  end
+
+  defp do_generate_and_send(stream_id) do
     Logger.info("Generating stream report for stream #{stream_id}")
 
     with {:ok, report_data} <- StreamReport.generate(stream_id),
@@ -59,8 +81,19 @@ defmodule Pavoi.Workers.StreamReportWorker do
 
       {:error, reason} ->
         Logger.error("Failed to send stream report for stream #{stream_id}: #{inspect(reason)}")
+        # Clear the claim so retries can try again
+        clear_report_sent(stream_id)
         {:error, reason}
     end
+  end
+
+  defp clear_report_sent(stream_id) do
+    import Ecto.Query
+    alias Pavoi.Repo
+    alias Pavoi.TiktokLive.Stream
+
+    from(s in Stream, where: s.id == ^stream_id)
+    |> Repo.update_all(set: [report_sent_at: nil])
   end
 
   defp persist_gmv_data(_stream_id, %{gmv_data: nil}), do: :ok
