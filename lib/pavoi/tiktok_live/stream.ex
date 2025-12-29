@@ -29,6 +29,8 @@ defmodule Pavoi.TiktokLive.Stream do
     field :gmv_hourly, :map
     field :report_sent_at, :utc_datetime
 
+    belongs_to :session, Pavoi.Sessions.Session
+
     has_many :comments, Pavoi.TiktokLive.Comment, foreign_key: :stream_id
     has_many :stats, Pavoi.TiktokLive.StreamStat, foreign_key: :stream_id
     has_many :stream_products, Pavoi.TiktokLive.StreamProduct, foreign_key: :stream_id
@@ -57,9 +59,11 @@ defmodule Pavoi.TiktokLive.Stream do
       :cover_image_key,
       :gmv_cents,
       :gmv_order_count,
-      :gmv_hourly
+      :gmv_hourly,
+      :session_id
     ])
     |> validate_required([:room_id, :unique_id, :started_at])
+    |> foreign_key_constraint(:session_id)
   end
 
   @doc """

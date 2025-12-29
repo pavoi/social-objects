@@ -154,9 +154,11 @@ defmodule PavoiWeb.TiktokLive.Index do
   end
 
   @impl true
-  def handle_event("navigate_to_stream", %{"id" => id}, socket) do
-    params = build_query_params(socket, stream_id: id)
-    {:noreply, push_patch(socket, to: ~p"/streams?#{params}")}
+  def handle_event("navigate_to_stream", %{"id" => id} = params, socket) do
+    # Optionally navigate directly to a specific tab (e.g., "sessions")
+    tab = Map.get(params, "tab")
+    query_params = build_query_params(socket, stream_id: id, tab: tab)
+    {:noreply, push_patch(socket, to: ~p"/streams?#{query_params}")}
   end
 
   @impl true

@@ -63,6 +63,7 @@ defmodule Pavoi.TiktokLive do
     Stream
     |> apply_filters(opts)
     |> apply_sorting(opts)
+    |> preload(session: :session_products)
     |> Repo.all()
   end
 
@@ -989,23 +990,29 @@ defmodule Pavoi.TiktokLive do
     linked_by = Keyword.get(opts, :linked_by, "manual")
     parse_comments = Keyword.get(opts, :parse_comments, true)
 
-    result =
-      %SessionStream{}
-      |> SessionStream.changeset(%{
-        stream_id: stream_id,
-        session_id: session_id,
-        linked_at: DateTime.utc_now() |> DateTime.truncate(:second),
-        linked_by: linked_by
-      })
-      |> Repo.insert()
+    # Update the stream's session_id directly
+    stream = get_stream!(stream_id)
 
-    case result do
-      {:ok, session_stream} ->
+    stream
+    |> Stream.changeset(%{session_id: session_id})
+    |> Repo.update()
+    |> case do
+      {:ok, updated_stream} ->
+        # Also insert into legacy join table for compatibility
+        %SessionStream{}
+        |> SessionStream.changeset(%{
+          stream_id: stream_id,
+          session_id: session_id,
+          linked_at: DateTime.utc_now() |> DateTime.truncate(:second),
+          linked_by: linked_by
+        })
+        |> Repo.insert(on_conflict: :nothing)
+
         if parse_comments do
           parse_comments_for_session(stream_id, session_id)
         end
 
-        {:ok, session_stream}
+        {:ok, updated_stream}
 
       error ->
         error
@@ -1021,6 +1028,16 @@ defmodule Pavoi.TiktokLive do
     # Clear session_product_id from comments for this stream+session combo
     clear_parsed_products_for_link(stream_id, session_id)
 
+    # Clear the direct session_id on the stream (if it matches)
+    stream = get_stream!(stream_id)
+
+    if stream.session_id == session_id do
+      stream
+      |> Stream.changeset(%{session_id: nil})
+      |> Repo.update()
+    end
+
+    # Also remove from legacy join table
     from(ss in SessionStream,
       where: ss.stream_id == ^stream_id and ss.session_id == ^session_id
     )
@@ -1030,17 +1047,23 @@ defmodule Pavoi.TiktokLive do
   end
 
   @doc """
-  Gets all sessions linked to a stream.
+  Gets the session linked to a stream (if any).
+
+  Returns a list for backward compatibility, but will contain at most one session
+  since a stream can only be linked to one session.
   """
   def get_linked_sessions(stream_id) do
-    from(ss in SessionStream,
-      where: ss.stream_id == ^stream_id,
-      join: s in assoc(ss, :session),
-      preload: [session: {s, :session_products}],
-      order_by: [desc: ss.linked_at]
-    )
-    |> Repo.all()
-    |> Enum.map(& &1.session)
+    stream =
+      from(s in Stream,
+        where: s.id == ^stream_id,
+        preload: [session: :session_products]
+      )
+      |> Repo.one()
+
+    case stream do
+      %{session: %{} = session} -> [session]
+      _ -> []
+    end
   end
 
   @doc """

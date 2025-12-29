@@ -17,6 +17,9 @@ defmodule Pavoi.Sessions.Session do
     belongs_to :brand, Pavoi.Catalog.Brand
     has_many :session_products, Pavoi.Sessions.SessionProduct, preload_order: [asc: :position]
     has_one :session_state, Pavoi.Sessions.SessionState
+    # Direct relationship (stream.session_id -> session.id)
+    has_many :tiktok_streams, Pavoi.TiktokLive.Stream, foreign_key: :session_id
+    # Legacy join table relationship (for backward compatibility)
     has_many :session_streams, Pavoi.TiktokLive.SessionStream, foreign_key: :session_id
     has_many :streams, through: [:session_streams, :stream]
 

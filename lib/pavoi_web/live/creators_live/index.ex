@@ -1183,7 +1183,13 @@ defmodule PavoiWeb.CreatorsLive.Index do
     # Default snapshot delta when period is selected but no data exists
     default_snapshot_delta =
       if delta_period do
-        %{gmv_delta: nil, follower_delta: nil, start_date: nil, end_date: nil, has_complete_data: false}
+        %{
+          gmv_delta: nil,
+          follower_delta: nil,
+          start_date: nil,
+          end_date: nil,
+          has_complete_data: false
+        }
       else
         nil
       end

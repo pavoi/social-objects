@@ -149,7 +149,12 @@ defmodule Mix.Tasks.ClassifyStreamComments do
     case process_stream_internal(stream_id, batch_size) do
       {:ok, result} ->
         Mix.shell().info("  Classified: #{result.classified}, Flash sales: #{result.flash_sale}")
-        %{acc | success: acc.success + 1, comments: acc.comments + result.classified + result.flash_sale}
+
+        %{
+          acc
+          | success: acc.success + 1,
+            comments: acc.comments + result.classified + result.flash_sale
+        }
 
       {:error, reason} ->
         Mix.shell().error("  Failed: #{inspect(reason)}")

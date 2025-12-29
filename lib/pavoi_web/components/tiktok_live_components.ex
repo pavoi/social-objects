@@ -48,6 +48,40 @@ defmodule PavoiWeb.TiktokLiveComponents do
   end
 
   @doc """
+  Renders the product count for a stream's linked session.
+
+  Shows the number of products if a session is linked,
+  or a "Link session" indicator if not.
+  """
+  attr :stream, :any, required: true
+
+  def stream_product_count(assigns) do
+    product_count =
+      case assigns.stream.session do
+        %{session_products: products} when is_list(products) -> length(products)
+        _ -> nil
+      end
+
+    assigns = assign(assigns, :product_count, product_count)
+
+    ~H"""
+    <%= if @product_count do %>
+      <span class="stream-product-count">{@product_count}</span>
+    <% else %>
+      <button
+        type="button"
+        class="stream-link-session-btn"
+        phx-click="navigate_to_stream"
+        phx-value-id={@stream.id}
+        phx-value-tab="sessions"
+      >
+        Link session
+      </button>
+    <% end %>
+    """
+  end
+
+  @doc """
   Renders a stream thumbnail image or placeholder.
 
   ## Examples
@@ -112,6 +146,7 @@ defmodule PavoiWeb.TiktokLiveComponents do
               on_sort={@on_sort}
               class="text-right"
             />
+            <th data-column-id="products" class="text-right">Products</th>
             <.sort_header
               label="GMV"
               field="gmv"
@@ -173,6 +208,9 @@ defmodule PavoiWeb.TiktokLiveComponents do
                 <% else %>
                   {format_number(stream.viewer_count_peak)}
                 <% end %>
+              </td>
+              <td class="text-right">
+                <.stream_product_count stream={stream} />
               </td>
               <td class="text-right">
                 <%= if stream.gmv_cents do %>

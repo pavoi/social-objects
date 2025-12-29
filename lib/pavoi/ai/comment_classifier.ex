@@ -278,9 +278,7 @@ defmodule Pavoi.AI.CommentClassifier do
         fallback = Map.get(@category_to_sentiment_fallback, sentiment_code)
 
         if fallback do
-          Logger.debug(
-            "Using fallback sentiment mapping: s=#{sentiment_code} -> #{fallback}"
-          )
+          Logger.debug("Using fallback sentiment mapping: s=#{sentiment_code} -> #{fallback}")
         end
 
         fallback
@@ -294,9 +292,7 @@ defmodule Pavoi.AI.CommentClassifier do
         fallback = Map.get(@sentiment_to_category_fallback, category_code)
 
         if fallback do
-          Logger.debug(
-            "Using fallback category mapping: c=#{category_code} -> #{fallback}"
-          )
+          Logger.debug("Using fallback category mapping: c=#{category_code} -> #{fallback}")
         end
 
         fallback
