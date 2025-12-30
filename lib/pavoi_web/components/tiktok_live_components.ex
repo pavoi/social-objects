@@ -5,7 +5,7 @@ defmodule PavoiWeb.TiktokLiveComponents do
   use Phoenix.Component
 
   import PavoiWeb.CoreComponents
-  import PavoiWeb.CreatorComponents, only: [sort_header: 1]
+  import PavoiWeb.CreatorTableComponents, only: [sort_header: 1]
   import PavoiWeb.ViewHelpers
 
   alias Pavoi.TiktokLive.Stream

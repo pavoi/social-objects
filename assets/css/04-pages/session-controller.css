@@ -114,7 +114,7 @@
   min-width: 0;
 }
 
-/* Color variants for preview */
+/* Color variants for preview (matches host-message-banner colors in host-message.css) */
 .message-preview--amber {
   background-color: var(--color-accent-amber);
   color: #000;

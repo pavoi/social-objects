@@ -72,3 +72,73 @@
   padding: var(--space-2) var(--space-4);
   font-size: var(--text-sm);
 }
+
+/* ============================================================================
+   SOFT BADGE VARIANTS
+   Subtle, bordered style for tables and dense UI. Use with .badge--soft base.
+
+   Colors are hardcoded rgba values (not tokens) because they need specific
+   opacity levels for the "soft" appearance. Dark mode overrides are at the end.
+   ============================================================================ */
+
+.badge--soft {
+  background: transparent;
+  border: 1px solid currentColor;
+  border-radius: var(--radius-md);
+  font-weight: var(--font-semibold);
+}
+
+.badge--soft.badge--success {
+  background: rgba(34, 197, 94, 0.12);
+  color: rgb(21, 128, 61);
+  border-color: rgba(34, 197, 94, 0.2);
+}
+
+.badge--soft.badge--warning {
+  background: rgba(251, 191, 36, 0.12);
+  color: rgb(180, 83, 9);
+  border-color: rgba(251, 191, 36, 0.2);
+}
+
+.badge--soft.badge--info {
+  background: rgba(59, 130, 246, 0.12);
+  color: rgb(29, 78, 216);
+  border-color: rgba(59, 130, 246, 0.2);
+}
+
+.badge--soft.badge--teal {
+  background: rgba(20, 184, 166, 0.12);
+  color: rgb(13, 148, 136);
+  border-color: rgba(20, 184, 166, 0.2);
+}
+
+.badge--soft.badge--success-bright {
+  background: rgba(34, 197, 94, 0.2);
+  color: rgb(21, 128, 61);
+  border-color: rgba(34, 197, 94, 0.3);
+}
+
+.badge--soft.badge--danger {
+  background: rgba(239, 68, 68, 0.12);
+  color: rgb(185, 28, 28);
+  border-color: rgba(239, 68, 68, 0.2);
+}
+
+.badge--soft.badge--muted {
+  background: var(--color-surface-secondary);
+  color: var(--color-text-secondary);
+  border-color: var(--color-border);
+}
+
+/* Dark mode adjustments for soft badges */
+.dark .badge--soft.badge--success {
+  background: rgba(34, 197, 94, 0.2);
+  color: rgb(134, 239, 172);
+  border-color: rgba(34, 197, 94, 0.3);
+}
+
+.dark .badge--soft.badge--warning {
+  background: rgba(251, 191, 36, 0.2);
+  color: rgb(253, 224, 71);
+  border-color: rgba(251, 191, 36, 0.3);
+}

@@ -598,13 +598,7 @@
   100% { transform: scale(1); opacity: 1; }
 }
 
-/* Message color variants */
-.host-message-banner--amber { background-color: var(--color-accent-amber); color: #000; }
-.host-message-banner--blue { background-color: var(--color-accent-blue); color: #fff; }
-.host-message-banner--green { background-color: var(--color-accent-green); color: #fff; }
-.host-message-banner--red { background-color: var(--color-accent-red); color: #fff; }
-.host-message-banner--purple { background-color: var(--color-accent-purple); color: #fff; }
-.host-message-banner--gray { background-color: var(--color-text-secondary); color: #fff; }
+/* Note: host-message-banner color variants are defined in host-message.css */
 
 /* ==========================================================================
    LOADING & EMPTY STATES
@@ -634,9 +628,7 @@
   animation: spin 1s linear infinite;
 }
 
-@keyframes spin {
-  to { transform: rotate(360deg); }
-}
+/* Note: @keyframes spin is defined in utilities.css */
 
 .host-empty {
   display: flex;

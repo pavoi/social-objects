@@ -191,45 +191,32 @@
       <h2 class="modal__title">Send Welcome Messages</h2>
     </div>
     <div class="modal__body">
-      <p class="text-secondary" style="margin-bottom: var(--space-4);">
+      <p class="text-secondary mb-4">
         You're about to send welcome emails to <strong>{MapSet.size(@selected_ids)}</strong>
         creators.
       </p>
 
       <%= unless @outreach_email_enabled do %>
-        <div style="
-            margin: 0 0 var(--space-3) 0;
-            padding: var(--space-3);
-            border: 1px solid #f97316;
-            background: #fff7ed;
-            border-radius: 8px;
-          ">
+        <div class="alert-box alert-box--warning">
           Email sending is currently in test mode. Messages will not deliver to recipients.
         </div>
       <% end %>
 
       <%= if @outreach_email_override && @outreach_email_override != "" do %>
-        <div style="
-            margin: 0 0 var(--space-3) 0;
-            padding: var(--space-3);
-            border: 1px solid #38bdf8;
-            background: #ecfeff;
-            border-radius: 8px;
-          ">
+        <div class="alert-box alert-box--info">
           All welcome emails will be routed to {@outreach_email_override} (original recipient is
           still logged).
         </div>
       <% end %>
 
-      <div style="margin-bottom: var(--space-3);">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--space-2);">
-          <label class="label" style="margin: 0;">Select Lark Community Group</label>
+      <div class="mb-3">
+        <div class="flex justify-between items-center mb-2">
+          <label class="label m-0">Select Lark Community Group</label>
           <%= unless @lark_edit_mode do %>
             <button
               type="button"
-              class="btn btn--ghost btn--sm"
+              class="btn btn--ghost btn--sm text-xs"
               phx-click="toggle_lark_edit_mode"
-              style="font-size: 0.75rem; padding: 4px 8px;"
             >
               Edit Links
             </button>
@@ -255,7 +242,7 @@
               </div>
             <% end %>
           </div>
-          <div style="margin-top: var(--space-3); display: flex; gap: var(--space-2); justify-content: flex-end;">
+          <div class="mt-3 flex gap-2 justify-end">
             <.button variant="outline" size="sm" phx-click="cancel_lark_edit">Cancel</.button>
             <.button variant="primary" size="sm" phx-click="save_lark_presets">
               Save Links

@@ -1,14 +1,20 @@
 /**
- * App
- * Main CSS entry point
+ * App - Main CSS entry point
  *
- * This file imports all CSS modules following ITCSS architecture:
- * 01 Settings  - Design tokens and CSS custom properties
- * 02 Generic   - Reset and normalize styles
- * 03 Elements  - Base HTML element styles
- * 04 Layouts   - Layout composition patterns
- * 05 Components - UI component styles
- * 06 Utilities - Utility classes
+ * ITCSS Architecture (layers ordered by specificity, low → high):
+ *
+ * 01 Settings   - Design tokens (use these, don't hardcode colors/spacing)
+ * 02 Generic    - Browser reset
+ * 03 Elements   - Base HTML element styles
+ * 04 Layouts    - Layout primitives: container, stack, grid (reusable)
+ * 04 Pages      - Page-specific styles (scoped, not reusable)
+ * 05 Components - Reusable UI: button, badge, modal (BEM naming)
+ * 06 Utilities  - Single-purpose helpers: .flex, .mb-4, .text-secondary
+ *
+ * Adding new styles:
+ * - Reusable UI pattern → 05-components/
+ * - Page-specific layout → 04-pages/
+ * - Single CSS property helper → 06-utilities/
  */
 
 /* Settings Layer - Design tokens */
@@ -23,11 +29,14 @@
 
 /* Layouts Layer - Composition patterns */
 @import "./04-layouts/compositions.css";
-@import "./04-layouts/session-index.css";
-@import "./04-layouts/session-host.css";
-@import "./04-layouts/session-controller.css";
-@import "./04-layouts/creators-index.css";
-@import "./04-layouts/join.css";
+
+/* Pages Layer - Page-specific styles */
+@import "./04-pages/session-index.css";
+@import "./04-pages/session-host.css";
+@import "./04-pages/session-controller.css";
+@import "./04-pages/creators-index.css";
+@import "./04-pages/join.css";
+@import "./04-pages/login.css";
 
 /* Components Layer - UI components */
 @import "./05-components/button.css";
@@ -39,7 +48,6 @@
 @import "./05-components/badge.css";
 @import "./05-components/navbar.css";
 @import "./05-components/page-header.css";
-@import "./05-components/flash.css";
 @import "./05-components/toast.css";
 @import "./05-components/image-carousel.css";
 @import "./05-components/theme-toggle.css";

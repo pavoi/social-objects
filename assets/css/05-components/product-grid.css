@@ -326,20 +326,7 @@ infinite-scroll-trigger {
   font-size: var(--text-sm);
 }
 
-/* ============================================================================
-   ANIMATIONS
-   ============================================================================ */
-
-@keyframes fadeInSlideUp {
-  from {
-    opacity: 0;
-    transform: translateY(20px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
+/* Note: @keyframes fadeInSlideUp is defined in card.css */
 
 /* ============================================================================
    CONTEXT MENU

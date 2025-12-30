@@ -21,6 +21,8 @@ defmodule PavoiWeb.CreatorsLive.Index do
   alias Pavoi.Workers.CreatorOutreachWorker
 
   import PavoiWeb.CreatorComponents
+  import PavoiWeb.CreatorTagComponents
+  import PavoiWeb.CreatorTableComponents
   import PavoiWeb.ViewHelpers
 
   @sync_job_stale_after_seconds 30 * 60

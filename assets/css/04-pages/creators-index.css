@@ -566,71 +566,11 @@
   background: rgba(59, 130, 246, 0.08);
 }
 
+/* Table badges use .badge--soft variants from badge.css with table-specific sizing */
 .creator-table .badge {
-  display: inline-flex;
-  align-items: center;
   justify-content: center;
-  padding: 4px var(--space-2-5);
-  border-radius: var(--radius-md);
-  font-size: var(--text-xs);
-  font-weight: var(--font-semibold);
   min-width: 70px;
   text-transform: capitalize;
-}
-
-.creator-table .badge--success {
-  background: rgba(34, 197, 94, 0.12);
-  color: rgb(21, 128, 61);
-  border: 1px solid rgba(34, 197, 94, 0.2);
-}
-
-.creator-table .badge--muted {
-  background: var(--color-surface-secondary);
-  color: var(--color-text-secondary);
-  border: 1px solid var(--color-border);
-}
-
-.creator-table .badge--warning {
-  background: rgba(251, 191, 36, 0.12);
-  color: rgb(180, 83, 9);
-  border: 1px solid rgba(251, 191, 36, 0.2);
-}
-
-.creator-table .badge--info {
-  background: rgba(59, 130, 246, 0.12);
-  color: rgb(29, 78, 216);
-  border: 1px solid rgba(59, 130, 246, 0.2);
-}
-
-.creator-table .badge--teal {
-  background: rgba(20, 184, 166, 0.12);
-  color: rgb(13, 148, 136);
-  border: 1px solid rgba(20, 184, 166, 0.2);
-}
-
-.creator-table .badge--success-bright {
-  background: rgba(34, 197, 94, 0.2);
-  color: rgb(21, 128, 61);
-  border: 1px solid rgba(34, 197, 94, 0.3);
-}
-
-.creator-table .badge--danger {
-  background: rgba(239, 68, 68, 0.12);
-  color: rgb(185, 28, 28);
-  border: 1px solid rgba(239, 68, 68, 0.2);
-}
-
-/* Dark mode adjustments */
-.dark .creator-table .badge--success {
-  background: rgba(34, 197, 94, 0.2);
-  color: rgb(134, 239, 172);
-  border-color: rgba(34, 197, 94, 0.3);
-}
-
-.dark .creator-table .badge--warning {
-  background: rgba(251, 191, 36, 0.2);
-  color: rgb(253, 224, 71);
-  border-color: rgba(251, 191, 36, 0.3);
 }
 
 /* ============================================

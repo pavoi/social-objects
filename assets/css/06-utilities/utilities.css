@@ -126,7 +126,89 @@
 }
 
 /* Text Colors */
+.text-primary { color: var(--color-text-primary); }
+.text-secondary { color: var(--color-text-secondary); }
+.text-tertiary { color: var(--color-text-tertiary); }
 .text-error { color: var(--color-accent-red); }
+
+/* Font */
+.font-mono { font-family: var(--font-mono); }
+.font-medium { font-weight: var(--font-medium); }
+.font-semibold { font-weight: var(--font-semibold); }
+.font-bold { font-weight: var(--font-bold); }
+
+/* Font Size */
+.text-xs { font-size: var(--text-xs); }
+.text-sm { font-size: var(--text-sm); }
+.text-base { font-size: var(--text-base); }
+.text-lg { font-size: var(--text-lg); }
+
+/* Flex */
+.flex { display: flex; }
+.inline-flex { display: inline-flex; }
+.flex-col { flex-direction: column; }
+.flex-row { flex-direction: row; }
+.flex-wrap { flex-wrap: wrap; }
+.flex-1 { flex: 1; }
+
+/* Flex alignment */
+.items-start { align-items: flex-start; }
+.items-center { align-items: center; }
+.items-end { align-items: flex-end; }
+.justify-start { justify-content: flex-start; }
+.justify-center { justify-content: center; }
+.justify-end { justify-content: flex-end; }
+.justify-between { justify-content: space-between; }
+
+/* Gap */
+.gap-1 { gap: var(--space-1); }
+.gap-2 { gap: var(--space-2); }
+.gap-3 { gap: var(--space-3); }
+.gap-4 { gap: var(--space-4); }
+.gap-6 { gap: var(--space-6); }
+
+/* Margin auto */
+.mx-auto { margin-left: auto; margin-right: auto; }
+.ml-auto { margin-left: auto; }
+.mr-auto { margin-right: auto; }
+
+/* Additional margin utilities */
+.mb-3 { margin-bottom: var(--space-3); }
+.mt-3 { margin-top: var(--space-3); }
+
+/* ============================================================================
+   ALERT BOXES
+   Inline notification boxes for forms and modals.
+   ============================================================================ */
+
+.alert-box {
+  margin-bottom: var(--space-3);
+  padding: var(--space-3);
+  border-radius: var(--radius-lg);
+  border: 1px solid currentColor;
+}
+
+.alert-box--warning {
+  border-color: #f97316;
+  background: #fff7ed;
+  color: #9a3412;
+}
+
+.alert-box--info {
+  border-color: #38bdf8;
+  background: #ecfeff;
+  color: #0369a1;
+}
+
+.dark .alert-box--warning {
+  background: rgba(249, 115, 22, 0.15);
+  color: #fdba74;
+}
+
+.dark .alert-box--info {
+  background: rgba(56, 189, 248, 0.15);
+  color: #7dd3fc;
+}
 
 /* Icon Sizes */
 .size-3 { width: 0.75rem; height: 0.75rem; }

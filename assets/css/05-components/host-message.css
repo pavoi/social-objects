@@ -1,31 +1,40 @@
 /**
  * Host Message Banner Component
  *
- * Shared color variants for host message banners across different views.
- * Used in both host view and controller view previews.
+ * Color variants for host message banners across different views.
+ * Used in both host view display and controller view previews.
+ *
+ * Each variant includes background-color and appropriate contrast text color.
+ * These colors are shared with message-preview variants in session-controller.css.
  */
 
-/* Color variants */
+/* Color variants with contrast text */
 .host-message-banner--amber {
   background-color: var(--color-accent-amber);
+  color: #000;
 }
 
 .host-message-banner--blue {
   background-color: var(--color-accent-blue);
+  color: #fff;
 }
 
 .host-message-banner--green {
   background-color: var(--color-accent-green);
+  color: #fff;
 }
 
 .host-message-banner--red {
   background-color: var(--color-accent-red);
+  color: #fff;
 }
 
 .host-message-banner--purple {
   background-color: var(--color-accent-purple);
+  color: #fff;
 }
 
 .host-message-banner--gray {
   background-color: var(--color-text-secondary);
+  color: #fff;
 }
