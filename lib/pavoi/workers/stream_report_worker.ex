@@ -55,33 +55,41 @@ defmodule Pavoi.Workers.StreamReportWorker do
   end
 
   defp generate_and_send_report(stream_id) do
+    # Claim FIRST to prevent multiple workers doing duplicate expensive work
+    # (classification, sentiment analysis, GMV API calls)
+    case TiktokLive.mark_report_sent(stream_id) do
+      {:ok, :marked} ->
+        do_generate_and_send_report(stream_id)
+
+      {:error, :already_sent} ->
+        Logger.info("Report for stream #{stream_id} claimed by another job")
+        {:cancel, :report_already_sent}
+    end
+  end
+
+  defp do_generate_and_send_report(stream_id) do
     Logger.info("Generating stream report for stream #{stream_id}")
 
     # Classify comments before generating report
     # This ensures comment sentiment/category data is available for the report
     classify_comments(stream_id)
 
-    # Generate report first, validate sentiment, THEN mark as sent
-    # This ensures we can retry if OpenAI fails transiently
     with {:ok, report_data} <- StreamReport.generate(stream_id),
          :ok <- validate_sentiment_if_needed(report_data),
-         {:ok, :marked} <- TiktokLive.mark_report_sent(stream_id),
          :ok <- persist_gmv_data(stream_id, report_data),
+         :ok <- log_report_summary(stream_id, report_data),
          {:ok, :sent} <- StreamReport.send_to_slack(report_data) do
       Logger.info("Stream report sent successfully for stream #{stream_id}")
       :ok
     else
       {:error, :sentiment_missing} ->
-        # OpenAI likely failed transiently - retry
+        # OpenAI likely failed transiently - clear claim and retry
         Logger.warning(
           "Stream #{stream_id} report missing sentiment analysis (stream has comments), will retry"
         )
 
+        clear_report_sent(stream_id)
         {:error, :sentiment_generation_failed}
-
-      {:error, :already_sent} ->
-        Logger.info("Report for stream #{stream_id} claimed by another job")
-        {:cancel, :report_already_sent}
 
       {:error, "Slack not configured" <> _} = error ->
         # Slack not configured - log warning but don't retry
@@ -96,11 +104,37 @@ defmodule Pavoi.Workers.StreamReportWorker do
     end
   end
 
+  defp log_report_summary(stream_id, report_data) do
+    sentiment_length =
+      if report_data.sentiment_analysis,
+        do: String.length(report_data.sentiment_analysis),
+        else: 0
+
+    Logger.info(
+      "Stream #{stream_id} report summary: " <>
+        "sentiment=#{sentiment_length}chars, " <>
+        "products=#{length(report_data.top_products)}, " <>
+        "flash_sales=#{length(report_data.flash_sales)}"
+    )
+
+    :ok
+  end
+
   # Sentiment should exist if stream had comments (excluding flash sales)
-  # If nil when comments exist, OpenAI likely failed - trigger retry
-  defp validate_sentiment_if_needed(%{sentiment_analysis: nil, stats: %{total_comments: n}})
+  # If nil or empty when comments exist, OpenAI likely failed - trigger retry
+  defp validate_sentiment_if_needed(%{sentiment_analysis: sentiment, stats: %{total_comments: n}})
        when n > 0 do
-    {:error, :sentiment_missing}
+    cond do
+      is_nil(sentiment) ->
+        {:error, :sentiment_missing}
+
+      is_binary(sentiment) and String.trim(sentiment) == "" ->
+        Logger.warning("Sentiment analysis returned empty string")
+        {:error, :sentiment_missing}
+
+      true ->
+        :ok
+    end
   end
 
   defp validate_sentiment_if_needed(_report_data), do: :ok
