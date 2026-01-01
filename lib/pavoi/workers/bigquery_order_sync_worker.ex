@@ -349,9 +349,7 @@ defmodule Pavoi.Workers.BigQueryOrderSyncWorker do
         city: city,
         state: state,
         zipcode: order["zipcode"],
-        country: order["country"] || "US",
-        # Mark new creators for outreach review
-        outreach_status: "pending"
+        country: order["country"] || "US"
       }
       |> Enum.reject(fn {_k, v} -> is_nil(v) end)
       |> Map.new()

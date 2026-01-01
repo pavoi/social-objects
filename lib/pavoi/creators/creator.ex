@@ -18,7 +18,6 @@ defmodule Pavoi.Creators.Creator do
   import Ecto.Changeset
 
   @badge_levels ~w(bronze silver gold platinum ruby emerald sapphire diamond)
-  @outreach_statuses ~w(pending approved sent skipped unsubscribed)
 
   schema "creators" do
     # Identity
@@ -69,12 +68,16 @@ defmodule Pavoi.Creators.Creator do
     field :enrichment_source, :string
 
     # Outreach tracking
-    field :outreach_status, :string
     field :outreach_sent_at, :utc_datetime
     field :sms_consent, :boolean, default: false
     field :sms_consent_at, :utc_datetime
     field :sms_consent_ip, :string
     field :sms_consent_user_agent, :string
+
+    # Email opt-out (event-driven from webhooks)
+    field :email_opted_out, :boolean, default: false
+    field :email_opted_out_at, :utc_datetime
+    field :email_opted_out_reason, :string
 
     # Associations
     has_many :brand_creators, Pavoi.Creators.BrandCreator
@@ -125,20 +128,19 @@ defmodule Pavoi.Creators.Creator do
       :live_count,
       :last_enriched_at,
       :enrichment_source,
-      :outreach_status,
       :outreach_sent_at,
       :sms_consent,
       :sms_consent_at,
       :sms_consent_ip,
-      :sms_consent_user_agent
+      :sms_consent_user_agent,
+      :email_opted_out,
+      :email_opted_out_at,
+      :email_opted_out_reason
     ])
     |> validate_required([])
     |> normalize_username()
     |> validate_inclusion(:tiktok_badge_level, @badge_levels,
       message: "must be a valid badge level"
-    )
-    |> validate_inclusion(:outreach_status, @outreach_statuses,
-      message: "must be a valid outreach status"
     )
     |> validate_format(:email, ~r/@/, message: "must be a valid email")
     |> unique_constraint(:tiktok_username)
@@ -155,11 +157,6 @@ defmodule Pavoi.Creators.Creator do
   Returns the list of valid TikTok badge levels.
   """
   def badge_levels, do: @badge_levels
-
-  @doc """
-  Returns the list of valid outreach statuses.
-  """
-  def outreach_statuses, do: @outreach_statuses
 
   @doc """
   Returns the creator's full name if available.

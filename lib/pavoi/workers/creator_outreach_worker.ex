@@ -5,9 +5,10 @@ defmodule Pavoi.Workers.CreatorOutreachWorker do
   ## Workflow
 
   1. Receives creator_id and template_id
-  2. Sends email via Swoosh (Local in dev, SendGrid in prod)
-  3. Logs result to outreach_logs
-  4. Updates creator.outreach_status to "sent"
+  2. Checks if creator can be contacted (not opted out)
+  3. Sends email via Swoosh (Local in dev, SendGrid in prod)
+  4. Logs result to outreach_logs
+  5. Updates creator.outreach_sent_at timestamp
 
   ## Usage
 
@@ -42,15 +43,15 @@ defmodule Pavoi.Workers.CreatorOutreachWorker do
     creator = Creators.get_creator!(creator_id)
     template = Communications.get_email_template!(template_id)
 
-    # Verify creator is in approved status
-    if creator.outreach_status != "approved" do
+    # Check if creator can be contacted
+    if Outreach.can_contact_email?(creator) do
+      send_outreach(creator, template)
+    else
       Logger.warning(
-        "Creator #{creator_id} not in approved status (#{creator.outreach_status}), skipping"
+        "Creator #{creator_id} cannot be contacted (opted_out: #{creator.email_opted_out}, reason: #{creator.email_opted_out_reason}), skipping"
       )
 
-      {:ok, :skipped}
-    else
-      send_outreach(creator, template)
+      {:ok, :opted_out}
     end
   end
 
@@ -93,10 +94,6 @@ defmodule Pavoi.Workers.CreatorOutreachWorker do
   Returns {:ok, count} with number of jobs enqueued.
   """
   def enqueue_batch(creator_ids, template_id) when is_list(creator_ids) do
-    # First mark all as approved
-    Outreach.mark_creators_approved(creator_ids)
-
-    # Then enqueue jobs
     jobs =
       Enum.map(creator_ids, fn creator_id ->
         new(%{creator_id: creator_id, template_id: template_id})

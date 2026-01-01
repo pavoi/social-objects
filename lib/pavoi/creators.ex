@@ -81,7 +81,7 @@ defmodule Pavoi.Creators do
     - search_query: Search by username, email, first/last name
     - badge_level: Filter by TikTok badge level
     - tag_ids: Filter by tag IDs
-    - outreach_status: Filter by outreach status (nil = all, or "pending"/"sent"/"skipped")
+    - outreach_status: Filter by contact status (nil = all, or "never_contacted"/"contacted"/"opted_out")
     - sort_by: Column to sort (supports all CRM and outreach columns)
     - sort_dir: "asc" or "desc"
     - page: Page number (default: 1)
@@ -126,9 +126,29 @@ defmodule Pavoi.Creators do
   defp apply_outreach_status_filter(query, nil), do: query
   defp apply_outreach_status_filter(query, ""), do: query
 
-  defp apply_outreach_status_filter(query, status)
-       when status in ["pending", "sent", "skipped", "unsubscribed"] do
-    where(query, [c], c.outreach_status == ^status)
+  # New contact-based status filters
+  defp apply_outreach_status_filter(query, "never_contacted") do
+    # Creators with no email outreach logs and not opted out
+    from(c in query,
+      left_join: ol in Pavoi.Outreach.OutreachLog,
+      on: ol.creator_id == c.id and ol.channel == "email",
+      where: is_nil(ol.id),
+      where: c.email_opted_out == false
+    )
+  end
+
+  defp apply_outreach_status_filter(query, "contacted") do
+    # Creators with at least one email outreach log and not opted out
+    from(c in query,
+      join: ol in Pavoi.Outreach.OutreachLog,
+      on: ol.creator_id == c.id and ol.channel == "email",
+      where: c.email_opted_out == false,
+      distinct: true
+    )
+  end
+
+  defp apply_outreach_status_filter(query, "opted_out") do
+    where(query, [c], c.email_opted_out == true)
   end
 
   defp apply_outreach_status_filter(query, _), do: query
@@ -180,12 +200,6 @@ defmodule Pavoi.Creators do
 
   defp apply_unified_sort(query, "sent", "desc"),
     do: order_by(query, [c], desc_nulls_last: c.outreach_sent_at)
-
-  defp apply_unified_sort(query, "status", "asc"),
-    do: order_by(query, [c], asc_nulls_last: c.outreach_status)
-
-  defp apply_unified_sort(query, "status", "desc"),
-    do: order_by(query, [c], desc_nulls_last: c.outreach_status)
 
   # Enrichment columns
   defp apply_unified_sort(query, "enriched", "asc"),

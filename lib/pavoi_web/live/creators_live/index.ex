@@ -75,7 +75,7 @@ defmodule PavoiWeb.CreatorsLive.Index do
       |> assign(:outreach_status, nil)
       |> assign(:selected_ids, MapSet.new())
       |> assign(:show_status_filter, false)
-      |> assign(:pending_selected_count, 0)
+      |> assign(:sendable_selected_count, 0)
       |> assign(:outreach_stats, %{pending: 0, sent: 0, skipped: 0})
       |> assign(:sent_today, 0)
       |> assign(:outreach_email_override, Keyword.get(features, :outreach_email_override))
@@ -325,7 +325,7 @@ defmodule PavoiWeb.CreatorsLive.Index do
     socket =
       socket
       |> assign(:selected_ids, selected)
-      |> compute_pending_selected_count()
+      |> compute_sendable_selected_count()
 
     {:noreply, socket}
   end
@@ -337,7 +337,7 @@ defmodule PavoiWeb.CreatorsLive.Index do
     socket =
       socket
       |> assign(:selected_ids, all_ids)
-      |> compute_pending_selected_count()
+      |> compute_sendable_selected_count()
 
     {:noreply, socket}
   end
@@ -347,7 +347,7 @@ defmodule PavoiWeb.CreatorsLive.Index do
     socket =
       socket
       |> assign(:selected_ids, MapSet.new())
-      |> assign(:pending_selected_count, 0)
+      |> assign(:sendable_selected_count, 0)
 
     {:noreply, socket}
   end
@@ -394,39 +394,11 @@ defmodule PavoiWeb.CreatorsLive.Index do
   @impl true
   def handle_event("send_outreach", _params, socket) do
     with {:ok, template_id} <- validate_template_selected(socket),
-         {:ok, pending_ids} <- get_pending_creator_ids(socket) do
-      {:ok, count} = CreatorOutreachWorker.enqueue_batch(pending_ids, template_id)
+         {:ok, sendable_ids} <- get_sendable_creator_ids(socket) do
+      {:ok, count} = CreatorOutreachWorker.enqueue_batch(sendable_ids, template_id)
       {:noreply, handle_outreach_success(socket, count)}
     else
       {:error, message} -> {:noreply, put_flash(socket, :error, message)}
-    end
-  end
-
-  @impl true
-  def handle_event("skip_selected", _params, socket) do
-    selected_ids = socket.assigns.selected_ids
-    creators = socket.assigns.creators
-
-    # Filter to only pending creators
-    pending_ids =
-      creators
-      |> Enum.filter(&(MapSet.member?(selected_ids, &1.id) && &1.outreach_status == "pending"))
-      |> Enum.map(& &1.id)
-
-    if pending_ids != [] do
-      count = Outreach.mark_creators_skipped(pending_ids)
-
-      socket =
-        socket
-        |> assign(:selected_ids, MapSet.new())
-        |> assign(:page, 1)
-        |> put_flash(:info, "Skipped #{count} creators")
-        |> load_creators()
-        |> load_outreach_stats()
-
-      {:noreply, socket}
-    else
-      {:noreply, put_flash(socket, :error, "No pending creators selected")}
     end
   end
 
@@ -896,16 +868,19 @@ defmodule PavoiWeb.CreatorsLive.Index do
     end
   end
 
-  defp get_pending_creator_ids(socket) do
-    pending_ids =
+  defp get_sendable_creator_ids(socket) do
+    sendable_ids =
       socket.assigns.creators
-      |> Enum.filter(
-        &(MapSet.member?(socket.assigns.selected_ids, &1.id) && &1.outreach_status == "pending")
-      )
+      |> Enum.filter(fn creator ->
+        MapSet.member?(socket.assigns.selected_ids, creator.id) and
+          creator.email != nil and
+          creator.email != "" and
+          not creator.email_opted_out
+      end)
       |> Enum.map(& &1.id)
 
-    case pending_ids do
-      [] -> {:error, "No pending creators selected"}
+    case sendable_ids do
+      [] -> {:error, "No eligible creators selected (all may have opted out or lack email)"}
       ids -> {:ok, ids}
     end
   end
@@ -928,9 +903,9 @@ defmodule PavoiWeb.CreatorsLive.Index do
       socket
       |> assign(:show_send_modal, false)
       |> assign(:selected_ids, MapSet.new())
-      |> assign(:pending_selected_count, 0)
+      |> assign(:sendable_selected_count, 0)
       |> put_flash(:info, "Queued #{count} emails for sending")
-      |> push_patch(to: ~p"/creators?status=sent")
+      |> push_patch(to: ~p"/creators?status=contacted")
     end
   end
 
@@ -1147,10 +1122,10 @@ defmodule PavoiWeb.CreatorsLive.Index do
     old_page_tab = socket.assigns.page_tab
 
     # Preserve selection when only switching tabs (not changing filters/search/page)
-    {selected_ids, pending_count} =
+    {selected_ids, sendable_count} =
       if new_page_tab != old_page_tab do
         # Switching tabs - preserve selection
-        {socket.assigns.selected_ids, socket.assigns.pending_selected_count}
+        {socket.assigns.selected_ids, socket.assigns.sendable_selected_count}
       else
         # Normal navigation - clear selection
         {MapSet.new(), 0}
@@ -1164,7 +1139,7 @@ defmodule PavoiWeb.CreatorsLive.Index do
     |> assign(:page, parse_page(params["page"]))
     |> assign(:outreach_status, parse_outreach_status(params["status"]))
     |> assign(:selected_ids, selected_ids)
-    |> assign(:pending_selected_count, pending_count)
+    |> assign(:sendable_selected_count, sendable_count)
     |> assign(:filter_tag_ids, parse_tag_ids(params["tags"]))
     |> assign(:delta_period, delta_period)
     |> assign(:time_preset, derive_time_preset_from_delta(delta_period))
@@ -1198,7 +1173,11 @@ defmodule PavoiWeb.CreatorsLive.Index do
   defp parse_outreach_status(nil), do: nil
   defp parse_outreach_status(""), do: nil
   defp parse_outreach_status("all"), do: nil
-  defp parse_outreach_status(status) when status in ["pending", "sent", "skipped"], do: status
+
+  defp parse_outreach_status(status)
+       when status in ["never_contacted", "contacted", "opted_out"],
+       do: status
+
   defp parse_outreach_status(_), do: nil
 
   defp parse_tag_ids(nil), do: []
@@ -1383,9 +1362,9 @@ defmodule PavoiWeb.CreatorsLive.Index do
   # Note: nil is now the default for status (show all), so specific statuses are kept in URL
   defp default_value?(_), do: false
 
-  # Computes how many selected creators have "pending" outreach status
-  # Used to show/hide Skip and Send Email bulk actions (shown when count > 0)
-  defp compute_pending_selected_count(socket) do
+  # Computes how many selected creators can be sent emails
+  # A creator is sendable if they have an email and haven't opted out
+  defp compute_sendable_selected_count(socket) do
     selected_ids = socket.assigns.selected_ids
     creators = socket.assigns.creators
 
@@ -1394,10 +1373,15 @@ defmodule PavoiWeb.CreatorsLive.Index do
         0
       else
         selected_creators = Enum.filter(creators, &MapSet.member?(selected_ids, &1.id))
-        Enum.count(selected_creators, &(&1.outreach_status == "pending"))
+
+        Enum.count(selected_creators, fn creator ->
+          creator.email != nil and
+            creator.email != "" and
+            not creator.email_opted_out
+        end)
       end
 
-    assign(socket, :pending_selected_count, count)
+    assign(socket, :sendable_selected_count, count)
   end
 
   defp maybe_load_selected_creator(socket, params) do

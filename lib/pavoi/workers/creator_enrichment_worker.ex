@@ -532,8 +532,7 @@ defmodule Pavoi.Workers.CreatorEnrichmentWorker do
     attrs =
       %{
         tiktok_user_id: user_id,
-        country: find_district_value(district_info, "Country") || "US",
-        outreach_status: "pending"
+        country: find_district_value(district_info, "Country") || "US"
       }
       |> maybe_put(:phone, phone, &(!phone_is_masked?(&1)))
       |> maybe_put(:phone_verified, true, fn _ -> !phone_is_masked?(phone) end)

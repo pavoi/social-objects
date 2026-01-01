@@ -46,6 +46,7 @@ defmodule PavoiWeb.SendgridWebhookController do
     event_type = Map.get(event, "event")
     sg_message_id = extract_message_id(event)
     timestamp = parse_timestamp(Map.get(event, "timestamp"))
+    email = Map.get(event, "email")
 
     # Find the matching outreach log by SendGrid message ID
     outreach_log = Outreach.find_outreach_log_by_provider_id(sg_message_id)
@@ -54,7 +55,7 @@ defmodule PavoiWeb.SendgridWebhookController do
     attrs = %{
       outreach_log_id: if(outreach_log, do: outreach_log.id),
       event_type: event_type,
-      email: Map.get(event, "email"),
+      email: email,
       timestamp: timestamp,
       url: Map.get(event, "url"),
       reason: extract_reason(event),
@@ -66,6 +67,9 @@ defmodule PavoiWeb.SendgridWebhookController do
       {:ok, _event} ->
         # Update outreach log engagement timestamps and status
         update_outreach_log_engagement(outreach_log, event_type, timestamp)
+
+        # Auto opt-out creators on negative events
+        maybe_opt_out_creator(event_type, email, event)
 
       {:error, changeset} ->
         Logger.warning("[SendGrid Webhook] Failed to create event: #{inspect(changeset.errors)}")
@@ -156,4 +160,70 @@ defmodule PavoiWeb.SendgridWebhookController do
   end
 
   defp engagement_updates(_event_type, _timestamp, _log), do: %{}
+
+  # Auto opt-out creators on unsubscribe, spam report, or hard bounce
+  defp maybe_opt_out_creator("unsubscribe", email, _event) do
+    case Outreach.mark_email_opted_out_by_email(email, "unsubscribe") do
+      {:ok, nil} ->
+        :ok
+
+      {:ok, creator} ->
+        Logger.info("[SendGrid Webhook] Opted out creator #{creator.id} (unsubscribe)")
+
+      {:error, _} ->
+        :ok
+    end
+  end
+
+  defp maybe_opt_out_creator("group_unsubscribe", email, _event) do
+    case Outreach.mark_email_opted_out_by_email(email, "unsubscribe") do
+      {:ok, nil} ->
+        :ok
+
+      {:ok, creator} ->
+        Logger.info("[SendGrid Webhook] Opted out creator #{creator.id} (group unsubscribe)")
+
+      {:error, _} ->
+        :ok
+    end
+  end
+
+  defp maybe_opt_out_creator("spamreport", email, _event) do
+    case Outreach.mark_email_opted_out_by_email(email, "spam_report") do
+      {:ok, nil} ->
+        :ok
+
+      {:ok, creator} ->
+        Logger.info("[SendGrid Webhook] Opted out creator #{creator.id} (spam report)")
+
+      {:error, _} ->
+        :ok
+    end
+  end
+
+  defp maybe_opt_out_creator("bounce", email, event) do
+    # Only opt-out on hard bounces (permanent delivery failures)
+    # SendGrid bounce types: 1=soft, 2=unknown, 5=hard
+    # Also check bounce_classification for "Invalid Addresses" which indicates hard bounce
+    is_hard_bounce =
+      Map.get(event, "type") == "5" or
+        Map.get(event, "bounce_classification") == "Invalid Addresses"
+
+    if is_hard_bounce do
+      case Outreach.mark_email_opted_out_by_email(email, "hard_bounce") do
+        {:ok, nil} ->
+          :ok
+
+        {:ok, creator} ->
+          Logger.info("[SendGrid Webhook] Opted out creator #{creator.id} (hard bounce)")
+
+        {:error, _} ->
+          :ok
+      end
+    else
+      :ok
+    end
+  end
+
+  defp maybe_opt_out_creator(_event_type, _email, _event), do: :ok
 end

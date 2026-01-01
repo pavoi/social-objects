@@ -1080,7 +1080,7 @@ defmodule PavoiWeb.TiktokLive.Index do
     format_stream_report_job_error(state, message)
   end
 
-  defp stream_report_job_error(%Oban.Job{attempt: attempt} = job) when attempt > 0 do
+  defp stream_report_job_error(%Oban.Job{attempt: attempt} = job) when attempt > 1 do
     message = stream_report_job_error_message(job)
 
     case job.state do

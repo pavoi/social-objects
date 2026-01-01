@@ -262,13 +262,6 @@ defmodule PavoiWeb.CreatorComponents do
   end
 
   @doc """
-  Capitalizes the status text for display.
-  """
-  def display_status(nil), do: "Pending"
-  def display_status(""), do: "Pending"
-  def display_status(status), do: String.capitalize(status)
-
-  @doc """
   Renders the engagement status badge for a creator.
   Shows detailed email engagement status when available.
   """
@@ -292,25 +285,23 @@ defmodule PavoiWeb.CreatorComponents do
 
   defp get_engagement_status(creator) do
     cond do
+      # Opted out creators (unsubscribed, spam, or hard bounced)
+      Map.get(creator, :email_opted_out, false) ->
+        reason = Map.get(creator, :email_opted_out_reason)
+
+        case reason do
+          "spam_report" -> {"Spam", :spam}
+          "hard_bounce" -> {"Bounced", :bounced}
+          _ -> {"Opted Out", :unsubscribed}
+        end
+
       # If they have an email outreach log, use its engagement status
       Map.get(creator, :email_outreach_log) ->
         OutreachLog.engagement_status(creator.email_outreach_log)
 
-      # Skipped creators
-      creator.outreach_status == "skipped" ->
-        {"Skipped", :skipped}
-
-      # Unsubscribed creators
-      creator.outreach_status == "unsubscribed" ->
-        {"Unsubscribed", :unsubscribed}
-
-      # Pending or nil (not yet sent)
-      creator.outreach_status in [nil, "", "pending", "approved"] ->
-        {"Pending", :pending}
-
-      # Fallback for any other status
+      # Never contacted (no email outreach log)
       true ->
-        {display_status(creator.outreach_status), :sent}
+        {"Not Sent", :pending}
     end
   end
 

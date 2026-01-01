@@ -13,171 +13,88 @@ defmodule Pavoi.Outreach do
   alias Pavoi.Outreach.EmailEvent
   alias Pavoi.Outreach.OutreachLog
 
-  ## Pending Creators
-
-  @doc """
-  Lists creators with pending outreach status, paginated.
-
-  ## Options
-    - page: Current page number (default: 1)
-    - per_page: Items per page (default: 50)
-    - search_query: Search by username, email, first/last name
-
-  ## Returns
-    A map with creators, total, page, per_page, has_more
-  """
-  def list_pending_creators(opts \\ []) do
-    list_creators_by_status("pending", opts)
-  end
-
-  @doc """
-  Lists creators by outreach status, paginated.
-
-  ## Options
-    - page: Current page number (default: 1)
-    - per_page: Items per page (default: 50)
-    - search_query: Search by username, email, first/last name
-    - sort_by: Column to sort by (username, name, email, phone, sms_consent, added, sent)
-    - sort_dir: Sort direction (asc, desc)
-  """
-  def list_creators_by_status(status, opts \\ []) do
-    page = Keyword.get(opts, :page, 1)
-    per_page = Keyword.get(opts, :per_page, 50)
-    search_query = Keyword.get(opts, :search_query, "")
-    sort_by = Keyword.get(opts, :sort_by)
-    sort_dir = Keyword.get(opts, :sort_dir, "desc")
-
-    base_query =
-      from(c in Creator, where: c.outreach_status == ^status)
-      |> apply_search_filter(search_query)
-
-    total = Repo.aggregate(base_query, :count)
-
-    creators =
-      base_query
-      |> apply_outreach_sort(sort_by, sort_dir)
-      |> limit(^per_page)
-      |> offset(^((page - 1) * per_page))
-      |> Repo.all()
-
-    %{
-      creators: creators,
-      total: total,
-      page: page,
-      per_page: per_page,
-      has_more: total > page * per_page
-    }
-  end
-
-  defp apply_outreach_sort(query, "username", "asc"),
-    do: order_by(query, [c], asc_nulls_last: c.tiktok_username)
-
-  defp apply_outreach_sort(query, "username", "desc"),
-    do: order_by(query, [c], desc_nulls_last: c.tiktok_username)
-
-  defp apply_outreach_sort(query, "name", "asc"),
-    do: order_by(query, [c], asc_nulls_last: c.first_name, asc_nulls_last: c.last_name)
-
-  defp apply_outreach_sort(query, "name", "desc"),
-    do: order_by(query, [c], desc_nulls_last: c.first_name, desc_nulls_last: c.last_name)
-
-  defp apply_outreach_sort(query, "email", "asc"),
-    do: order_by(query, [c], asc_nulls_last: c.email)
-
-  defp apply_outreach_sort(query, "email", "desc"),
-    do: order_by(query, [c], desc_nulls_last: c.email)
-
-  defp apply_outreach_sort(query, "phone", "asc"),
-    do: order_by(query, [c], asc_nulls_last: c.phone)
-
-  defp apply_outreach_sort(query, "phone", "desc"),
-    do: order_by(query, [c], desc_nulls_last: c.phone)
-
-  defp apply_outreach_sort(query, "sms_consent", "asc"),
-    do: order_by(query, [c], asc_nulls_last: c.sms_consent)
-
-  defp apply_outreach_sort(query, "sms_consent", "desc"),
-    do: order_by(query, [c], desc_nulls_last: c.sms_consent)
-
-  defp apply_outreach_sort(query, "added", "asc"),
-    do: order_by(query, [c], asc: c.inserted_at)
-
-  defp apply_outreach_sort(query, "added", "desc"),
-    do: order_by(query, [c], desc: c.inserted_at)
-
-  defp apply_outreach_sort(query, "sent", "asc"),
-    do: order_by(query, [c], asc_nulls_last: c.outreach_sent_at)
-
-  defp apply_outreach_sort(query, "sent", "desc"),
-    do: order_by(query, [c], desc_nulls_last: c.outreach_sent_at)
-
-  # Default: sort by inserted_at descending (most recent first)
-  defp apply_outreach_sort(query, _, _),
-    do: order_by(query, [c], desc: c.inserted_at)
-
-  defp apply_search_filter(query, ""), do: query
-
-  defp apply_search_filter(query, search_query) do
-    pattern = "%#{search_query}%"
-
-    where(
-      query,
-      [c],
-      ilike(c.tiktok_username, ^pattern) or
-        ilike(c.email, ^pattern) or
-        ilike(c.first_name, ^pattern) or
-        ilike(c.last_name, ^pattern)
-    )
-  end
-
   ## Status Management
 
   @doc """
-  Marks creators as approved for outreach.
-  Returns the count of updated records.
-  """
-  def mark_creators_approved(creator_ids) when is_list(creator_ids) do
-    from(c in Creator,
-      where: c.id in ^creator_ids,
-      where: c.outreach_status == "pending"
-    )
-    |> Repo.update_all(set: [outreach_status: "approved"])
-    |> elem(0)
-  end
-
-  @doc """
-  Marks creators as skipped (will not receive outreach).
-  Returns the count of updated records.
-  """
-  def mark_creators_skipped(creator_ids) when is_list(creator_ids) do
-    from(c in Creator,
-      where: c.id in ^creator_ids,
-      where: c.outreach_status in ["pending", "approved"]
-    )
-    |> Repo.update_all(set: [outreach_status: "skipped"])
-    |> elem(0)
-  end
-
-  @doc """
   Marks a single creator as sent after outreach is delivered.
+  Updates outreach_sent_at timestamp.
   """
   def mark_creator_sent(%Creator{} = creator) do
     creator
     |> Creator.changeset(%{
-      outreach_status: "sent",
       outreach_sent_at: DateTime.utc_now() |> DateTime.truncate(:second)
     })
     |> Repo.update()
   end
 
+  ## Email Opt-Out Management
+
   @doc """
-  Marks a creator as unsubscribed from outreach emails.
+  Marks a creator as opted out of email communications.
+
+  This is called automatically by SendGrid webhooks when:
+  - Creator unsubscribes
+  - Creator reports spam
+  - Email hard bounces
+
+  ## Reasons
+    - "unsubscribe" - Creator clicked unsubscribe link
+    - "spam_report" - Creator marked email as spam
+    - "hard_bounce" - Email permanently undeliverable
+
+  Returns {:ok, creator} or {:error, changeset}.
   """
-  def mark_creator_unsubscribed(%Creator{} = creator) do
-    creator
-    |> Creator.changeset(%{outreach_status: "unsubscribed"})
-    |> Repo.update()
+  def mark_email_opted_out(%Creator{} = creator, reason)
+      when reason in ~w(unsubscribe spam_report hard_bounce) do
+    # Only update if not already opted out
+    if creator.email_opted_out do
+      {:ok, creator}
+    else
+      creator
+      |> Creator.changeset(%{
+        email_opted_out: true,
+        email_opted_out_at: DateTime.utc_now() |> DateTime.truncate(:second),
+        email_opted_out_reason: reason
+      })
+      |> Repo.update()
+    end
   end
+
+  @doc """
+  Marks a creator as opted out by email address.
+  Used by webhooks that only have the email, not the creator struct.
+
+  Returns {:ok, creator}, {:ok, nil} if no creator found, or {:error, changeset}.
+  """
+  def mark_email_opted_out_by_email(email, reason) when is_binary(email) do
+    case find_creator_by_email(email) do
+      nil -> {:ok, nil}
+      creator -> mark_email_opted_out(creator, reason)
+    end
+  end
+
+  @doc """
+  Finds a creator by email address.
+  Returns nil if not found.
+  """
+  def find_creator_by_email(nil), do: nil
+
+  def find_creator_by_email(email) when is_binary(email) do
+    from(c in Creator,
+      where: fragment("LOWER(?)", c.email) == ^String.downcase(email),
+      limit: 1
+    )
+    |> Repo.one()
+  end
+
+  @doc """
+  Checks if a creator can receive email communications.
+  Returns false if the creator has opted out.
+  """
+  def can_contact_email?(%Creator{email_opted_out: true}), do: false
+  def can_contact_email?(%Creator{email: nil}), do: false
+  def can_contact_email?(%Creator{email: ""}), do: false
+  def can_contact_email?(%Creator{}), do: true
 
   @doc """
   Generates a signed token for unsubscribe links.
@@ -323,35 +240,80 @@ defmodule Pavoi.Outreach do
   ## Statistics
 
   @doc """
-  Gets outreach statistics (counts by status).
+  Gets outreach statistics based on contact status model.
 
   Returns a map like:
-    %{pending: 10, approved: 5, sent: 100, skipped: 3, total: 118}
+    %{never_contacted: 50, contacted: 100, opted_out: 5, total: 155}
   """
   def get_outreach_stats do
-    # Count by status
-    status_counts =
-      from(c in Creator,
-        where: not is_nil(c.outreach_status),
-        group_by: c.outreach_status,
-        select: {c.outreach_status, count(c.id)}
-      )
-      |> Repo.all()
-      |> Map.new()
-
-    # Also count creators with no outreach status (existing before automation)
-    no_status_count =
-      from(c in Creator, where: is_nil(c.outreach_status))
+    # Count opted out creators
+    opted_out_count =
+      from(c in Creator, where: c.email_opted_out == true)
       |> Repo.aggregate(:count)
 
+    # Count creators who have been contacted (have email outreach logs)
+    contacted_count =
+      from(c in Creator,
+        join: ol in OutreachLog,
+        on: ol.creator_id == c.id,
+        where: ol.channel == "email",
+        where: c.email_opted_out == false,
+        select: c.id
+      )
+      |> Repo.all()
+      |> Enum.uniq()
+      |> length()
+
+    # Total creators
+    total_count = Repo.aggregate(Creator, :count)
+
+    # Never contacted = total - contacted - opted_out
+    never_contacted = total_count - contacted_count - opted_out_count
+
     %{
-      pending: Map.get(status_counts, "pending", 0),
-      approved: Map.get(status_counts, "approved", 0),
-      sent: Map.get(status_counts, "sent", 0),
-      skipped: Map.get(status_counts, "skipped", 0),
-      no_status: no_status_count,
-      total: Enum.sum(Map.values(status_counts)) + no_status_count
+      never_contacted: never_contacted,
+      contacted: contacted_count,
+      opted_out: opted_out_count,
+      total: total_count
     }
+  end
+
+  @doc """
+  Gets engagement statistics for filtering.
+
+  Returns counts by engagement level:
+    %{delivered: 80, opened: 45, clicked: 12, bounced: 3}
+  """
+  def get_engagement_counts do
+    # Get the latest outreach log per creator and count by engagement level
+    # This uses a subquery to get the max log ID per creator
+    latest_logs_query =
+      from(ol in OutreachLog,
+        where: ol.channel == "email",
+        group_by: ol.creator_id,
+        select: %{creator_id: ol.creator_id, max_id: max(ol.id)}
+      )
+
+    latest_logs =
+      from(ol in OutreachLog,
+        join: latest in subquery(latest_logs_query),
+        on: ol.id == latest.max_id
+      )
+      |> Repo.all()
+
+    # Count by engagement level
+    counts =
+      Enum.reduce(latest_logs, %{delivered: 0, opened: 0, clicked: 0, bounced: 0}, fn log, acc ->
+        cond do
+          log.clicked_at != nil -> Map.update!(acc, :clicked, &(&1 + 1))
+          log.opened_at != nil -> Map.update!(acc, :opened, &(&1 + 1))
+          log.bounced_at != nil -> Map.update!(acc, :bounced, &(&1 + 1))
+          log.delivered_at != nil -> Map.update!(acc, :delivered, &(&1 + 1))
+          true -> acc
+        end
+      end)
+
+    counts
   end
 
   @doc """
@@ -382,20 +344,6 @@ defmodule Pavoi.Outreach do
     )
     |> Repo.all()
     |> Map.new()
-  end
-
-  ## Bulk Operations
-
-  @doc """
-  Gets all approved creators that haven't been sent yet.
-  Used by the outreach worker.
-  """
-  def list_approved_creators do
-    from(c in Creator,
-      where: c.outreach_status == "approved",
-      order_by: [asc: c.inserted_at]
-    )
-    |> Repo.all()
   end
 
   @doc """

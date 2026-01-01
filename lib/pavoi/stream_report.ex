@@ -46,14 +46,16 @@ defmodule Pavoi.StreamReport do
     # Detect flash sale comments
     flash_sales = detect_flash_sale_comments(stream_id)
 
-    # Get comments for AI analysis (excluding flash sales)
-    comments = get_comments_for_analysis(stream_id, flash_sales)
-
-    # Generate AI sentiment analysis
-    sentiment = generate_sentiment_analysis(comments)
+    # Use cached sentiment analysis or generate new one
+    sentiment = get_or_generate_sentiment(stream, flash_sales)
 
     # Fetch GMV data for the stream time window
     gmv_data = get_gmv_data(stream)
+
+    # Get sentiment & category breakdowns for classified comments
+    sentiment_breakdown = TiktokLive.get_aggregate_sentiment_breakdown(stream_id: stream_id)
+    category_breakdown = TiktokLive.get_category_breakdown(stream_id)
+    unique_commenters = count_unique_commenters(stream_id)
 
     {:ok,
      %{
@@ -62,7 +64,10 @@ defmodule Pavoi.StreamReport do
        top_products: products,
        flash_sales: flash_sales,
        sentiment_analysis: sentiment,
-       gmv_data: gmv_data
+       gmv_data: gmv_data,
+       sentiment_breakdown: sentiment_breakdown,
+       category_breakdown: category_breakdown,
+       unique_commenters: unique_commenters
      }}
   end
 
@@ -205,6 +210,32 @@ defmodule Pavoi.StreamReport do
     first ++ middle ++ last
   end
 
+  # Use cached sentiment analysis if available, otherwise generate and cache it
+  defp get_or_generate_sentiment(%{sentiment_analysis: cached} = _stream, _flash_sales)
+       when is_binary(cached) and cached != "" do
+    Logger.info("Using cached sentiment analysis")
+    cached
+  end
+
+  defp get_or_generate_sentiment(stream, flash_sales) do
+    comments = get_comments_for_analysis(stream.id, flash_sales)
+    sentiment = generate_sentiment_analysis(comments)
+
+    # Cache the sentiment analysis on the stream
+    if sentiment do
+      save_sentiment_analysis(stream.id, sentiment)
+    end
+
+    sentiment
+  end
+
+  defp save_sentiment_analysis(stream_id, sentiment) do
+    alias Pavoi.TiktokLive.Stream
+
+    from(s in Stream, where: s.id == ^stream_id)
+    |> Repo.update_all(set: [sentiment_analysis: sentiment])
+  end
+
   defp generate_sentiment_analysis([]) do
     Logger.warning("Sentiment analysis skipped: no comments to analyze")
     nil
@@ -261,7 +292,7 @@ defmodule Pavoi.StreamReport do
         header_block(report_data.stream),
         cover_image_block(report_data.stream),
         divider_block(),
-        stats_block(report_data.stats),
+        stats_block(report_data.stats, report_data.unique_commenters),
         divider_block()
       ])
 
@@ -287,6 +318,23 @@ defmodule Pavoi.StreamReport do
         blocks
       end
 
+    # Add sentiment stats if available (includes unique commenters)
+    blocks =
+      if report_data.sentiment_breakdown do
+        blocks ++ [sentiment_stats_block(report_data), divider_block()]
+      else
+        blocks
+      end
+
+    # Add category breakdown if available
+    blocks =
+      if Enum.any?(report_data.category_breakdown || []) do
+        blocks ++ [category_breakdown_block(report_data.category_breakdown), divider_block()]
+      else
+        blocks
+      end
+
+    # Add AI insights last
     blocks =
       if report_data.sentiment_analysis do
         blocks ++ [sentiment_block(report_data.sentiment_analysis)]
@@ -300,6 +348,7 @@ defmodule Pavoi.StreamReport do
   defp header_block(stream) do
     ended_at = format_ended_at(stream.ended_at)
     detail_url = "https://app.pavoi.com/streams?s=#{stream.id}"
+    analytics_url = "https://app.pavoi.com/streams?as=#{stream.id}&pt=analytics"
 
     [
       %{
@@ -309,7 +358,11 @@ defmodule Pavoi.StreamReport do
       %{
         type: "context",
         elements: [
-          %{type: "mrkdwn", text: "Ended #{ended_at}  •  <#{detail_url}|View Details>"}
+          %{
+            type: "mrkdwn",
+            text:
+              "Ended #{ended_at}  •  <#{detail_url}|View Details>  •  <#{analytics_url}|Analytics>"
+          }
         ]
       }
     ]
@@ -357,11 +410,11 @@ defmodule Pavoi.StreamReport do
 
   defp divider_block, do: %{type: "divider"}
 
-  defp stats_block(stats) do
+  defp stats_block(stats, unique_commenters) do
     # Compact two-column layout with emoji anchors
     text =
       ":clock1: *#{stats.duration_formatted}* duration    :eyes: *#{format_number(stats.peak_viewers)}* peak viewers    :speech_balloon: *#{format_number(stats.total_comments)}* comments\n" <>
-        ":heart: *#{format_number(stats.total_likes)}* likes    :gem: *#{format_number(stats.total_gifts_value)}* diamonds"
+        ":heart: *#{format_number(stats.total_likes)}* likes    :gem: *#{format_number(stats.total_gifts_value)}* diamonds    :busts_in_silhouette: *#{format_number(unique_commenters || 0)}* unique commenters"
 
     %{type: "section", text: %{type: "mrkdwn", text: text}}
   end
@@ -471,6 +524,62 @@ defmodule Pavoi.StreamReport do
     %{type: "section", text: %{type: "mrkdwn", text: ":bulb: *Insights*\n#{formatted}"}}
   end
 
+  defp sentiment_stats_block(report_data) do
+    breakdown = report_data.sentiment_breakdown
+
+    # Build combined emoji bar showing all sentiments proportionally
+    sentiment_bar =
+      build_combined_sentiment_bar(
+        breakdown.positive.percent,
+        breakdown.neutral.percent,
+        breakdown.negative.percent
+      )
+
+    text =
+      ":bar_chart: *Comment Sentiment*\n" <>
+        "#{breakdown.positive.percent}% Positive  |  #{breakdown.neutral.percent}% Neutral  |  #{breakdown.negative.percent}% Negative\n" <>
+        "#{sentiment_bar}"
+
+    %{type: "section", text: %{type: "mrkdwn", text: text}}
+  end
+
+  defp build_combined_sentiment_bar(pos_pct, _neu_pct, neg_pct) do
+    # Scale to 10 segments total
+    pos_count = round(pos_pct / 10)
+    neg_count = round(neg_pct / 10)
+    # Neutral fills the remainder to ensure exactly 10 segments
+    neu_count = 10 - pos_count - neg_count
+
+    String.duplicate("🟢", pos_count) <>
+      String.duplicate("⚪", neu_count) <>
+      String.duplicate("🔴", neg_count)
+  end
+
+  defp category_breakdown_block(categories) do
+    category_labels = %{
+      praise_compliment: "Praise",
+      question_confusion: "Questions",
+      product_request: "Product Requests",
+      concern_complaint: "Concerns",
+      technical_issue: "Tech Issues",
+      general: "General"
+    }
+
+    # Format each category with count and percentage
+    formatted =
+      categories
+      |> Enum.map(fn c ->
+        label = Map.get(category_labels, c.category, "Other")
+        "#{label} — *#{c.count}* (#{c.percent}%)"
+      end)
+      |> Enum.chunk_every(3)
+      |> Enum.map(&Enum.join(&1, "  |  "))
+      |> Enum.join("\n")
+
+    text = ":speech_balloon: *Comment Categories*\n#{formatted}"
+    %{type: "section", text: %{type: "mrkdwn", text: text}}
+  end
+
   defp format_number(nil), do: "0"
 
   defp format_number(n) when is_integer(n) do
@@ -491,5 +600,13 @@ defmodule Pavoi.StreamReport do
     else
       text
     end
+  end
+
+  defp count_unique_commenters(stream_id) do
+    from(c in Comment,
+      where: c.stream_id == ^stream_id,
+      select: count(c.tiktok_user_id, :distinct)
+    )
+    |> Repo.one()
   end
 end

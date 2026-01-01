@@ -40,9 +40,10 @@ defmodule Pavoi.Workers.StreamReportWorker do
 
         {:cancel, :stream_not_ended}
 
-      # Guard 2: Only send one report per stream
+      # Guard 2: Only send one report per stream (prod only)
       # (prevents duplicates if stream ends multiple times due to resume cycles)
-      stream.report_sent_at != nil ->
+      # In dev, allow re-sending for testing purposes
+      stream.report_sent_at != nil and Mix.env() != :dev ->
         Logger.info(
           "Skipping report for stream #{stream_id} - already sent at #{stream.report_sent_at}"
         )
@@ -57,13 +58,18 @@ defmodule Pavoi.Workers.StreamReportWorker do
   defp generate_and_send_report(stream_id) do
     # Claim FIRST to prevent multiple workers doing duplicate expensive work
     # (classification, sentiment analysis, GMV API calls)
-    case TiktokLive.mark_report_sent(stream_id) do
-      {:ok, :marked} ->
-        do_generate_and_send_report(stream_id)
+    # In dev, skip the claim to allow re-sending for testing
+    if Mix.env() == :dev do
+      do_generate_and_send_report(stream_id)
+    else
+      case TiktokLive.mark_report_sent(stream_id) do
+        {:ok, :marked} ->
+          do_generate_and_send_report(stream_id)
 
-      {:error, :already_sent} ->
-        Logger.info("Report for stream #{stream_id} claimed by another job")
-        {:cancel, :report_already_sent}
+        {:error, :already_sent} ->
+          Logger.info("Report for stream #{stream_id} claimed by another job")
+          {:cancel, :report_already_sent}
+      end
     end
   end
 

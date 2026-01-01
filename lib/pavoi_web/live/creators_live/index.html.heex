@@ -19,12 +19,9 @@
               <.button variant="primary" size="sm" phx-click="show_batch_tag_picker">
                 Add Tags
               </.button>
-              <%= if @pending_selected_count > 0 do %>
-                <.button variant="outline" size="sm" phx-click="skip_selected">
-                  Skip ({@pending_selected_count})
-                </.button>
+              <%= if @sendable_selected_count > 0 do %>
                 <.button variant="primary" size="sm" phx-click="show_send_modal">
-                  Send Email ({@pending_selected_count})
+                  Send Email ({@sendable_selected_count})
                 </.button>
               <% end %>
             </div>
@@ -59,21 +56,20 @@
             <span class="creators-count">{format_number(@total)} creators</span>
           </div>
 
-          <%!-- Status Filter --%>
+          <%!-- Contact Status Filter --%>
           <form phx-change="change_outreach_status">
             <select name="status" class="filter-select" value={@outreach_status || ""}>
               <option value="">
-                All Status ({@outreach_stats.pending + @outreach_stats.sent +
-                  @outreach_stats.skipped})
+                All Creators ({@outreach_stats.total})
               </option>
-              <option value="pending" selected={@outreach_status == "pending"}>
-                Pending ({@outreach_stats.pending})
+              <option value="never_contacted" selected={@outreach_status == "never_contacted"}>
+                Never Contacted ({@outreach_stats.never_contacted})
               </option>
-              <option value="sent" selected={@outreach_status == "sent"}>
-                Sent ({@outreach_stats.sent})
+              <option value="contacted" selected={@outreach_status == "contacted"}>
+                Contacted ({@outreach_stats.contacted})
               </option>
-              <option value="skipped" selected={@outreach_status == "skipped"}>
-                Skipped ({@outreach_stats.skipped})
+              <option value="opted_out" selected={@outreach_status == "opted_out"}>
+                Opted Out ({@outreach_stats.opted_out})
               </option>
             </select>
           </form>

@@ -28,6 +28,7 @@ defmodule Pavoi.TiktokLive.Stream do
     field :gmv_order_count, :integer
     field :gmv_hourly, :map
     field :report_sent_at, :utc_datetime
+    field :sentiment_analysis, :string
 
     belongs_to :session, Pavoi.Sessions.Session
 
@@ -60,7 +61,8 @@ defmodule Pavoi.TiktokLive.Stream do
       :gmv_cents,
       :gmv_order_count,
       :gmv_hourly,
-      :session_id
+      :session_id,
+      :sentiment_analysis
     ])
     |> validate_required([:room_id, :unique_id, :started_at])
     |> foreign_key_constraint(:session_id)

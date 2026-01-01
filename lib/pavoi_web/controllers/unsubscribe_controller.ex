@@ -11,7 +11,7 @@ defmodule PavoiWeb.UnsubscribeController do
   def unsubscribe(conn, %{"token" => token}) do
     with {:ok, creator_id} <- Outreach.verify_unsubscribe_token(token),
          %{} = creator <- Repo.get(Pavoi.Creators.Creator, creator_id),
-         {:ok, _} <- Outreach.mark_creator_unsubscribed(creator) do
+         {:ok, _} <- Outreach.mark_email_opted_out(creator, "unsubscribe") do
       render_success(conn, creator.email)
     else
       {:error, :expired} -> render_error(conn, "This unsubscribe link has expired.")
