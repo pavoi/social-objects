@@ -1,0 +1,12 @@
+<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Bottom left - dark blue -->
+  <rect x="2" y="14" width="8" height="8" fill="#1A82E2"/>
+  <!-- Top right corner - dark blue -->
+  <rect x="14" y="2" width="8" height="8" fill="#1A82E2"/>
+  <!-- Top left - light blue -->
+  <rect x="2" y="2" width="8" height="8" fill="#9DE1F3"/>
+  <!-- Bottom right - light blue -->
+  <rect x="14" y="14" width="8" height="8" fill="#9DE1F3"/>
+  <!-- Center - medium blue -->
+  <rect x="8" y="8" width="8" height="8" fill="#27B4E1"/>
+</svg>

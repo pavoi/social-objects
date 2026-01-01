@@ -47,6 +47,10 @@ Temporary Items
 !/priv/static/images/logo-dark.svg
 !/priv/static/images/favicon-16x16.png
 !/priv/static/images/favicon-32x32.png
+!/priv/static/images/integrations/
+# Ignore digested/gzipped versions - only track source SVGs
+/priv/static/images/integrations/*-????????????????????????????????.svg
+/priv/static/images/integrations/*.gz
 /priv/plts/
 erl_crash.dump
 *.beam
