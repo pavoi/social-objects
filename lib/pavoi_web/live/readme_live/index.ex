@@ -313,7 +313,11 @@ defmodule PavoiWeb.ReadmeLive.Index do
     ~H"""
     <div class="readme-card readme-card--integration">
       <div class="readme-card__integration-header">
-        <img src={~p"/images/integrations/#{@logo}"} alt={@title} class="readme-card__logo" />
+        <img
+          src={PavoiWeb.Endpoint.static_path("/images/integrations/#{@logo}")}
+          alt={@title}
+          class="readme-card__logo"
+        />
         <h3 class="readme-card__title">{@title}</h3>
       </div>
       <ul class="readme-card__features">

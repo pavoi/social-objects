@@ -17,7 +17,7 @@ defmodule PavoiWeb do
   those modules here.
   """
 
-  def static_paths, do: ~w(assets fonts images uploads favicon.ico robots.txt cache_manifest.json)
+  def static_paths, do: ~w(assets fonts images uploads favicon robots.txt cache_manifest.json)
 
   def router do
     quote do
