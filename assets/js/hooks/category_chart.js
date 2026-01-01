@@ -2,6 +2,8 @@
  * CategoryChart Hook
  * Renders a Chart.js horizontal bar chart for category breakdown.
  *
+ * Chart.js is lazy-loaded when this hook mounts to reduce main bundle size.
+ *
  * Usage in HEEx:
  *   <canvas
  *     id="category-chart"
@@ -16,10 +18,20 @@
  *     colors: ["rgb(34, 197, 94)", ...]
  *   }
  */
-import Chart from 'chart.js/auto'
+
+// Lazy-loaded Chart.js (shared across chart hooks via module cache)
+let Chart = null
+
+async function loadChartJS() {
+  if (Chart) return Chart
+  const module = await import('chart.js/auto')
+  Chart = module.default
+  return Chart
+}
 
 export default {
-  mounted() {
+  async mounted() {
+    await loadChartJS()
     this.currentData = this.el.dataset.chartData
     this.renderChart()
   },

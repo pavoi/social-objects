@@ -96,15 +96,26 @@
  * @see VOICE_CONTROL_PLAN.md - Complete implementation documentation
  */
 
-import { MicVAD } from "@ricky0123/vad-web";
+// Lazy-loaded VAD library (reduces main bundle by ~50-100KB)
+let MicVAD = null
+
+async function loadVAD() {
+  if (MicVAD) return MicVAD
+  const module = await import('@ricky0123/vad-web')
+  MicVAD = module.MicVAD
+  return MicVAD
+}
 
 /**
  * Phoenix LiveView hook for voice-activated product navigation
  * @type {Object}
  */
 export default {
-  mounted() {
+  async mounted() {
     console.log('[VoiceControl] Hook mounted');
+
+    // Lazy load VAD library
+    await loadVAD()
 
     // State
     this.isActive = false;

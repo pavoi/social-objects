@@ -3,10 +3,35 @@
  *
  * Provides a visual block-based email template editor using GrapesJS
  * with the newsletter preset optimized for email HTML output.
+ *
+ * GrapesJS is lazy-loaded when this hook mounts to reduce main bundle size.
  */
-import grapesjs from 'grapesjs'
-import 'grapesjs/dist/css/grapes.min.css'
-import newsletterPlugin from 'grapesjs-preset-newsletter'
+
+// Lazy-loaded modules (cached after first load)
+let grapesjs = null
+let newsletterPlugin = null
+let cssLoaded = false
+
+/**
+ * Load GrapesJS and its dependencies on demand
+ */
+async function loadGrapesJS() {
+  if (grapesjs && newsletterPlugin) return
+
+  const [grapes, newsletter] = await Promise.all([
+    import('grapesjs'),
+    import('grapesjs-preset-newsletter')
+  ])
+
+  grapesjs = grapes.default
+  newsletterPlugin = newsletter.default
+
+  // Inject CSS if not already loaded
+  if (!cssLoaded) {
+    await import('grapesjs/dist/css/grapes.min.css')
+    cssLoaded = true
+  }
+}
 
 /**
  * Extract body content from a full HTML document.
@@ -58,7 +83,10 @@ function debounce(fn, delay) {
 }
 
 export default {
-  mounted() {
+  async mounted() {
+    // Lazy load GrapesJS (reduces main bundle by ~200-300KB)
+    await loadGrapesJS()
+
     const rawHtml = this.el.dataset.htmlContent || ''
     const initialContent = extractBodyContent(rawHtml)
 

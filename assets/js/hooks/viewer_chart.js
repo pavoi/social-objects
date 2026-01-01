@@ -3,6 +3,8 @@
  * Renders a Chart.js line chart for viewer count time-series data.
  * Supports optional GMV data on a secondary Y-axis.
  *
+ * Chart.js is lazy-loaded when this hook mounts to reduce main bundle size.
+ *
  * Usage in HEEx:
  *   <canvas
  *     id="viewer-chart"
@@ -10,10 +12,20 @@
  *     data-chart-data={Jason.encode!(@chart_data)}
  *   />
  */
-import Chart from 'chart.js/auto'
+
+// Lazy-loaded Chart.js (shared across chart hooks via module cache)
+let Chart = null
+
+async function loadChartJS() {
+  if (Chart) return Chart
+  const module = await import('chart.js/auto')
+  Chart = module.default
+  return Chart
+}
 
 export default {
-  mounted() {
+  async mounted() {
+    await loadChartJS()
     const ctx = this.el.getContext('2d')
     const data = JSON.parse(this.el.dataset.chartData)
     const hasGmv = data.hasGmv || false

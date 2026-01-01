@@ -7,7 +7,6 @@ import ProductEditModalKeyboard from "./hooks/product_edit_modal_keyboard"
 import ProductSortable from "./hooks/product_sortable"
 import ThemeToggle from "./hooks/theme_toggle"
 import MessageInput from "./hooks/message_input"
-import VoiceControl from "./hooks/voice_control"
 import VariantOverflow from "./hooks/variant_overflow"
 import ControllerHaptic from "./hooks/controller_haptic"
 import ControllerKeyboard from "./hooks/controller_keyboard"
@@ -21,6 +20,26 @@ import ImageLightbox from "./hooks/image_lightbox"
 import SentimentChart from "./hooks/sentiment_chart"
 import CategoryChart from "./hooks/category_chart"
 import TemplateEditor from "./hooks/template_editor"
+
+// Lazy-loaded VoiceControl hook wrapper
+// Only loads the full voice_control.js when hook actually mounts (feature flag enabled)
+let VoiceControlImpl = null
+const VoiceControl = {
+  async mounted() {
+    if (!VoiceControlImpl) {
+      const module = await import('./hooks/voice_control')
+      VoiceControlImpl = module.default
+    }
+    // Copy all methods from the real implementation to this instance
+    Object.keys(VoiceControlImpl).forEach(key => {
+      if (key !== 'mounted') {
+        this[key] = VoiceControlImpl[key].bind(this)
+      }
+    })
+    // Call the real mounted
+    return VoiceControlImpl.mounted.call(this)
+  }
+}
 
 const Hooks = {
   SessionHostKeyboard,
