@@ -44,3 +44,6 @@ config :phoenix, :plug_init_mode, :runtime
 # Enable helpful, but potentially expensive runtime checks
 config :phoenix_live_view,
   enable_expensive_runtime_checks: true
+
+# Avoid external live checks during tests
+config :pavoi, :verify_stream_live_status, false

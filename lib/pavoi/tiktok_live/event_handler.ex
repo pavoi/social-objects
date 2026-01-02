@@ -344,7 +344,7 @@ defmodule Pavoi.TiktokLive.EventHandler do
         auto_link_stream(state.stream_id)
 
         # Enqueue Slack report job for the completed stream
-        enqueue_stream_report(state.stream_id)
+        enqueue_stream_report(state.stream_id, 600)
 
       {:error, :already_ended} ->
         Logger.debug("Stream #{state.stream_id} already ended, skipping report enqueue")
@@ -570,12 +570,14 @@ defmodule Pavoi.TiktokLive.EventHandler do
     end
   end
 
-  defp enqueue_stream_report(stream_id) do
-    # Small delay as safety margin after explicit batch flush
-    Logger.info("Enqueueing stream report for stream #{stream_id} (scheduled in 10s)")
+  defp enqueue_stream_report(stream_id, delay_seconds \\ 10) do
+    # Delay as safety margin after explicit batch flush or disconnects
+    Logger.info(
+      "Enqueueing stream report for stream #{stream_id} (scheduled in #{delay_seconds}s)"
+    )
 
     %{stream_id: stream_id}
-    |> StreamReportWorker.new(schedule_in: 10)
+    |> StreamReportWorker.new(schedule_in: delay_seconds)
     |> Oban.insert()
   end
 end

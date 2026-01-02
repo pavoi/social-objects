@@ -16,6 +16,8 @@ defmodule Pavoi.Workers.StreamReportWorker do
   # Compile-time check for dev mode - Mix.env() is not available at runtime in releases
   @is_dev Mix.env() == :dev
   @unique_opts if @is_dev, do: false, else: [period: 300, keys: [:stream_id]]
+  @live_check_retry_seconds 120
+  @live_check_grace_seconds 120
 
   use Oban.Worker,
     queue: :slack,
@@ -32,12 +34,20 @@ defmodule Pavoi.Workers.StreamReportWorker do
   def perform(%Oban.Job{args: %{"stream_id" => stream_id}}) do
     stream = TiktokLive.get_stream!(stream_id)
 
+    case report_guard(stream) do
+      :ok -> generate_and_send_report(stream_id)
+      {:cancel, reason} -> {:cancel, reason}
+      {:snooze, seconds} -> {:snooze, seconds}
+    end
+  end
+
+  defp report_guard(stream) do
     cond do
       # Guard 1: Only send report if stream is still ended
       # (prevents reports if stream was resumed after false end detection)
       stream.status != :ended ->
         Logger.info(
-          "Skipping report for stream #{stream_id} - status is #{stream.status} (stream resumed)"
+          "Skipping report for stream #{stream.id} - status is #{stream.status} (stream resumed)"
         )
 
         {:cancel, :stream_not_ended}
@@ -47,14 +57,63 @@ defmodule Pavoi.Workers.StreamReportWorker do
       # In dev, allow re-sending for testing purposes
       stream.report_sent_at != nil and not @is_dev ->
         Logger.info(
-          "Skipping report for stream #{stream_id} - already sent at #{stream.report_sent_at}"
+          "Skipping report for stream #{stream.id} - already sent at #{stream.report_sent_at}"
         )
 
         {:cancel, :report_already_sent}
 
       true ->
-        generate_and_send_report(stream_id)
+        verify_stream_ended(stream)
     end
+  end
+
+  defp verify_stream_ended(stream) do
+    if live_check_enabled?() do
+      case TiktokLive.fetch_room_info(stream.unique_id) do
+        {:ok, %{is_live: true, room_id: room_id}} when room_id == stream.room_id ->
+          Logger.warning("Stream #{stream.id} still live in room #{room_id}, delaying report")
+
+          {:snooze, @live_check_retry_seconds}
+
+        {:ok, %{is_live: true}} ->
+          :ok
+
+        {:ok, %{is_live: false}} ->
+          enforce_grace_period(stream)
+
+        {:error, :room_id_not_found} ->
+          enforce_grace_period(stream)
+
+        {:error, reason} ->
+          Logger.warning(
+            "Stream #{stream.id} live status check failed (#{inspect(reason)}), delaying report"
+          )
+
+          {:snooze, @live_check_retry_seconds}
+      end
+    else
+      :ok
+    end
+  end
+
+  defp enforce_grace_period(%{ended_at: %DateTime{} = ended_at} = stream) do
+    elapsed_seconds = DateTime.diff(DateTime.utc_now(), ended_at, :second)
+
+    if elapsed_seconds < @live_check_grace_seconds do
+      delay = @live_check_grace_seconds - elapsed_seconds
+
+      Logger.info("Stream #{stream.id} ended #{elapsed_seconds}s ago, delaying report #{delay}s")
+
+      {:snooze, delay}
+    else
+      :ok
+    end
+  end
+
+  defp enforce_grace_period(_stream), do: :ok
+
+  defp live_check_enabled? do
+    Application.get_env(:pavoi, :verify_stream_live_status, true)
   end
 
   defp generate_and_send_report(stream_id) do

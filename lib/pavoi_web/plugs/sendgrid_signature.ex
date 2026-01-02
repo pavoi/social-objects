@@ -23,6 +23,8 @@ defmodule PavoiWeb.Plugs.SendgridSignature do
 
   require Logger
 
+  alias PavoiWeb.Plugs.CacheRawBody
+
   @signature_header "x-twilio-email-event-webhook-signature"
   @timestamp_header "x-twilio-email-event-webhook-timestamp"
 
@@ -72,7 +74,7 @@ defmodule PavoiWeb.Plugs.SendgridSignature do
   end
 
   defp get_raw_body(conn) do
-    case PavoiWeb.Plugs.CacheRawBody.get_raw_body(conn) do
+    case CacheRawBody.get_raw_body(conn) do
       nil -> {:error, "raw body not cached"}
       body -> {:ok, body}
     end
@@ -89,54 +91,50 @@ defmodule PavoiWeb.Plugs.SendgridSignature do
     # The payload to verify is: timestamp + raw_body
     message = timestamp <> payload
 
-    try do
-      # Parse the PEM-encoded public key
-      case decode_public_key(public_key_pem) do
-        {:ok, public_key} ->
-          # Verify the ECDSA signature
-          if :crypto.verify(:ecdsa, :sha256, message, signature, [public_key, :prime256v1]) do
-            :ok
-          else
-            {:error, "signature mismatch"}
-          end
+    # Parse the PEM-encoded public key
+    case decode_public_key(public_key_pem) do
+      {:ok, public_key} ->
+        # Verify the ECDSA signature
+        if :crypto.verify(:ecdsa, :sha256, message, signature, [public_key, :prime256v1]) do
+          :ok
+        else
+          {:error, "signature mismatch"}
+        end
 
-        {:error, reason} ->
-          {:error, reason}
-      end
-    rescue
-      e ->
-        Logger.error("[SendGrid Webhook] Signature verification error: #{inspect(e)}")
-        {:error, "verification error"}
+      {:error, reason} ->
+        {:error, reason}
     end
+  rescue
+    e ->
+      Logger.error("[SendGrid Webhook] Signature verification error: #{inspect(e)}")
+      {:error, "verification error"}
   end
 
   defp decode_public_key(pem_string) do
-    try do
-      # Try parsing as PEM first
-      case :public_key.pem_decode(pem_string) do
-        [{:SubjectPublicKeyInfo, der, _}] ->
-          public_key = :public_key.der_decode(:SubjectPublicKeyInfo, der)
-          {:ok, extract_ec_point(public_key)}
+    # Try parsing as PEM first
+    case :public_key.pem_decode(pem_string) do
+      [{:SubjectPublicKeyInfo, der, _}] ->
+        public_key = :public_key.der_decode(:SubjectPublicKeyInfo, der)
+        {:ok, extract_ec_point(public_key)}
 
-        [] ->
-          # If not PEM, try as raw base64 DER
-          case Base.decode64(pem_string) do
-            {:ok, der} ->
-              public_key = :public_key.der_decode(:SubjectPublicKeyInfo, der)
-              {:ok, extract_ec_point(public_key)}
+      [] ->
+        # If not PEM, try as raw base64 DER
+        case Base.decode64(pem_string) do
+          {:ok, der} ->
+            public_key = :public_key.der_decode(:SubjectPublicKeyInfo, der)
+            {:ok, extract_ec_point(public_key)}
 
-            :error ->
-              {:error, "invalid public key format"}
-          end
+          :error ->
+            {:error, "invalid public key format"}
+        end
 
-        _ ->
-          {:error, "unexpected PEM format"}
-      end
-    rescue
-      e ->
-        Logger.error("[SendGrid Webhook] Failed to parse public key: #{inspect(e)}")
-        {:error, "failed to parse public key"}
+      _ ->
+        {:error, "unexpected PEM format"}
     end
+  rescue
+    e ->
+      Logger.error("[SendGrid Webhook] Failed to parse public key: #{inspect(e)}")
+      {:error, "failed to parse public key"}
   end
 
   defp extract_ec_point({:SubjectPublicKeyInfo, _algorithm, public_key_bits}) do
