@@ -872,7 +872,7 @@
   padding: 0 var(--space-3);
   height: 36px;
   min-width: 115px;
-  background: transparent;
+  background-color: var(--color-surface-primary);
   border: 1px solid var(--color-border-primary);
   border-radius: var(--radius-md);
   font-size: var(--text-sm);
@@ -922,6 +922,14 @@
   border-radius: var(--radius-md);
   box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
   z-index: 50;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.15s ease, visibility 0.15s ease;
+}
+
+.tag-filter:hover .tag-filter__dropdown {
+  opacity: 1;
+  visibility: visible;
 }
 
 .tag-filter__list {
@@ -1087,7 +1095,7 @@
   min-width: 36px;
   height: 36px;
   padding: 0 var(--space-2);
-  background: transparent;
+  background-color: var(--color-surface-primary);
   border: 1px solid var(--color-border-primary);
   border-radius: var(--radius-md);
   color: var(--color-text-secondary);
@@ -1245,7 +1253,7 @@
   padding: 0 var(--space-3);
   height: 36px;
   min-width: 120px;
-  background: transparent;
+  background-color: var(--color-surface-primary);
   border: 1px solid var(--color-border-primary);
   border-radius: var(--radius-md);
   font-size: var(--text-sm);
@@ -1295,6 +1303,14 @@
   border-radius: var(--radius-md);
   box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
   z-index: 50;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.15s ease, visibility 0.15s ease;
+}
+
+.status-filter:hover .status-filter__dropdown {
+  opacity: 1;
+  visibility: visible;
 }
 
 .status-filter__list {

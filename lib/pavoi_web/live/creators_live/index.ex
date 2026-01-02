@@ -97,7 +97,6 @@ defmodule PavoiWeb.CreatorsLive.Index do
       |> assign(:tag_picker_source, nil)
       |> assign(:tag_search_query, "")
       |> assign(:new_tag_color, "gray")
-      |> assign(:show_tag_filter, false)
       |> assign(:show_batch_tag_picker, false)
       |> assign(:picker_selected_tag_ids, [])
       |> assign(:batch_selected_tag_ids, [])
@@ -650,16 +649,6 @@ defmodule PavoiWeb.CreatorsLive.Index do
 
   # Tag filter handlers
   @impl true
-  def handle_event("toggle_tag_filter", _params, socket) do
-    {:noreply, assign(socket, :show_tag_filter, !socket.assigns.show_tag_filter)}
-  end
-
-  @impl true
-  def handle_event("close_tag_filter", _params, socket) do
-    {:noreply, assign(socket, :show_tag_filter, false)}
-  end
-
-  @impl true
   def handle_event("toggle_filter_tag", %{"tag-id" => tag_id}, socket) do
     current = socket.assigns.filter_tag_ids
 
@@ -677,7 +666,6 @@ defmodule PavoiWeb.CreatorsLive.Index do
   @impl true
   def handle_event("clear_tag_filter", _params, socket) do
     params = build_query_params(socket, filter_tag_ids: [], page: 1)
-    socket = assign(socket, :show_tag_filter, false)
     {:noreply, push_patch(socket, to: ~p"/creators?#{params}")}
   end
 

@@ -211,18 +211,16 @@ defmodule PavoiWeb.CreatorTagComponents do
   """
   attr :available_tags, :list, default: []
   attr :selected_tag_ids, :list, default: []
-  attr :open, :boolean, default: false
 
   def tag_filter(assigns) do
     selected_count = length(assigns.selected_tag_ids)
     assigns = assign(assigns, :selected_count, selected_count)
 
     ~H"""
-    <div class="tag-filter" phx-click-away={@open && "close_tag_filter"}>
+    <div class="tag-filter">
       <button
         type="button"
         class={["tag-filter__trigger", @selected_count > 0 && "tag-filter__trigger--active"]}
-        phx-click="toggle_tag_filter"
       >
         <.icon name="hero-tag" class="size-4" />
         <span>
@@ -239,39 +237,37 @@ defmodule PavoiWeb.CreatorTagComponents do
         <% end %>
       </button>
 
-      <%= if @open do %>
-        <div id="tag-filter-dropdown" class="tag-filter__dropdown" phx-hook="ConfirmDelete">
-          <%= if @available_tags == [] do %>
-            <div class="tag-filter__empty">No tags available</div>
-          <% else %>
-            <div class="tag-filter__list">
-              <%= for tag <- @available_tags do %>
-                <div class="tag-filter__item">
-                  <label class="tag-filter__item-label">
-                    <input
-                      type="checkbox"
-                      checked={tag.id in @selected_tag_ids}
-                      phx-click="toggle_filter_tag"
-                      phx-value-tag-id={tag.id}
-                    />
-                    <div class={"tag-filter__item-color color-accent--#{tag.color}"}></div>
-                    <span class="tag-filter__item-name">{tag.name}</span>
-                  </label>
-                  <button
-                    type="button"
-                    class="tag-picker__item-delete"
-                    phx-click="delete_tag"
+      <div id="tag-filter-dropdown" class="tag-filter__dropdown" phx-hook="ConfirmDelete">
+        <%= if @available_tags == [] do %>
+          <div class="tag-filter__empty">No tags available</div>
+        <% else %>
+          <div class="tag-filter__list">
+            <%= for tag <- @available_tags do %>
+              <div class="tag-filter__item">
+                <label class="tag-filter__item-label">
+                  <input
+                    type="checkbox"
+                    checked={tag.id in @selected_tag_ids}
+                    phx-click="toggle_filter_tag"
                     phx-value-tag-id={tag.id}
-                    title="Delete tag"
-                  >
-                    ×
-                  </button>
-                </div>
-              <% end %>
-            </div>
-          <% end %>
-        </div>
-      <% end %>
+                  />
+                  <div class={"tag-filter__item-color color-accent--#{tag.color}"}></div>
+                  <span class="tag-filter__item-name">{tag.name}</span>
+                </label>
+                <button
+                  type="button"
+                  class="tag-picker__item-delete"
+                  phx-click="delete_tag"
+                  phx-value-tag-id={tag.id}
+                  title="Delete tag"
+                >
+                  ×
+                </button>
+              </div>
+            <% end %>
+          </div>
+        <% end %>
+      </div>
     </div>
     """
   end

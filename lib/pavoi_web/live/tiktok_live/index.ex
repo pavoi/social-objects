@@ -752,21 +752,33 @@ defmodule PavoiWeb.TiktokLive.Index do
   defp apply_status_filter(filters, _), do: filters
 
   defp apply_date_filter(filters, "today") do
-    today_start = Date.utc_today() |> DateTime.new!(~T[00:00:00], "Etc/UTC")
-    [{:started_after, today_start} | filters]
+    # Use PST-aligned date to match UI display (which shows times in PST)
+    today_start_pst = pst_today() |> DateTime.new!(~T[00:00:00], "Etc/UTC")
+    # Convert PST midnight to UTC (add 8 hours)
+    today_start_utc = DateTime.add(today_start_pst, 8 * 3600, :second)
+    [{:started_after, today_start_utc} | filters]
   end
 
   defp apply_date_filter(filters, "week") do
-    week_ago = Date.utc_today() |> Date.add(-7) |> DateTime.new!(~T[00:00:00], "Etc/UTC")
-    [{:started_after, week_ago} | filters]
+    week_ago_pst = pst_today() |> Date.add(-7) |> DateTime.new!(~T[00:00:00], "Etc/UTC")
+    week_ago_utc = DateTime.add(week_ago_pst, 8 * 3600, :second)
+    [{:started_after, week_ago_utc} | filters]
   end
 
   defp apply_date_filter(filters, "month") do
-    month_ago = Date.utc_today() |> Date.add(-30) |> DateTime.new!(~T[00:00:00], "Etc/UTC")
-    [{:started_after, month_ago} | filters]
+    month_ago_pst = pst_today() |> Date.add(-30) |> DateTime.new!(~T[00:00:00], "Etc/UTC")
+    month_ago_utc = DateTime.add(month_ago_pst, 8 * 3600, :second)
+    [{:started_after, month_ago_utc} | filters]
   end
 
   defp apply_date_filter(filters, _), do: filters
+
+  # Get today's date in PST (UTC-8)
+  defp pst_today do
+    DateTime.utc_now()
+    |> DateTime.add(-8 * 3600, :second)
+    |> DateTime.to_date()
+  end
 
   defp count_streams(filters) do
     TiktokLiveContext.count_streams(filters)
@@ -1317,6 +1329,7 @@ defmodule PavoiWeb.TiktokLive.Index do
 
     Jason.encode!(%{
       labels: Enum.map(categories, fn c -> Map.get(category_labels, c.category, "Unknown") end),
+      keys: Enum.map(categories, fn c -> Atom.to_string(c.category) end),
       data: Enum.map(categories, & &1.count),
       colors:
         Enum.map(categories, fn c ->

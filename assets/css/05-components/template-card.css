@@ -121,6 +121,5 @@
 }
 
 .button--danger:hover {
-  background: var(--color-error);
-  color: white;
+  background: rgba(239, 68, 68, 0.1);
 }

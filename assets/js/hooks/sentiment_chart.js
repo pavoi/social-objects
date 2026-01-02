@@ -89,6 +89,18 @@ export default {
         responsive: true,
         maintainAspectRatio: false,
         cutout: '60%',
+        onClick: (event, elements) => {
+          if (elements.length > 0) {
+            const index = elements[0].index
+            const label = chartData.labels[index]
+            // Map label to filter value (lowercase)
+            const sentiment = label.toLowerCase()
+            this.pushEvent('analytics_filter_sentiment', { sentiment })
+          }
+        },
+        onHover: (event, elements) => {
+          event.native.target.style.cursor = elements.length > 0 ? 'pointer' : 'default'
+        },
         plugins: {
           legend: {
             position: 'bottom',

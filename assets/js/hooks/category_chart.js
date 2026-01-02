@@ -91,6 +91,17 @@ export default {
         indexAxis: 'y',
         responsive: true,
         maintainAspectRatio: false,
+        onClick: (event, elements) => {
+          if (elements.length > 0) {
+            const index = elements[0].index
+            // Use the keys array which contains the actual category identifiers
+            const category = chartData.keys[index]
+            this.pushEvent('analytics_filter_category', { category })
+          }
+        },
+        onHover: (event, elements) => {
+          event.native.target.style.cursor = elements.length > 0 ? 'pointer' : 'default'
+        },
         plugins: {
           legend: {
             display: false

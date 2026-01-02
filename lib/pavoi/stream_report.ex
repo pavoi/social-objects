@@ -573,8 +573,7 @@ defmodule Pavoi.StreamReport do
         "#{label} — *#{c.count}* (#{c.percent}%)"
       end)
       |> Enum.chunk_every(3)
-      |> Enum.map(&Enum.join(&1, "  |  "))
-      |> Enum.join("\n")
+      |> Enum.map_join("\n", &Enum.join(&1, "  |  "))
 
     text = ":speech_balloon: *Comment Categories*\n#{formatted}"
     %{type: "section", text: %{type: "mrkdwn", text: text}}
