@@ -22,6 +22,8 @@ defmodule Pavoi.TiktokLive.Stream do
     field :total_likes, :integer, default: 0
     field :total_comments, :integer, default: 0
     field :total_gifts_value, :integer, default: 0
+    field :total_follows, :integer, default: 0
+    field :total_shares, :integer, default: 0
     field :raw_metadata, :map, default: %{}
     field :cover_image_key, :string
     field :gmv_cents, :integer
@@ -56,6 +58,8 @@ defmodule Pavoi.TiktokLive.Stream do
       :total_likes,
       :total_comments,
       :total_gifts_value,
+      :total_follows,
+      :total_shares,
       :raw_metadata,
       :cover_image_key,
       :gmv_cents,

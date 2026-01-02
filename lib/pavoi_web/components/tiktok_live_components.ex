@@ -366,6 +366,14 @@ defmodule PavoiWeb.TiktokLiveComponents do
               <span class="stream-modal-stat__label">Comments</span>
               <span class="stream-modal-stat__value">{format_number(@stream.total_comments)}</span>
             </div>
+            <div class="stream-modal-stat">
+              <span class="stream-modal-stat__label">Follows</span>
+              <span class="stream-modal-stat__value">{format_number(@stream.total_follows)}</span>
+            </div>
+            <div class="stream-modal-stat">
+              <span class="stream-modal-stat__label">Shares</span>
+              <span class="stream-modal-stat__value">{format_number(@stream.total_shares)}</span>
+            </div>
             <%= if @summary do %>
               <div class="stream-modal-stat">
                 <span class="stream-modal-stat__label">Duration</span>

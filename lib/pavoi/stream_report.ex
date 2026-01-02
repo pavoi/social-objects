@@ -81,7 +81,9 @@ defmodule Pavoi.StreamReport do
       peak_viewers: stream.viewer_count_peak || 0,
       total_likes: stream.total_likes || 0,
       total_gifts_value: stream.total_gifts_value || 0,
-      total_comments: comment_count
+      total_comments: comment_count,
+      total_follows: stream.total_follows || 0,
+      total_shares: stream.total_shares || 0
     }
   end
 
@@ -414,7 +416,8 @@ defmodule Pavoi.StreamReport do
     # Compact two-column layout with emoji anchors
     text =
       ":clock1: *#{stats.duration_formatted}* duration    :eyes: *#{format_number(stats.peak_viewers)}* peak viewers    :speech_balloon: *#{format_number(stats.total_comments)}* comments\n" <>
-        ":heart: *#{format_number(stats.total_likes)}* likes    :gem: *#{format_number(stats.total_gifts_value)}* diamonds    :busts_in_silhouette: *#{format_number(unique_commenters || 0)}* unique commenters"
+        ":heart: *#{format_number(stats.total_likes)}* likes    :gem: *#{format_number(stats.total_gifts_value)}* diamonds    :busts_in_silhouette: *#{format_number(unique_commenters || 0)}* unique commenters\n" <>
+        ":heavy_plus_sign: *#{format_number(stats.total_follows)}* follows    :arrow_right: *#{format_number(stats.total_shares)}* shares"
 
     %{type: "section", text: %{type: "mrkdwn", text: text}}
   end

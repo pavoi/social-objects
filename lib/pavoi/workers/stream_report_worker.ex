@@ -13,7 +13,9 @@ defmodule Pavoi.Workers.StreamReportWorker do
   - `stream_id` - ID of the completed stream
   """
 
-  @unique_opts if Mix.env() == :dev, do: false, else: [period: 300, keys: [:stream_id]]
+  # Compile-time check for dev mode - Mix.env() is not available at runtime in releases
+  @is_dev Mix.env() == :dev
+  @unique_opts if @is_dev, do: false, else: [period: 300, keys: [:stream_id]]
 
   use Oban.Worker,
     queue: :slack,
@@ -43,7 +45,7 @@ defmodule Pavoi.Workers.StreamReportWorker do
       # Guard 2: Only send one report per stream (prod only)
       # (prevents duplicates if stream ends multiple times due to resume cycles)
       # In dev, allow re-sending for testing purposes
-      stream.report_sent_at != nil and Mix.env() != :dev ->
+      stream.report_sent_at != nil and not @is_dev ->
         Logger.info(
           "Skipping report for stream #{stream_id} - already sent at #{stream.report_sent_at}"
         )
@@ -59,7 +61,7 @@ defmodule Pavoi.Workers.StreamReportWorker do
     # Claim FIRST to prevent multiple workers doing duplicate expensive work
     # (classification, sentiment analysis, GMV API calls)
     # In dev, skip the claim to allow re-sending for testing
-    if Mix.env() == :dev do
+    if @is_dev do
       do_generate_and_send_report(stream_id)
     else
       case TiktokLive.mark_report_sent(stream_id) do

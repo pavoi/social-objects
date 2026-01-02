@@ -14,6 +14,8 @@ defmodule Pavoi.TiktokLive.StreamStat do
     field :like_count, :integer, default: 0
     field :gift_count, :integer, default: 0
     field :comment_count, :integer, default: 0
+    field :follow_count, :integer, default: 0
+    field :share_count, :integer, default: 0
 
     belongs_to :stream, Pavoi.TiktokLive.Stream
 
@@ -29,7 +31,9 @@ defmodule Pavoi.TiktokLive.StreamStat do
       :viewer_count,
       :like_count,
       :gift_count,
-      :comment_count
+      :comment_count,
+      :follow_count,
+      :share_count
     ])
     |> validate_required([:stream_id, :recorded_at])
     |> foreign_key_constraint(:stream_id)

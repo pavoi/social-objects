@@ -97,7 +97,9 @@ defmodule Pavoi.TiktokLive.EventHandler do
         like_count: 0,
         gift_count: 0,
         gift_value: 0,
-        comment_count: stream.total_comments || 0
+        comment_count: stream.total_comments || 0,
+        follow_count: stream.total_follows || 0,
+        share_count: stream.total_shares || 0
       },
       flush_timer_ref: schedule_flush(),
       stats_timer_ref: schedule_stats_save(),
@@ -268,8 +270,15 @@ defmodule Pavoi.TiktokLive.EventHandler do
   end
 
   defp process_event(%{type: :follow} = event, state) do
+    new_stats = %{state.stats | follow_count: state.stats.follow_count + 1}
     broadcast_to_stream(state.stream_id, {:follow, event})
-    state
+    %{state | stats: new_stats}
+  end
+
+  defp process_event(%{type: :share} = event, state) do
+    new_stats = %{state.stats | share_count: state.stats.share_count + 1}
+    broadcast_to_stream(state.stream_id, {:share, event})
+    %{state | stats: new_stats}
   end
 
   defp process_event(%{type: :stream_ended}, state) do
@@ -447,7 +456,9 @@ defmodule Pavoi.TiktokLive.EventHandler do
       viewer_count: state.stats.viewer_count,
       like_count: state.stats.like_count,
       gift_count: state.stats.gift_count,
-      comment_count: state.stats.comment_count
+      comment_count: state.stats.comment_count,
+      follow_count: state.stats.follow_count,
+      share_count: state.stats.share_count
     }
 
     case %StreamStat{} |> StreamStat.changeset(stat_attrs) |> Repo.insert() do
@@ -466,6 +477,8 @@ defmodule Pavoi.TiktokLive.EventHandler do
       |> Stream.changeset(%{
         total_likes: state.stats.like_count,
         total_gifts_value: state.stats.gift_value,
+        total_follows: state.stats.follow_count,
+        total_shares: state.stats.share_count,
         viewer_count_peak: state.stats.viewer_count_peak
       })
       |> Repo.update()
