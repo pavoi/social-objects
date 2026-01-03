@@ -29,6 +29,7 @@ defmodule Pavoi.Workers.CreatorEnrichmentWorker do
   require Logger
   import Ecto.Query
 
+  alias Pavoi.Catalog
   alias Pavoi.Creators
   alias Pavoi.Creators.Creator
   alias Pavoi.Repo
@@ -212,16 +213,28 @@ defmodule Pavoi.Workers.CreatorEnrichmentWorker do
     max_pages = Keyword.get(opts, :max_pages, 100)
     Logger.info("[SampleSync] Starting sample orders sync (max_pages: #{max_pages})...")
 
+    # Initialize context for sample creation
+    context = %{
+      brand_id: get_pavoi_brand_id(),
+      existing_order_ids: Creators.list_existing_order_ids()
+    }
+
+    Logger.info(
+      "[SampleSync] Found #{MapSet.size(context.existing_order_ids)} existing sample orders"
+    )
+
     initial_stats = %{
       matched: 0,
       created: 0,
       already_linked: 0,
       skipped: 0,
       errors: 0,
-      pages: 0
+      pages: 0,
+      samples_created: 0,
+      samples_skipped: 0
     }
 
-    case sync_sample_orders_page(nil, initial_stats, max_pages) do
+    case sync_sample_orders_page(nil, initial_stats, context, max_pages) do
       {:ok, stats} ->
         Logger.info("""
         [SampleSync] Completed
@@ -229,6 +242,8 @@ defmodule Pavoi.Workers.CreatorEnrichmentWorker do
            - Created new creators: #{stats.created}
            - Already linked: #{stats.already_linked}
            - Skipped (no match data): #{stats.skipped}
+           - Samples created: #{stats.samples_created}
+           - Samples skipped (duplicate): #{stats.samples_skipped}
            - Errors: #{stats.errors}
            - Pages processed: #{stats.pages}
         """)
@@ -246,18 +261,19 @@ defmodule Pavoi.Workers.CreatorEnrichmentWorker do
     end
   end
 
-  defp sync_sample_orders_page(_page_token, stats, max_pages) when stats.pages >= max_pages do
+  defp sync_sample_orders_page(_page_token, stats, _context, max_pages)
+       when stats.pages >= max_pages do
     Logger.info("[SampleSync] Reached max pages limit (#{max_pages})")
     {:ok, stats}
   end
 
-  defp sync_sample_orders_page(page_token, stats, max_pages) do
+  defp sync_sample_orders_page(page_token, stats, context, max_pages) do
     params = build_page_params(page_token)
 
     case TiktokShop.make_api_request(:post, "/order/202309/orders/search", params, %{}) do
       {:ok, %{"data" => data}} ->
         Process.sleep(@api_delay_ms)
-        handle_orders_response(data, stats, max_pages)
+        handle_orders_response(data, stats, context, max_pages)
 
       {:error, reason} ->
         if rate_limited_reason?(reason) do
@@ -273,31 +289,32 @@ defmodule Pavoi.Workers.CreatorEnrichmentWorker do
   defp build_page_params(nil), do: %{page_size: 100}
   defp build_page_params(token), do: %{page_size: 100, page_token: token}
 
-  defp handle_orders_response(data, stats, max_pages) do
+  defp handle_orders_response(data, stats, context, max_pages) do
     orders = Map.get(data, "orders", [])
     sample_orders = Enum.filter(orders, fn o -> o["is_sample_order"] == true end)
 
-    new_stats = process_sample_orders(sample_orders, stats)
+    new_stats = process_sample_orders(sample_orders, stats, context)
     new_stats = %{new_stats | pages: new_stats.pages + 1}
 
-    maybe_continue_pagination(data["next_page_token"], new_stats, max_pages)
+    maybe_continue_pagination(data["next_page_token"], new_stats, context, max_pages)
   end
 
-  defp maybe_continue_pagination(token, stats, max_pages)
+  defp maybe_continue_pagination(token, stats, context, max_pages)
        when is_binary(token) and token != "" and stats.pages < max_pages do
-    sync_sample_orders_page(token, stats, max_pages)
+    sync_sample_orders_page(token, stats, context, max_pages)
   end
 
-  defp maybe_continue_pagination(_token, stats, _max_pages), do: {:ok, stats}
+  defp maybe_continue_pagination(_token, stats, _context, _max_pages), do: {:ok, stats}
 
-  defp process_sample_orders(orders, stats) do
+  defp process_sample_orders(orders, stats, context) do
     Enum.reduce(orders, stats, fn order, acc ->
-      process_single_sample_order(order, acc)
+      process_single_sample_order(order, acc, context)
     end)
   end
 
-  defp process_single_sample_order(order, acc) do
+  defp process_single_sample_order(order, acc, context) do
     user_id = order["user_id"]
+    order_id = order["id"]
     recipient = order["recipient_address"] || %{}
 
     # Extract contact info (may be masked or unmasked)
@@ -308,12 +325,21 @@ defmodule Pavoi.Workers.CreatorEnrichmentWorker do
     if is_nil(user_id) or user_id == "" do
       %{acc | skipped: acc.skipped + 1}
     else
-      case find_creator_for_sample(phone, first_name, last_name) do
-        {:found, creator} ->
-          link_creator_to_user_id(creator, user_id, recipient, acc)
+      # First, find or create the creator
+      {creator, acc} =
+        case find_creator_for_sample(phone, first_name, last_name) do
+          {:found, creator} ->
+            {creator, link_creator_to_user_id(creator, user_id, recipient, acc)}
 
-        :not_found ->
-          create_creator_from_sample(user_id, recipient, acc)
+          :not_found ->
+            create_creator_from_sample_with_return(user_id, recipient, acc)
+        end
+
+      # Then, create sample records for each line item (if we have a creator)
+      if creator do
+        create_samples_for_order(order, order_id, creator.id, acc, context)
+      else
+        acc
       end
     end
   rescue
@@ -509,13 +535,12 @@ defmodule Pavoi.Workers.CreatorEnrichmentWorker do
     end
   end
 
-  defp create_creator_from_sample(user_id, recipient, acc) do
-    # First check if a creator with this user_id already exists
-    # (could have been created earlier in this sync from masked order data)
+  # Returns {creator, acc} for use when we need the creator for sample creation
+  defp create_creator_from_sample_with_return(user_id, recipient, acc) do
     case Creators.get_creator_by_tiktok_user_id(user_id) do
       %Creator{} = existing ->
         Logger.debug("[SampleSync] Found existing creator #{existing.id} with user_id #{user_id}")
-        %{acc | already_linked: acc.already_linked + 1}
+        {existing, %{acc | already_linked: acc.already_linked + 1}}
 
       nil ->
         do_create_creator_from_sample(user_id, recipient, acc)
@@ -528,7 +553,6 @@ defmodule Pavoi.Workers.CreatorEnrichmentWorker do
     {first_name, last_name} = Creators.parse_name(name)
     district_info = recipient["district_info"] || []
 
-    # Only use unmasked data for new creators
     attrs =
       %{
         tiktok_user_id: user_id,
@@ -554,11 +578,96 @@ defmodule Pavoi.Workers.CreatorEnrichmentWorker do
     case Creators.create_creator(attrs) do
       {:ok, creator} ->
         Logger.debug("[SampleSync] Created new creator #{creator.id} with user_id #{user_id}")
-        %{acc | created: acc.created + 1}
+        {creator, %{acc | created: acc.created + 1}}
 
       {:error, changeset} ->
         Logger.warning("[SampleSync] Failed to create creator: #{inspect(changeset.errors)}")
-        %{acc | errors: acc.errors + 1}
+        {nil, %{acc | errors: acc.errors + 1}}
+    end
+  end
+
+  # Creates CreatorSample records for each line item in an order
+  defp create_samples_for_order(order, order_id, creator_id, acc, context) do
+    %{brand_id: brand_id, existing_order_ids: existing_order_ids} = context
+
+    # Skip if we've already processed this order
+    if MapSet.member?(existing_order_ids, order_id) do
+      %{acc | samples_skipped: acc.samples_skipped + 1}
+    else
+      line_items = order["line_items"] || []
+      ordered_at = parse_order_timestamp(order["create_time"])
+      status = determine_sample_status(order["status"])
+
+      Enum.reduce(line_items, acc, fn item, item_acc ->
+        create_sample_from_line_item(
+          item,
+          order_id,
+          creator_id,
+          brand_id,
+          ordered_at,
+          status,
+          item_acc
+        )
+      end)
+    end
+  end
+
+  defp create_sample_from_line_item(item, order_id, creator_id, brand_id, ordered_at, status, acc) do
+    attrs = %{
+      creator_id: creator_id,
+      brand_id: brand_id,
+      tiktok_order_id: order_id,
+      tiktok_sku_id: item["sku_id"],
+      product_name: item["product_name"],
+      variation: item["sku_name"],
+      quantity: 1,
+      ordered_at: ordered_at,
+      status: status
+    }
+
+    case Creators.create_creator_sample(attrs) do
+      {:ok, _sample} ->
+        %{acc | samples_created: acc.samples_created + 1}
+
+      {:error, %Ecto.Changeset{errors: errors}} ->
+        # Check if it's a duplicate constraint error (already exists)
+        if Keyword.has_key?(errors, :tiktok_order_id) do
+          %{acc | samples_skipped: acc.samples_skipped + 1}
+        else
+          Logger.warning(
+            "[SampleSync] Failed to create sample for order #{order_id}: #{inspect(errors)}"
+          )
+
+          acc
+        end
+    end
+  end
+
+  defp parse_order_timestamp(nil), do: nil
+  defp parse_order_timestamp(unix) when is_integer(unix), do: DateTime.from_unix!(unix)
+  defp parse_order_timestamp(_), do: nil
+
+  defp determine_sample_status(order_status) do
+    case order_status do
+      "DELIVERED" -> "delivered"
+      "COMPLETED" -> "delivered"
+      "IN_TRANSIT" -> "shipped"
+      "AWAITING_SHIPMENT" -> "pending"
+      "AWAITING_COLLECTION" -> "shipped"
+      "CANCELLED" -> "cancelled"
+      _ -> "pending"
+    end
+  end
+
+  defp get_pavoi_brand_id do
+    case Catalog.get_brand_by_slug("pavoi") do
+      nil ->
+        Logger.info("[SampleSync] Creating PAVOI brand")
+        {:ok, brand} = Catalog.create_brand(%{name: "PAVOI", slug: "pavoi"})
+        brand.id
+
+      brand ->
+        brand.id
     end
   end
 
