@@ -556,7 +556,7 @@
 }
 
 /* Ensure product set card is above others when menu is open */
-.product-set-card:has(.product-set-menu:not([style*="display: none"])),
+.product-set-card:has(.menu-container:hover),
 .product-set-card:has(.product-set-menu.fade-in) {
   position: relative;
   z-index: 100;
@@ -601,6 +601,7 @@
 }
 
 .product-set-menu {
+  display: none;
   position: absolute;
   right: 0;
   top: calc(100% + var(--space-2));
@@ -611,6 +612,24 @@
   box-shadow: var(--shadow-lg);
   padding: var(--space-1) 0;
   z-index: 9999;
+}
+
+/* Invisible bridge to maintain hover when moving from trigger to menu */
+.product-set-menu::before {
+  content: "";
+  position: absolute;
+  top: calc(-1 * var(--space-2));
+  left: 0;
+  right: 0;
+  height: var(--space-2);
+}
+
+/* Hover to open - only on devices that support hover (not touch) */
+@media (hover: hover) {
+  .menu-container:hover .product-set-menu {
+    /* !important overrides any inline display styles from JS toggle */
+    display: block !important;
+  }
 }
 
 /* LiveView transition classes */

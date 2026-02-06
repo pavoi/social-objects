@@ -1,7 +1,6 @@
-defmodule PavoiWeb.UserLive.ConfirmationTest do
+defmodule PavoiWeb.UserSessionController.MagicLinkTest do
   use PavoiWeb.ConnCase, async: true
 
-  import Phoenix.LiveViewTest
   import Pavoi.AccountsFixtures
 
   alias Pavoi.Accounts
@@ -10,99 +9,60 @@ defmodule PavoiWeb.UserLive.ConfirmationTest do
     %{unconfirmed_user: unconfirmed_user_fixture(), confirmed_user: user_fixture()}
   end
 
-  describe "Confirm user" do
-    test "renders confirmation page for unconfirmed user", %{conn: conn, unconfirmed_user: user} do
+  describe "magic link login" do
+    test "logs in unconfirmed user and confirms them", %{conn: conn, unconfirmed_user: user} do
       token =
         extract_user_token(fn url ->
           Accounts.deliver_login_instructions(user, url)
         end)
 
-      {:ok, view, _html} = live(conn, ~p"/users/log-in/#{token}")
-      assert has_element?(view, "#confirmation_form")
-      assert has_element?(view, "button", "Continue to dashboard")
-    end
+      conn = get(conn, ~p"/users/log-in/#{token}")
 
-    test "renders confirmation page for confirmed user", %{conn: conn, confirmed_user: user} do
-      token =
-        extract_user_token(fn url ->
-          Accounts.deliver_login_instructions(user, url)
-        end)
-
-      {:ok, view, _html} = live(conn, ~p"/users/log-in/#{token}")
-      # Both confirmed and unconfirmed users use the same simplified form
-      assert has_element?(view, "#confirmation_form")
-      assert has_element?(view, "button", "Continue to dashboard")
-    end
-
-    test "confirms the given token once", %{conn: conn, unconfirmed_user: user} do
-      token =
-        extract_user_token(fn url ->
-          Accounts.deliver_login_instructions(user, url)
-        end)
-
-      {:ok, lv, _html} = live(conn, ~p"/users/log-in/#{token}")
-
-      form = form(lv, "#confirmation_form", %{"user" => %{"token" => token}})
-      render_submit(form)
-
-      conn = follow_trigger_action(form, conn)
-
-      assert Phoenix.Flash.get(conn.assigns.flash, :info) =~
-               "User confirmed successfully"
-
+      assert Phoenix.Flash.get(conn.assigns.flash, :info) =~ "User confirmed successfully"
       assert Accounts.get_user!(user.id).confirmed_at
-      # we are logged in now
       assert get_session(conn, :user_token)
       assert redirected_to(conn) == ~p"/"
-
-      # log out, new conn
-      conn = build_conn()
-
-      {:ok, view, _html} =
-        live(conn, ~p"/users/log-in/#{token}")
-        |> follow_redirect(conn, ~p"/users/log-in")
-
-      assert has_element?(view, "#flash-group", "Magic link is invalid or it has expired")
     end
 
-    test "logs confirmed user in without changing confirmed_at", %{
-      conn: conn,
-      confirmed_user: user
-    } do
+    test "logs in confirmed user", %{conn: conn, confirmed_user: user} do
       token =
         extract_user_token(fn url ->
           Accounts.deliver_login_instructions(user, url)
         end)
 
-      {:ok, lv, _html} = live(conn, ~p"/users/log-in/#{token}")
+      conn = get(conn, ~p"/users/log-in/#{token}")
 
-      # Both confirmed and unconfirmed users use the same form now
-      form = form(lv, "#confirmation_form", %{"user" => %{"token" => token}})
-      render_submit(form)
-
-      conn = follow_trigger_action(form, conn)
-
-      assert Phoenix.Flash.get(conn.assigns.flash, :info) =~
-               "Welcome back!"
-
+      assert Phoenix.Flash.get(conn.assigns.flash, :info) =~ "Welcome back!"
       assert Accounts.get_user!(user.id).confirmed_at == user.confirmed_at
-
-      # log out, new conn
-      conn = build_conn()
-
-      {:ok, view, _html} =
-        live(conn, ~p"/users/log-in/#{token}")
-        |> follow_redirect(conn, ~p"/users/log-in")
-
-      assert has_element?(view, "#flash-group", "Magic link is invalid or it has expired")
+      assert get_session(conn, :user_token)
+      assert redirected_to(conn) == ~p"/"
     end
 
-    test "raises error for invalid token", %{conn: conn} do
-      {:ok, view, _html} =
-        live(conn, ~p"/users/log-in/invalid-token")
-        |> follow_redirect(conn, ~p"/users/log-in")
+    test "token can only be used once", %{conn: conn, confirmed_user: user} do
+      token =
+        extract_user_token(fn url ->
+          Accounts.deliver_login_instructions(user, url)
+        end)
 
-      assert has_element?(view, "#flash-group", "Magic link is invalid or it has expired")
+      conn = get(conn, ~p"/users/log-in/#{token}")
+      assert get_session(conn, :user_token)
+
+      # Try to use the same token again
+      conn = build_conn() |> get(~p"/users/log-in/#{token}")
+
+      assert Phoenix.Flash.get(conn.assigns.flash, :error) =~
+               "The link is invalid or it has expired"
+
+      assert redirected_to(conn) == ~p"/users/log-in"
+    end
+
+    test "redirects with error for invalid token", %{conn: conn} do
+      conn = get(conn, ~p"/users/log-in/invalid-token")
+
+      assert Phoenix.Flash.get(conn.assigns.flash, :error) =~
+               "The link is invalid or it has expired"
+
+      assert redirected_to(conn) == ~p"/users/log-in"
     end
   end
 end

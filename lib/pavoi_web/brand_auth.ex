@@ -63,6 +63,8 @@ defmodule PavoiWeb.BrandAuth do
   end
 
   # Ensures the current user has access to the resolved brand.
+  # Note: user_brands is loaded directly in the app layout, not here,
+  # because on_mount assigns don't flow to layouts properly.
   def on_mount(:require_brand_access, _params, _session, socket) do
     if brand_scoped_view?(socket.view) do
       user =
@@ -71,11 +73,10 @@ defmodule PavoiWeb.BrandAuth do
           _ -> nil
         end
 
-      brand = socket.assigns.current_brand
+      brand = socket.assigns[:current_brand]
 
-      if user && Accounts.user_has_brand_access?(user, brand) do
-        user_brands = Accounts.list_user_brands(user)
-        {:cont, Phoenix.Component.assign(socket, :user_brands, user_brands)}
+      if user && brand && Accounts.user_has_brand_access?(user, brand) do
+        {:cont, socket}
       else
         socket =
           socket

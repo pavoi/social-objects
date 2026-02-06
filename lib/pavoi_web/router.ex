@@ -170,9 +170,9 @@ defmodule PavoiWeb.Router do
     live_session :current_user,
       on_mount: [{PavoiWeb.UserAuth, :mount_current_scope}] do
       live "/users/log-in", UserLive.Login, :new
-      live "/users/log-in/:token", UserLive.Confirmation, :new
     end
 
+    get "/users/log-in/:token", UserSessionController, :create_from_token
     post "/users/log-in", UserSessionController, :create
     delete "/users/log-out", UserSessionController, :delete
   end

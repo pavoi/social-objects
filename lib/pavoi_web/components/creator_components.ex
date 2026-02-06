@@ -7,7 +7,6 @@ defmodule PavoiWeb.CreatorComponents do
   """
   use Phoenix.Component
 
-  import PavoiWeb.CoreComponents
   import PavoiWeb.ViewHelpers
 
   alias Pavoi.Creators.Creator

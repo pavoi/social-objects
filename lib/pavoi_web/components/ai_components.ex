@@ -4,7 +4,6 @@ defmodule PavoiWeb.AIComponents do
   """
 
   use Phoenix.Component
-  import PavoiWeb.CoreComponents
   alias Phoenix.LiveView.JS
 
   @doc """

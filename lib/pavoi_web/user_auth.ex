@@ -247,7 +247,7 @@ defmodule PavoiWeb.UserAuth do
     else
       socket =
         socket
-        |> Phoenix.LiveView.put_flash(:error, "Log in to see this page.")
+        |> Phoenix.LiveView.put_flash(:error, "You must re-authenticate to access this page.")
         |> Phoenix.LiveView.redirect(to: ~p"/users/log-in")
 
       {:halt, socket}

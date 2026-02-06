@@ -58,10 +58,9 @@
 .brand-switcher__menu {
   display: none;
   position: absolute;
-  top: 100%;
+  top: calc(100% + var(--space-2));
   left: 0;
   min-width: 200px;
-  margin-top: var(--space-2);
   flex-direction: column;
   align-items: stretch;
   gap: var(--space-1);
@@ -71,6 +70,24 @@
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-lg);
   z-index: var(--z-dropdown);
+}
+
+/* Invisible bridge to maintain hover when moving from toggle to menu */
+.brand-switcher__menu::before {
+  content: "";
+  position: absolute;
+  top: calc(-1 * var(--space-2));
+  left: 0;
+  right: 0;
+  height: var(--space-2);
+}
+
+/* Hover to open - only on devices that support hover (not touch) */
+@media (hover: hover) {
+  .navbar__brand-switcher:hover .brand-switcher__menu {
+    /* !important overrides any inline display styles from JS toggle */
+    display: flex !important;
+  }
 }
 
 .brand-switcher__item {
@@ -87,6 +104,7 @@
 
 .brand-switcher__item:hover {
   background-color: var(--color-bg-hover);
+  color: var(--color-text-primary);
 }
 
 .brand-switcher__item--active {
@@ -193,6 +211,11 @@
   white-space: nowrap;
 }
 
+/* Menu container - wrapper for trigger + dropdown */
+.navbar__menu-container {
+  position: relative;
+}
+
 /* Menu trigger button - always visible */
 .navbar__menu-trigger {
   display: flex;
@@ -243,8 +266,8 @@
 .navbar__menu {
   display: none;
   position: absolute;
-  right: var(--space-4);
-  top: 100%;
+  right: 0;
+  top: calc(100% + var(--space-2));
   min-width: 200px;
   flex-direction: column;
   align-items: stretch;
@@ -255,6 +278,24 @@
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-lg);
   z-index: var(--z-dropdown);
+}
+
+/* Invisible bridge to maintain hover when moving from trigger to menu */
+.navbar__menu::before {
+  content: "";
+  position: absolute;
+  top: calc(-1 * var(--space-2));
+  left: 0;
+  right: 0;
+  height: var(--space-2);
+}
+
+/* Hover to open - only on devices that support hover (not touch) */
+@media (hover: hover) {
+  .navbar__menu-container:hover .navbar__menu {
+    /* !important overrides any inline display styles from JS toggle */
+    display: flex !important;
+  }
 }
 
 .navbar__menu .navbar__sync-group {

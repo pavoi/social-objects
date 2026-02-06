@@ -19,14 +19,14 @@ defmodule Pavoi.Application do
       {Finch, name: Pavoi.Finch},
       # Registry for TikTok Live stream connections and event handlers
       {Registry, keys: :unique, name: Pavoi.TiktokLive.Registry},
-      # TikTok Bridge WebSocket client (singleton, receives all stream events)
-      Pavoi.TiktokLive.BridgeClient,
-      # TikTok Bridge health monitor (checks bridge service health periodically)
-      Pavoi.TiktokLive.BridgeHealthMonitor,
       # Start Oban for background job processing
       {Oban, Application.fetch_env!(:pavoi, Oban)},
-      # Start to serve requests, typically the last entry
-      PavoiWeb.Endpoint
+      # Start to serve requests - in dev, this also starts the TikTok Bridge watcher
+      PavoiWeb.Endpoint,
+      # TikTok Bridge WebSocket client (after Endpoint so watcher can start the bridge first)
+      Pavoi.TiktokLive.BridgeClient,
+      # TikTok Bridge health monitor (checks bridge service health periodically)
+      Pavoi.TiktokLive.BridgeHealthMonitor
     ]
 
     # See https://hexdocs.pm/elixir/Supervisor.html

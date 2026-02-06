@@ -11,19 +11,6 @@ defmodule PavoiWeb.UserLive.Login do
       <Layouts.flash_group flash={@flash} />
 
       <div class="auth-card">
-        <div class="auth-card__logo">
-          <img
-            src={~p"/images/logo-light.svg"}
-            class="auth-card__logo--light"
-            alt="Logo"
-          />
-          <img
-            src={~p"/images/logo-dark.svg"}
-            class="auth-card__logo--dark"
-            alt="Logo"
-          />
-        </div>
-
         <div class="auth-header">
           <h1 class="auth-title">Log in</h1>
           <p class="auth-subtitle">

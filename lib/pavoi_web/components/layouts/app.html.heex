@@ -2,6 +2,8 @@
 <% current_brand = assigns[:current_brand] %>
 <% current_page = assigns[:current_page] %>
 <% show_nav = current_scope && current_page && current_brand %>
+<% # Load user_brands for brand switcher (on_mount assigns don't flow to layouts) %>
+<% user_brands = (current_scope && current_scope.user && Pavoi.Accounts.list_user_brands(current_scope.user)) || [] %>
 
 <main class="app-shell">
   <%= if show_nav do %>
@@ -10,7 +12,7 @@
         current_page={current_page}
         current_scope={current_scope}
         current_brand={current_brand}
-        user_brands={assigns[:user_brands] || []}
+        user_brands={user_brands}
         current_host={assigns[:current_host]}
         syncing={assigns[:syncing] || false}
         last_sync_at={assigns[:last_sync_at]}

@@ -550,21 +550,6 @@ defmodule PavoiWeb.CoreComponents do
     ~H"""
     <nav id="global-nav" class="navbar">
       <div class="navbar__start">
-        <.link
-          navigate={BrandRoutes.brand_home_path(@current_brand, @current_host)}
-          class="navbar__brand"
-        >
-          <img
-            src={~p"/images/logo-light.svg"}
-            class="navbar__logo navbar__logo--light"
-            alt={@current_brand.name}
-          />
-          <img
-            src={~p"/images/logo-dark.svg"}
-            class="navbar__logo navbar__logo--dark"
-            alt={@current_brand.name}
-          />
-        </.link>
         <div class="navbar__brand-switcher">
           <%= if length(@user_brands) > 1 do %>
             <button
@@ -596,7 +581,7 @@ defmodule PavoiWeb.CoreComponents do
             >
               <.link
                 :for={user_brand <- @user_brands}
-                navigate={nav_path(:product_sets, user_brand.brand, @current_host)}
+                navigate={nav_path(@current_page, user_brand.brand, @current_host)}
                 class={[
                   "brand-switcher__item",
                   user_brand.brand.id == @current_brand.id && "brand-switcher__item--active"
@@ -652,19 +637,20 @@ defmodule PavoiWeb.CoreComponents do
             <circle cx="12" cy="7" r="4" />
           </svg>
         </.link>
-        <button
-          class="navbar__menu-trigger"
-          aria-label="Open menu"
-          aria-haspopup="true"
-          phx-click={JS.toggle(to: "#navbar-menu", in: "fade-in", out: "fade-out", display: "flex")}
-        >
-          ⋮
-        </button>
-        <div
-          id="navbar-menu"
-          class="navbar__menu"
-          phx-click-away={JS.hide(to: "#navbar-menu", transition: "fade-out")}
-        >
+        <div class="navbar__menu-container">
+          <button
+            class="navbar__menu-trigger"
+            aria-label="Open menu"
+            aria-haspopup="true"
+            phx-click={JS.toggle(to: "#navbar-menu", in: "fade-in", out: "fade-out", display: "flex")}
+          >
+            ⋮
+          </button>
+          <div
+            id="navbar-menu"
+            class="navbar__menu"
+            phx-click-away={JS.hide(to: "#navbar-menu", transition: "fade-out")}
+          >
           <%= if @current_page == :streams and @stream_scan_enabled do %>
             <div class="navbar__sync-group">
               <.button
@@ -774,7 +760,7 @@ defmodule PavoiWeb.CoreComponents do
               </div>
             </div>
           <% end %>
-          <div :if={@is_admin} class="navbar__menu-section">
+          <div :if={@is_admin && @current_page != :admin} class="navbar__menu-section">
             <div class="navbar__sync-group">
               <.button navigate={~p"/admin"} variant="outline" size="sm">
                 Admin
@@ -784,6 +770,7 @@ defmodule PavoiWeb.CoreComponents do
           <div class="navbar__menu-section">
             <.theme_toggle />
           </div>
+        </div>
         </div>
       </div>
     </nav>
@@ -797,6 +784,9 @@ defmodule PavoiWeb.CoreComponents do
   defp nav_page_path(:product_sets), do: "/product-sets"
   defp nav_page_path(:streams), do: "/streams"
   defp nav_page_path(:creators), do: "/creators"
+  defp nav_page_path(:readme), do: "/readme"
+  # Non-brand-scoped pages default to product-sets when switching brands
+  defp nav_page_path(_), do: "/product-sets"
 
   @doc """
   Renders a table with generic styling.

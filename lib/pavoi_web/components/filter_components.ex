@@ -7,8 +7,6 @@ defmodule PavoiWeb.FilterComponents do
   """
   use Phoenix.Component
 
-  import PavoiWeb.CoreComponents
-
   @doc """
   Renders a generic filter dropdown with hover behavior.
 

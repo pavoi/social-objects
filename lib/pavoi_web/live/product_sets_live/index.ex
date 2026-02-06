@@ -61,6 +61,7 @@ defmodule PavoiWeb.ProductSetsLive.Index do
 
   on_mount {PavoiWeb.NavHooks, :set_current_page}
 
+  alias Pavoi.Accounts
   alias Pavoi.AI
   alias Pavoi.Catalog
   alias Pavoi.Catalog.Product
@@ -89,7 +90,10 @@ defmodule PavoiWeb.ProductSetsLive.Index do
       Phoenix.PubSub.subscribe(Pavoi.PubSub, "ai:talking_points:#{brand_id}")
     end
 
-    brands = socket.assigns.user_brands |> Enum.map(& &1.brand)
+    # Load user brands for the brand switcher (on_mount assigns don't flow from layouts)
+    user = socket.assigns.current_scope.user
+    user_brands = Accounts.list_user_brands(user)
+    brands = Enum.map(user_brands, & &1.brand)
     last_sync_at = Settings.get_shopify_last_sync_at(brand_id)
     tiktok_last_sync_at = Settings.get_tiktok_last_sync_at(brand_id)
 

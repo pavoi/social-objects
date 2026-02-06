@@ -66,6 +66,11 @@ defmodule Pavoi.TiktokLive.BridgeClient do
       Logger.warning("TikTok Bridge URL not configured, skipping BridgeClient")
       :ignore
     else
+      # In dev, give the Phoenix watcher time to start the Node.js bridge
+      if Application.get_env(:pavoi, :env) == :dev do
+        Process.sleep(1_500)
+      end
+
       Logger.info("Starting TikTok Bridge client, connecting to #{bridge_url}")
 
       state = %State{
