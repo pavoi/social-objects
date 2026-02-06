@@ -27,11 +27,13 @@ defmodule Pavoi.Workers.TiktokLiveStreamWorker do
   @status_check_interval_seconds 60
 
   @impl Oban.Worker
-  def perform(%Oban.Job{args: %{"stream_id" => stream_id, "unique_id" => unique_id}}) do
+  def perform(%Oban.Job{
+        args: %{"stream_id" => stream_id, "unique_id" => unique_id, "brand_id" => brand_id}
+      }) do
     Logger.info("Starting capture worker for stream #{stream_id}, @#{unique_id}")
 
     # Check if stream still exists and is in capturing state
-    case Repo.get(Stream, stream_id) do
+    case Repo.get_by(Stream, id: stream_id, brand_id: brand_id) do
       nil ->
         Logger.warning("Stream #{stream_id} not found, aborting capture")
         :ok
@@ -45,11 +47,11 @@ defmodule Pavoi.Workers.TiktokLiveStreamWorker do
         :ok
 
       stream ->
-        run_capture(stream, unique_id)
+        run_capture(stream, unique_id, brand_id)
     end
   end
 
-  defp run_capture(stream, unique_id) do
+  defp run_capture(stream, unique_id, brand_id) do
     stream_id = stream.id
 
     # IMPORTANT: Subscribe to bridge events BEFORE connecting to avoid losing events
@@ -60,7 +62,7 @@ defmodule Pavoi.Workers.TiktokLiveStreamWorker do
     case connect_via_bridge(unique_id) do
       {:ok, :connected} ->
         # Start the event handler now that we're connected
-        start_event_handler_and_monitor(stream_id, unique_id)
+        start_event_handler_and_monitor(stream_id, unique_id, brand_id)
 
       {:error, reason} ->
         # Unsubscribe since we failed
@@ -88,19 +90,20 @@ defmodule Pavoi.Workers.TiktokLiveStreamWorker do
     end
   end
 
-  defp start_event_handler_and_monitor(stream_id, unique_id) do
+  defp start_event_handler_and_monitor(stream_id, unique_id, brand_id) do
     event_handler_opts = [
       stream_id: stream_id,
+      brand_id: brand_id,
       name: event_handler_name(stream_id)
     ]
 
     case EventHandler.start_link(event_handler_opts) do
       {:ok, event_handler_pid} ->
-        monitor_capture(stream_id, unique_id, event_handler_pid)
+        monitor_capture(stream_id, unique_id, brand_id, event_handler_pid)
 
       {:error, {:already_started, pid}} ->
         Logger.info("Event handler already running for stream #{stream_id}")
-        monitor_capture(stream_id, unique_id, pid)
+        monitor_capture(stream_id, unique_id, brand_id, pid)
 
       {:error, reason} ->
         # Cleanup: unsubscribe and disconnect
@@ -111,7 +114,7 @@ defmodule Pavoi.Workers.TiktokLiveStreamWorker do
     end
   end
 
-  defp monitor_capture(stream_id, unique_id, event_handler_pid) do
+  defp monitor_capture(stream_id, unique_id, brand_id, event_handler_pid) do
     # Monitor the event handler process
     event_handler_ref = Process.monitor(event_handler_pid)
 
@@ -121,6 +124,7 @@ defmodule Pavoi.Workers.TiktokLiveStreamWorker do
       capture_loop(
         stream_id,
         unique_id,
+        brand_id,
         event_handler_pid,
         event_handler_ref
       )
@@ -135,11 +139,11 @@ defmodule Pavoi.Workers.TiktokLiveStreamWorker do
     result
   end
 
-  defp capture_loop(stream_id, unique_id, event_handler_pid, event_handler_ref) do
+  defp capture_loop(stream_id, unique_id, brand_id, event_handler_pid, event_handler_ref) do
     receive do
       # Bridge event for our stream - translate and forward to EventHandler
       {:tiktok_bridge_event, ^unique_id, event} ->
-        handle_bridge_event(stream_id, event)
+        handle_bridge_event(stream_id, brand_id, event)
 
         # Check for terminal events
         case event.type do
@@ -160,12 +164,12 @@ defmodule Pavoi.Workers.TiktokLiveStreamWorker do
             {:snooze, 60}
 
           _ ->
-            capture_loop(stream_id, unique_id, event_handler_pid, event_handler_ref)
+            capture_loop(stream_id, unique_id, brand_id, event_handler_pid, event_handler_ref)
         end
 
       # Ignore events from other streams
       {:tiktok_bridge_event, _other_unique_id, _event} ->
-        capture_loop(stream_id, unique_id, event_handler_pid, event_handler_ref)
+        capture_loop(stream_id, unique_id, brand_id, event_handler_pid, event_handler_ref)
 
       # Event handler process died
       {:DOWN, ^event_handler_ref, :process, ^event_handler_pid, reason} ->
@@ -175,14 +179,14 @@ defmodule Pavoi.Workers.TiktokLiveStreamWorker do
 
       # Ignore other messages
       _other ->
-        capture_loop(stream_id, unique_id, event_handler_pid, event_handler_ref)
+        capture_loop(stream_id, unique_id, brand_id, event_handler_pid, event_handler_ref)
     after
       @status_check_interval_seconds * 1000 ->
         # Check if stream is still valid
-        case Repo.get(Stream, stream_id) do
+        case Repo.get_by(Stream, id: stream_id, brand_id: brand_id) do
           %Stream{status: :capturing} ->
             # Continue monitoring
-            capture_loop(stream_id, unique_id, event_handler_pid, event_handler_ref)
+            capture_loop(stream_id, unique_id, brand_id, event_handler_pid, event_handler_ref)
 
           _ ->
             Logger.info("Stream #{stream_id} no longer in capturing state")
@@ -194,10 +198,10 @@ defmodule Pavoi.Workers.TiktokLiveStreamWorker do
 
   # Translate bridge event (keyed by unique_id) to the format EventHandler expects
   # (keyed by stream_id) and broadcast to the standard events topic
-  defp handle_bridge_event(stream_id, event) do
+  defp handle_bridge_event(stream_id, brand_id, event) do
     Phoenix.PubSub.broadcast(
       Pavoi.PubSub,
-      "tiktok_live:events",
+      "tiktok_live:events:#{brand_id}",
       {:tiktok_live_event, stream_id, event}
     )
   end

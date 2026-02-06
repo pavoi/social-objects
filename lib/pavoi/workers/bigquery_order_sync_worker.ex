@@ -26,47 +26,67 @@ defmodule Pavoi.Workers.BigQueryOrderSyncWorker do
 
   require Logger
   alias Pavoi.BigQuery
-  alias Pavoi.Catalog
   alias Pavoi.Creators
   alias Pavoi.Repo
   alias Pavoi.Settings
 
   @impl Oban.Worker
-  def perform(%Oban.Job{}) do
-    Logger.info("Starting BigQuery TikTok orders sync...")
+  def perform(%Oban.Job{args: args}) do
+    case resolve_brand_id(Map.get(args, "brand_id")) do
+      {:ok, brand_id} ->
+        Logger.info("Starting BigQuery TikTok orders sync...")
 
-    Phoenix.PubSub.broadcast(Pavoi.PubSub, "bigquery:sync", {:bigquery_sync_started})
+        Phoenix.PubSub.broadcast(
+          Pavoi.PubSub,
+          "bigquery:sync:#{brand_id}",
+          {:bigquery_sync_started}
+        )
 
-    case sync_orders() do
-      {:ok, stats} ->
-        Logger.info("""
-        BigQuery orders sync completed successfully
-           - Samples created: #{stats.samples_created}
-           - Creators matched: #{stats.creators_matched}
-           - Creators created: #{stats.creators_created}
-           - Skipped (duplicate): #{stats.skipped}
-           - Errors: #{stats.errors}
-        """)
+        case sync_orders(brand_id) do
+          {:ok, stats} ->
+            Logger.info("""
+            BigQuery orders sync completed successfully
+               - Samples created: #{stats.samples_created}
+               - Creators matched: #{stats.creators_matched}
+               - Creators created: #{stats.creators_created}
+               - Skipped (duplicate): #{stats.skipped}
+               - Errors: #{stats.errors}
+            """)
 
-        Settings.update_bigquery_last_sync_at()
-        Phoenix.PubSub.broadcast(Pavoi.PubSub, "bigquery:sync", {:bigquery_sync_completed, stats})
-        :ok
+            Settings.update_bigquery_last_sync_at(brand_id)
+
+            Phoenix.PubSub.broadcast(
+              Pavoi.PubSub,
+              "bigquery:sync:#{brand_id}",
+              {:bigquery_sync_completed, stats}
+            )
+
+            :ok
+
+          {:error, reason} ->
+            Logger.error("BigQuery orders sync failed: #{inspect(reason)}")
+
+            Phoenix.PubSub.broadcast(
+              Pavoi.PubSub,
+              "bigquery:sync:#{brand_id}",
+              {:bigquery_sync_failed, reason}
+            )
+
+            {:error, reason}
+        end
 
       {:error, reason} ->
-        Logger.error("BigQuery orders sync failed: #{inspect(reason)}")
-        Phoenix.PubSub.broadcast(Pavoi.PubSub, "bigquery:sync", {:bigquery_sync_failed, reason})
-        {:error, reason}
+        Logger.error("[BigQuery] Failed to resolve brand_id: #{inspect(reason)}")
+        {:discard, reason}
     end
   end
 
-  defp sync_orders do
-    brand = get_pavoi_brand()
-
-    with {:ok, bq_orders} <- fetch_free_sample_orders() do
+  defp sync_orders(brand_id) do
+    with {:ok, bq_orders} <- fetch_free_sample_orders(brand_id) do
       Logger.info("Fetched #{length(bq_orders)} free sample orders from BigQuery")
 
       # Get existing order IDs for efficient filtering
-      existing_order_ids = Creators.list_existing_order_ids()
+      existing_order_ids = Creators.list_existing_order_ids(brand_id)
       Logger.info("Found #{MapSet.size(existing_order_ids)} existing orders in local DB")
 
       # Filter to only new orders
@@ -77,46 +97,52 @@ defmodule Pavoi.Workers.BigQueryOrderSyncWorker do
 
       Logger.info("Processing #{length(new_orders)} new orders")
 
-      stats = process_orders(new_orders, brand.id)
+      stats = process_orders(new_orders, brand_id)
       {:ok, Map.put(stats, :skipped, length(bq_orders) - length(new_orders))}
     end
   end
 
-  defp fetch_free_sample_orders do
+  defp fetch_free_sample_orders(brand_id) do
     # Join Orders with LineItems to get product details
     # Filter for free samples (total_amount = 0)
     # Exclude sku_type = 'NORMAL' which are gift-with-purchase promotions (free items bundled
     # with paid orders) - these are regular customers, not creators receiving samples
     # Include: UNKNOWN (creator samples), ZERO_LOTTERY (TikTok giveaway winners)
     # buyer_email is a TikTok forwarding address (e.g., xxx@scs.tiktokw.us) that forwards to the buyer
-    sql = """
-    SELECT
-      CAST(o.order_id AS STRING) as order_id,
-      o.recipient_name,
-      o.recipient_phone_number as phone_number,
-      o.buyer_email as email,
-      o.recipient_full_address as full_address,
-      o.recipient_address_line1 as address_line1,
-      o.recipient_address_line2 as address_line2,
-      o.recipient_address_line3 as city,
-      o.recipient_address_line4 as state,
-      o.recipient_postal_code as zipcode,
-      o.recipient_region_code as country,
-      o.created_at as create_time,
-      li.product_name,
-      li.sku_id,
-      li.sku_name,
-      li.quantity,
-      li.order_status
-    FROM `data-459112.pavoi_4980_prod_staging.TikTokShopOrders` o
-    JOIN `data-459112.pavoi_4980_prod_staging.TikTokShopOrderLineItems` li
-      ON CAST(o.order_id AS STRING) = li.order_id
-    WHERE o.total_amount = 0
-      AND li.sku_type != 'NORMAL'
-    ORDER BY o.created_at DESC
-    """
+    dataset = Settings.get_bigquery_dataset(brand_id)
 
-    BigQuery.query(sql)
+    if is_nil(dataset) or dataset == "" do
+      {:error, :missing_bigquery_dataset}
+    else
+      sql = """
+      SELECT
+        CAST(o.order_id AS STRING) as order_id,
+        o.recipient_name,
+        o.recipient_phone_number as phone_number,
+        o.buyer_email as email,
+        o.recipient_full_address as full_address,
+        o.recipient_address_line1 as address_line1,
+        o.recipient_address_line2 as address_line2,
+        o.recipient_address_line3 as city,
+        o.recipient_address_line4 as state,
+        o.recipient_postal_code as zipcode,
+        o.recipient_region_code as country,
+        o.created_at as create_time,
+        li.product_name,
+        li.sku_id,
+        li.sku_name,
+        li.quantity,
+        li.order_status
+      FROM `#{dataset}.TikTokShopOrders` o
+      JOIN `#{dataset}.TikTokShopOrderLineItems` li
+        ON CAST(o.order_id AS STRING) = li.order_id
+      WHERE o.total_amount = 0
+        AND li.sku_type != 'NORMAL'
+      ORDER BY o.created_at DESC
+      """
+
+      BigQuery.query(sql, brand_id: brand_id)
+    end
   end
 
   defp process_orders(orders, brand_id) do
@@ -446,25 +472,25 @@ defmodule Pavoi.Workers.BigQueryOrderSyncWorker do
     end
   end
 
-  defp get_pavoi_brand do
-    case Catalog.get_brand_by_slug("pavoi") do
-      nil ->
-        Logger.info("Creating PAVOI brand for BigQuery orders sync")
-        {:ok, brand} = Catalog.create_brand(%{name: "PAVOI", slug: "pavoi"})
-        brand
+  defp normalize_brand_id(brand_id) when is_integer(brand_id), do: brand_id
 
-      brand ->
-        brand
-    end
+  defp normalize_brand_id(brand_id) when is_binary(brand_id) do
+    String.to_integer(brand_id)
   end
+
+  defp resolve_brand_id(nil) do
+    {:error, :brand_id_required}
+  end
+
+  defp resolve_brand_id(brand_id), do: {:ok, normalize_brand_id(brand_id)}
 
   @doc """
   Backfills contact info for creators who have BigQuery samples but missing or masked data.
 
   Call from IEx:
-      Pavoi.Workers.BigQueryOrderSyncWorker.backfill_phones()
+      Pavoi.Workers.BigQueryOrderSyncWorker.backfill_phones(brand_id)
   """
-  def backfill_phones do
+  def backfill_phones(brand_id) do
     import Ecto.Query
 
     Logger.info("Starting contact info backfill for creators with missing or masked data...")
@@ -499,7 +525,7 @@ defmodule Pavoi.Workers.BigQueryOrderSyncWorker do
     Logger.info("Looking up #{length(all_order_ids)} unique orders in BigQuery...")
 
     # Fetch all orders from BigQuery in batches
-    order_map = fetch_orders_in_batches(all_order_ids)
+    order_map = fetch_orders_in_batches(brand_id, all_order_ids)
     Logger.info("Retrieved #{map_size(order_map)} orders from BigQuery")
 
     # Update creators
@@ -527,9 +553,9 @@ defmodule Pavoi.Workers.BigQueryOrderSyncWorker do
   Backfills email addresses for creators who have BigQuery samples but are missing email.
 
   Call from IEx:
-      Pavoi.Workers.BigQueryOrderSyncWorker.backfill_emails()
+      Pavoi.Workers.BigQueryOrderSyncWorker.backfill_emails(brand_id)
   """
-  def backfill_emails do
+  def backfill_emails(brand_id) do
     import Ecto.Query
 
     Logger.info("Starting email backfill for creators missing email...")
@@ -557,7 +583,7 @@ defmodule Pavoi.Workers.BigQueryOrderSyncWorker do
     Logger.info("Looking up #{length(all_order_ids)} unique orders in BigQuery...")
 
     # Fetch all orders from BigQuery in batches
-    order_map = fetch_orders_in_batches(all_order_ids)
+    order_map = fetch_orders_in_batches(brand_id, all_order_ids)
     Logger.info("Retrieved #{map_size(order_map)} orders from BigQuery")
 
     # Update creators with email only
@@ -640,10 +666,12 @@ defmodule Pavoi.Workers.BigQueryOrderSyncWorker do
     end
   end
 
-  defp fetch_orders_in_batches(order_ids) do
+  defp fetch_orders_in_batches(brand_id, order_ids) do
     order_ids
     |> Enum.chunk_every(500)
-    |> Enum.reduce(%{}, fn batch, acc -> merge_batch_results(acc, fetch_orders_batch(batch)) end)
+    |> Enum.reduce(%{}, fn batch, acc ->
+      merge_batch_results(acc, fetch_orders_batch(brand_id, batch))
+    end)
   end
 
   defp merge_batch_results(acc, {:ok, orders}) do
@@ -655,27 +683,33 @@ defmodule Pavoi.Workers.BigQueryOrderSyncWorker do
     acc
   end
 
-  defp fetch_orders_batch(order_ids) do
+  defp fetch_orders_batch(brand_id, order_ids) do
     ids_str = Enum.map_join(order_ids, ", ", &"\"#{&1}\"")
 
-    sql = """
-    SELECT
-      CAST(order_id AS STRING) as order_id,
-      recipient_name,
-      recipient_phone_number as phone_number,
-      buyer_email as email,
-      recipient_full_address as full_address,
-      recipient_address_line1 as address_line1,
-      recipient_address_line2 as address_line2,
-      recipient_address_line3 as city,
-      recipient_address_line4 as state,
-      recipient_postal_code as zipcode,
-      recipient_region_code as country
-    FROM `data-459112.pavoi_4980_prod_staging.TikTokShopOrders`
-    WHERE CAST(order_id AS STRING) IN (#{ids_str})
-    """
+    dataset = Settings.get_bigquery_dataset(brand_id)
 
-    BigQuery.query(sql)
+    if is_nil(dataset) or dataset == "" do
+      {:error, :missing_bigquery_dataset}
+    else
+      sql = """
+      SELECT
+        CAST(order_id AS STRING) as order_id,
+        recipient_name,
+        recipient_phone_number as phone_number,
+        buyer_email as email,
+        recipient_full_address as full_address,
+        recipient_address_line1 as address_line1,
+        recipient_address_line2 as address_line2,
+        recipient_address_line3 as city,
+        recipient_address_line4 as state,
+        recipient_postal_code as zipcode,
+        recipient_region_code as country
+      FROM `#{dataset}.TikTokShopOrders`
+      WHERE CAST(order_id AS STRING) IN (#{ids_str})
+      """
+
+      BigQuery.query(sql, brand_id: brand_id)
+    end
   end
 
   # Used by backfill - reuse the comprehensive update function

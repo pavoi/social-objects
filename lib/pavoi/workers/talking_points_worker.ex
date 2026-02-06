@@ -19,11 +19,12 @@ defmodule Pavoi.Workers.TalkingPointsWorker do
 
   use Oban.Worker, queue: :default, max_attempts: 1
 
+  import Ecto.Query, warn: false
   require Logger
 
   alias Pavoi.AI
   alias Pavoi.AI.OpenAIClient
-  alias Pavoi.Catalog
+  alias Pavoi.Catalog.Product
   alias Pavoi.Repo
 
   @impl Oban.Worker
@@ -46,6 +47,12 @@ defmodule Pavoi.Workers.TalkingPointsWorker do
 
       # Broadcast that we've started
       AI.broadcast_generation_event({:generation_started, generation})
+
+      if is_nil(generation.brand_id) do
+        Logger.warning(
+          "Generation #{generation.job_id} missing brand_id; product lookups will be unscoped"
+        )
+      end
 
       # Process each product
       _results = process_products(generation, product_ids)
@@ -103,7 +110,10 @@ defmodule Pavoi.Workers.TalkingPointsWorker do
 
     try do
       # Get product details
-      product = Catalog.get_product!(product_id) |> Repo.preload(:brand)
+      product =
+        generation
+        |> fetch_product(product_id)
+        |> Repo.preload(:brand)
 
       # Broadcast progress
       AI.broadcast_generation_event({
@@ -160,4 +170,14 @@ defmodule Pavoi.Workers.TalkingPointsWorker do
   end
 
   defp format_error(reason), do: to_string(reason)
+
+  defp fetch_product(%{brand_id: nil}, product_id) do
+    Repo.get!(Product, product_id)
+  end
+
+  defp fetch_product(%{brand_id: brand_id}, product_id) when is_integer(brand_id) do
+    Product
+    |> where([p], p.id == ^product_id and p.brand_id == ^brand_id)
+    |> Repo.one!()
+  end
 end

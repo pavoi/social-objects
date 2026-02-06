@@ -16,7 +16,7 @@ defmodule Pavoi.Workers.ShopifySyncWorker do
   - `original_price_cents` - Minimum variant price
   - `sale_price_cents` - Minimum compare-at price
   - `sku` - First variant SKU
-  - `brand_id` - Derived from product vendor
+  - `brand_id` - Set to the current brand
 
   ### User-Editable Fields (Never Overwritten)
   These fields are managed by users and never synced from Shopify:
@@ -43,40 +43,60 @@ defmodule Pavoi.Workers.ShopifySyncWorker do
   alias Pavoi.Shopify.Client
 
   @impl Oban.Worker
-  def perform(%Oban.Job{}) do
-    Logger.info("Starting Shopify product sync...")
+  def perform(%Oban.Job{args: args}) do
+    case resolve_brand_id(Map.get(args, "brand_id")) do
+      {:ok, brand_id} ->
+        Logger.info("Starting Shopify product sync...")
 
-    # Broadcast sync start event
-    Phoenix.PubSub.broadcast(Pavoi.PubSub, "shopify:sync", {:sync_started})
+        # Broadcast sync start event
+        Phoenix.PubSub.broadcast(Pavoi.PubSub, "shopify:sync:#{brand_id}", {:sync_started})
 
-    case sync_all_products() do
-      {:ok, counts} ->
-        Logger.info("""
-        ✅ Shopify sync completed successfully
-           - Products synced: #{counts.products}
-           - Brands created/updated: #{counts.brands}
-           - Images synced: #{counts.images}
-        """)
+        case sync_all_products(brand_id) do
+          {:ok, counts} ->
+            Logger.info("""
+            ✅ Shopify sync completed successfully
+               - Products synced: #{counts.products}
+               - Images synced: #{counts.images}
+            """)
 
-        # Update last sync timestamp
-        Settings.update_shopify_last_sync_at()
+            # Update last sync timestamp
+            Settings.update_shopify_last_sync_at(brand_id)
 
-        # Broadcast sync complete event
-        Phoenix.PubSub.broadcast(Pavoi.PubSub, "shopify:sync", {:sync_completed, counts})
+            # Broadcast sync complete event
+            Phoenix.PubSub.broadcast(
+              Pavoi.PubSub,
+              "shopify:sync:#{brand_id}",
+              {:sync_completed, counts}
+            )
 
-        :ok
+            :ok
 
-      {:error, :rate_limited} ->
-        Logger.warning("Rate limited by Shopify API, will retry")
-        # Broadcast sync failed event
-        Phoenix.PubSub.broadcast(Pavoi.PubSub, "shopify:sync", {:sync_failed, :rate_limited})
-        {:snooze, 60}
+          {:error, :rate_limited} ->
+            Logger.warning("Rate limited by Shopify API, will retry")
+            # Broadcast sync failed event
+            Phoenix.PubSub.broadcast(
+              Pavoi.PubSub,
+              "shopify:sync:#{brand_id}",
+              {:sync_failed, :rate_limited}
+            )
+
+            {:snooze, 60}
+
+          {:error, reason} ->
+            Logger.error("Shopify sync failed: #{inspect(reason)}")
+            # Broadcast sync failed event
+            Phoenix.PubSub.broadcast(
+              Pavoi.PubSub,
+              "shopify:sync:#{brand_id}",
+              {:sync_failed, reason}
+            )
+
+            {:error, reason}
+        end
 
       {:error, reason} ->
-        Logger.error("Shopify sync failed: #{inspect(reason)}")
-        # Broadcast sync failed event
-        Phoenix.PubSub.broadcast(Pavoi.PubSub, "shopify:sync", {:sync_failed, reason})
-        {:error, reason}
+        Logger.error("[ShopifySync] Failed to resolve brand_id: #{inspect(reason)}")
+        {:discard, reason}
     end
   end
 
@@ -84,11 +104,11 @@ defmodule Pavoi.Workers.ShopifySyncWorker do
   Syncs all products from Shopify to the local database.
 
   Returns:
-    - `{:ok, %{products: count, brands: count, images: count}}` on success
+    - `{:ok, %{products: count, images: count}}` on success
     - `{:error, reason}` on failure
   """
-  def sync_all_products do
-    case Client.fetch_all_products() do
+  def sync_all_products(brand_id) do
+    case Client.fetch_all_products(brand_id) do
       {:ok, shopify_products} ->
         Logger.info("Fetched #{length(shopify_products)} products from Shopify")
 
@@ -104,11 +124,11 @@ defmodule Pavoi.Workers.ShopifySyncWorker do
           "Filtered to #{length(valid_products)} products with valid pricing (skipped #{length(shopify_products) - length(valid_products)} products)"
         )
 
-        counts = %{products: 0, brands: 0, images: 0}
+        counts = %{products: 0, images: 0}
 
         result =
           Enum.reduce_while(valid_products, {:ok, counts}, fn shopify_product, {:ok, acc} ->
-            sync_and_accumulate(shopify_product, acc)
+            sync_and_accumulate(brand_id, shopify_product, acc)
           end)
 
         finalize_sync_result(result)
@@ -118,8 +138,8 @@ defmodule Pavoi.Workers.ShopifySyncWorker do
     end
   end
 
-  defp sync_and_accumulate(shopify_product, acc) do
-    case sync_product(shopify_product) do
+  defp sync_and_accumulate(brand_id, shopify_product, acc) do
+    case sync_product(brand_id, shopify_product) do
       {:ok, image_count} ->
         {:cont, {:ok, %{acc | products: acc.products + 1, images: acc.images + image_count}}}
 
@@ -129,18 +149,12 @@ defmodule Pavoi.Workers.ShopifySyncWorker do
     end
   end
 
-  defp finalize_sync_result({:ok, final_counts}) do
-    brand_count = Catalog.list_brands() |> length()
-    {:ok, %{final_counts | brands: brand_count}}
-  end
+  defp finalize_sync_result({:ok, final_counts}), do: {:ok, final_counts}
 
   defp finalize_sync_result(error), do: error
 
-  defp sync_product(shopify_product) do
+  defp sync_product(brand_id, shopify_product) do
     Repo.transaction(fn ->
-      # Get or create brand from vendor
-      brand = get_or_create_brand(shopify_product["vendor"])
-
       # Parse variants data
       variants = shopify_product["variants"]["nodes"] || []
       images = shopify_product["images"]["nodes"] || []
@@ -154,12 +168,11 @@ defmodule Pavoi.Workers.ShopifySyncWorker do
         description: shopify_product["descriptionHtml"],
         original_price_cents: get_minimum_variant_price(variants),
         sale_price_cents: get_minimum_compare_at_price(variants),
-        sku: get_first_variant_sku(variants),
-        brand_id: brand.id
+        sku: get_first_variant_sku(variants)
       }
 
       # Upsert product (update if exists, insert if new)
-      product = upsert_product(product_attrs)
+      product = upsert_product(brand_id, product_attrs)
 
       # Sync images
       sync_images(product, images)
@@ -172,45 +185,12 @@ defmodule Pavoi.Workers.ShopifySyncWorker do
     end)
   end
 
-  defp get_or_create_brand(vendor_name) when is_binary(vendor_name) do
-    slug = slugify(vendor_name)
-
-    case Catalog.get_brand_by_slug(slug) do
-      nil ->
-        Logger.info("Creating brand: #{vendor_name}")
-
-        case Catalog.create_brand(%{name: vendor_name, slug: slug}) do
-          {:ok, brand} ->
-            brand
-
-          {:error, changeset} ->
-            Logger.error("Failed to create brand #{vendor_name}: #{inspect(changeset.errors)}")
-            raise "Failed to create brand: #{vendor_name}"
-        end
-
-      brand ->
-        brand
-    end
-  end
-
-  defp get_or_create_brand(vendor_name) do
-    Logger.warning("Invalid vendor name: #{inspect(vendor_name)}, skipping brand creation")
-    raise "Product has invalid vendor name"
-  end
-
-  defp slugify(name) do
-    name
-    |> String.downcase()
-    |> String.replace(~r/[^\w\s-]/, "")
-    |> String.replace(~r/\s+/, "-")
-  end
-
-  defp upsert_product(attrs) do
-    case Catalog.get_product_by_pid(attrs.pid) do
+  defp upsert_product(brand_id, attrs) do
+    case Catalog.get_product_by_pid(brand_id, attrs.pid) do
       nil ->
         Logger.debug("Creating new product: #{attrs.name}")
 
-        case Catalog.create_product(attrs) do
+        case Catalog.create_product(brand_id, attrs) do
           {:ok, product} ->
             product
 
@@ -409,4 +389,16 @@ defmodule Pavoi.Workers.ShopifySyncWorker do
   """
   def get_first_variant_sku([]), do: nil
   def get_first_variant_sku([first | _rest]), do: first["sku"]
+
+  defp normalize_brand_id(brand_id) when is_integer(brand_id), do: brand_id
+
+  defp normalize_brand_id(brand_id) when is_binary(brand_id) do
+    String.to_integer(brand_id)
+  end
+
+  defp resolve_brand_id(nil) do
+    {:error, :brand_id_required}
+  end
+
+  defp resolve_brand_id(brand_id), do: {:ok, normalize_brand_id(brand_id)}
 end

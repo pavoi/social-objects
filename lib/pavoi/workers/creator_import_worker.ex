@@ -52,8 +52,8 @@ defmodule Pavoi.Workers.CreatorImportWorker do
         "euka" -> import_euka_data(file_path)
         "phone_numbers" -> import_phone_numbers(file_path)
         "samples" -> import_samples_data(file_path, brand_id)
-        "videos" -> import_videos_data(file_path)
-        "refunnel" -> import_refunnel_data(file_path)
+        "videos" -> import_videos_data(file_path, brand_id)
+        "refunnel" -> import_refunnel_data(file_path, brand_id)
         _ -> {:error, "Unknown source: #{source}"}
       end
 
@@ -63,7 +63,7 @@ defmodule Pavoi.Workers.CreatorImportWorker do
 
         # Update timestamp for video imports
         if source == "videos" do
-          Settings.update_videos_last_import_at()
+          Settings.update_videos_last_import_at(brand_id)
         end
 
         Phoenix.PubSub.broadcast(
@@ -320,7 +320,7 @@ defmodule Pavoi.Workers.CreatorImportWorker do
   Expected columns: Video name, Video link, Video post date, Creator username,
   GMV, Affiliate items sold, impressions, likes, comments, etc.
   """
-  def import_videos_data(file_path) do
+  def import_videos_data(file_path, brand_id) do
     {headers, rows} = parse_csv_with_headers(file_path)
 
     rows
@@ -328,7 +328,7 @@ defmodule Pavoi.Workers.CreatorImportWorker do
     |> Enum.reduce(%{creators: 0, videos: 0, errors: 0}, fn {row, index}, acc ->
       row = zip_headers(headers, row)
 
-      case process_video_row(row) do
+      case process_video_row(row, brand_id) do
         {:ok, result} ->
           acc
           |> Map.update!(:creators, &(&1 + (result[:creator_created] || 0)))
@@ -345,7 +345,7 @@ defmodule Pavoi.Workers.CreatorImportWorker do
     |> then(&{:ok, &1})
   end
 
-  defp process_video_row(row) do
+  defp process_video_row(row, brand_id) do
     username = row["Creator username"]
     video_url = row["Video link"]
 
@@ -390,7 +390,7 @@ defmodule Pavoi.Workers.CreatorImportWorker do
               est_commission_cents: parse_money(row["Est. commission"])
             }
 
-            case Creators.create_creator_video(video_attrs) do
+            case Creators.create_creator_video(brand_id, video_attrs) do
               {:ok, _video} ->
                 {:ok, %{creator_created: if(created?, do: 1, else: 0)}}
 
@@ -415,7 +415,7 @@ defmodule Pavoi.Workers.CreatorImportWorker do
   Expected columns: username, profile, followers, emv, gmv, platform,
   last_post, total_posts, likes, comments, shares, engagement, impressions
   """
-  def import_refunnel_data(file_path) do
+  def import_refunnel_data(file_path, brand_id) do
     {headers, rows} = parse_csv_with_headers(file_path)
 
     rows
@@ -423,7 +423,7 @@ defmodule Pavoi.Workers.CreatorImportWorker do
     |> Enum.reduce(%{created: 0, updated: 0, snapshots: 0, errors: 0}, fn {row, index}, acc ->
       row = zip_headers(headers, row)
 
-      case process_refunnel_row(row) do
+      case process_refunnel_row(row, brand_id) do
         {:ok, result} ->
           acc
           |> Map.update!(:created, &(&1 + (result[:created] || 0)))
@@ -441,7 +441,7 @@ defmodule Pavoi.Workers.CreatorImportWorker do
     |> then(&{:ok, &1})
   end
 
-  defp process_refunnel_row(row) do
+  defp process_refunnel_row(row, brand_id) do
     username = row["username"]
 
     if blank?(username) do
@@ -496,7 +496,7 @@ defmodule Pavoi.Workers.CreatorImportWorker do
             engagement_count: parse_int(row["engagement"])
           }
 
-          Creators.create_performance_snapshot(snapshot_attrs)
+          Creators.create_performance_snapshot(brand_id, snapshot_attrs)
 
           {:ok, %{action => 1}}
       end

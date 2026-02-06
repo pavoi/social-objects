@@ -23,23 +23,42 @@ defmodule Pavoi.Workers.TiktokTokenRefreshWorker do
   alias Pavoi.TiktokShop
 
   @impl Oban.Worker
-  def perform(%Oban.Job{}) do
-    case TiktokShop.maybe_refresh_token_if_expiring() do
-      {:ok, :no_refresh_needed} ->
-        Logger.debug("TikTok token still valid, no refresh needed")
-        :ok
+  def perform(%Oban.Job{args: args}) do
+    case resolve_brand_id(Map.get(args, "brand_id")) do
+      {:ok, brand_id} ->
+        case TiktokShop.maybe_refresh_token_if_expiring(brand_id) do
+          {:ok, :no_refresh_needed} ->
+            Logger.debug("TikTok token still valid, no refresh needed")
+            :ok
 
-      {:ok, :refreshed} ->
-        Logger.info("TikTok access token refreshed successfully")
-        :ok
+          {:ok, :refreshed} ->
+            Logger.info("TikTok access token refreshed successfully")
+            :ok
 
-      {:error, :no_auth_record} ->
-        Logger.debug("No TikTok auth record found, skipping token refresh")
-        :ok
+          {:error, :no_auth_record} ->
+            Logger.debug("No TikTok auth record found, skipping token refresh")
+            :ok
+
+          {:error, reason} ->
+            Logger.error("Failed to refresh TikTok token: #{inspect(reason)}")
+            {:error, reason}
+        end
 
       {:error, reason} ->
-        Logger.error("Failed to refresh TikTok token: #{inspect(reason)}")
-        {:error, reason}
+        Logger.error("[TiktokTokenRefresh] Failed to resolve brand_id: #{inspect(reason)}")
+        {:discard, reason}
     end
   end
+
+  defp normalize_brand_id(brand_id) when is_integer(brand_id), do: brand_id
+
+  defp normalize_brand_id(brand_id) when is_binary(brand_id) do
+    String.to_integer(brand_id)
+  end
+
+  defp resolve_brand_id(nil) do
+    {:error, :brand_id_required}
+  end
+
+  defp resolve_brand_id(brand_id), do: {:ok, normalize_brand_id(brand_id)}
 end

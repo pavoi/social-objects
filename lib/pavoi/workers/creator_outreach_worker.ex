@@ -22,13 +22,13 @@ defmodule Pavoi.Workers.CreatorOutreachWorker do
 
   Or enqueue multiple creators at once:
 
-      Pavoi.Workers.CreatorOutreachWorker.enqueue_batch(creator_ids, template_id)
+      Pavoi.Workers.CreatorOutreachWorker.enqueue_batch(brand_id, creator_ids, template_id)
   """
 
   use Oban.Worker,
     queue: :creators,
     max_attempts: 3,
-    unique: [period: 300, fields: [:args], keys: [:creator_id]]
+    unique: [period: 300, fields: [:args], keys: [:creator_id, :brand_id]]
 
   require Logger
   alias Pavoi.Communications
@@ -37,15 +37,17 @@ defmodule Pavoi.Workers.CreatorOutreachWorker do
   alias Pavoi.Outreach
 
   @impl Oban.Worker
-  def perform(%Oban.Job{args: %{"creator_id" => creator_id, "template_id" => template_id}}) do
+  def perform(%Oban.Job{
+        args: %{"creator_id" => creator_id, "template_id" => template_id, "brand_id" => brand_id}
+      }) do
     Logger.info("Starting outreach for creator #{creator_id} with template #{template_id}")
 
-    creator = Creators.get_creator!(creator_id)
-    template = Communications.get_email_template!(template_id)
+    creator = Creators.get_creator!(brand_id, creator_id)
+    template = Communications.get_email_template!(brand_id, template_id)
 
     # Check if creator can be contacted
     if Outreach.can_contact_email?(creator) do
-      send_outreach(creator, template)
+      send_outreach(brand_id, creator, template)
     else
       Logger.warning(
         "Creator #{creator_id} cannot be contacted (opted_out: #{creator.email_opted_out}, reason: #{creator.email_opted_out_reason}), skipping"
@@ -55,31 +57,35 @@ defmodule Pavoi.Workers.CreatorOutreachWorker do
     end
   end
 
-  defp send_outreach(creator, template) do
+  defp send_outreach(brand_id, creator, template) do
     if creator.email && creator.email != "" do
       case Email.send_templated_email(creator, template) do
         {:ok, message_id} ->
-          Outreach.log_outreach(creator.id, "email", "sent", provider_id: message_id)
-          finalize_outreach(creator, {:ok, message_id})
+          Outreach.log_outreach(brand_id, creator.id, "email", "sent", provider_id: message_id)
+          finalize_outreach(brand_id, creator, {:ok, message_id})
 
         {:error, reason} ->
           Logger.error("Failed to send email to creator #{creator.id}: #{reason}")
-          Outreach.log_outreach(creator.id, "email", "failed", error_message: reason)
+          Outreach.log_outreach(brand_id, creator.id, "email", "failed", error_message: reason)
           {:error, "email_failed: #{reason}"}
       end
     else
       Logger.warning("Creator #{creator.id} has no email address, skipping email")
-      Outreach.log_outreach(creator.id, "email", "failed", error_message: "no_email")
+      Outreach.log_outreach(brand_id, creator.id, "email", "failed", error_message: "no_email")
       {:error, "no_email"}
     end
   end
 
-  defp finalize_outreach(creator, {:ok, _message_id}) do
+  defp finalize_outreach(brand_id, creator, {:ok, _message_id}) do
     {:ok, updated} = Outreach.mark_creator_sent(creator)
     Logger.info("Outreach completed for creator #{creator.id}")
 
     # Notify any listening LiveViews
-    Phoenix.PubSub.broadcast(Pavoi.PubSub, "outreach:updates", {:outreach_sent, updated})
+    Phoenix.PubSub.broadcast(
+      Pavoi.PubSub,
+      "outreach:updates:#{brand_id}",
+      {:outreach_sent, updated}
+    )
 
     :ok
   end
@@ -93,10 +99,10 @@ defmodule Pavoi.Workers.CreatorOutreachWorker do
 
   Returns {:ok, count} with number of jobs enqueued.
   """
-  def enqueue_batch(creator_ids, template_id) when is_list(creator_ids) do
+  def enqueue_batch(brand_id, creator_ids, template_id) when is_list(creator_ids) do
     jobs =
       Enum.map(creator_ids, fn creator_id ->
-        new(%{creator_id: creator_id, template_id: template_id})
+        new(%{creator_id: creator_id, template_id: template_id, brand_id: brand_id})
       end)
 
     inserted = Oban.insert_all(jobs)
@@ -106,8 +112,8 @@ defmodule Pavoi.Workers.CreatorOutreachWorker do
   @doc """
   Enqueues outreach job for a single creator.
   """
-  def enqueue(creator_id, template_id) do
-    {:ok, count} = enqueue_batch([creator_id], template_id)
+  def enqueue(brand_id, creator_id, template_id) do
+    {:ok, count} = enqueue_batch(brand_id, [creator_id], template_id)
 
     if count == 1, do: :ok, else: {:error, "job_not_created"}
   end

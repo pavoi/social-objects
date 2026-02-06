@@ -29,7 +29,6 @@ defmodule Pavoi.Workers.CreatorEnrichmentWorker do
   require Logger
   import Ecto.Query
 
-  alias Pavoi.Catalog
   alias Pavoi.Creators
   alias Pavoi.Creators.Creator
   alias Pavoi.Repo
@@ -52,29 +51,40 @@ defmodule Pavoi.Workers.CreatorEnrichmentWorker do
 
   @impl Oban.Worker
   def perform(%Oban.Job{args: args}) do
-    # Check if we're still in cooldown from a recent rate limit
-    case check_rate_limit_cooldown() do
-      {:cooldown, seconds_remaining} ->
-        Logger.info(
-          "[Enrichment] Still in cooldown (#{seconds_remaining}s remaining), skipping this run"
-        )
+    case resolve_brand_id(Map.get(args, "brand_id")) do
+      {:ok, brand_id} ->
+        # Check if we're still in cooldown from a recent rate limit
+        case check_rate_limit_cooldown(brand_id) do
+          {:cooldown, seconds_remaining} ->
+            Logger.info(
+              "[Enrichment] Still in cooldown (#{seconds_remaining}s remaining), skipping this run"
+            )
 
-        :ok
+            :ok
 
-      :ok ->
-        do_perform(args)
+          :ok ->
+            do_perform(brand_id, args)
+        end
+
+      {:error, reason} ->
+        Logger.error("[Enrichment] Failed to resolve brand_id: #{inspect(reason)}")
+        {:discard, reason}
     end
   end
 
-  defp do_perform(args) do
-    Phoenix.PubSub.broadcast(Pavoi.PubSub, "creator:enrichment", {:enrichment_started})
+  defp do_perform(brand_id, args) do
+    Phoenix.PubSub.broadcast(
+      Pavoi.PubSub,
+      "creator:enrichment:#{brand_id}",
+      {:enrichment_started}
+    )
 
     # Step 1: Sync sample orders to link creators to their tiktok_user_id
     # This runs first so newly-linked creators can be enriched in step 2
     # Default to 20 pages (~2000 orders) to avoid rate limits when combined with enrichment
     sample_sync_pages = Map.get(args, "sample_sync_pages", 20)
 
-    case sync_sample_orders(max_pages: sample_sync_pages) do
+    case sync_sample_orders(brand_id, max_pages: sample_sync_pages) do
       {:ok, sample_stats} ->
         # Brief pause between sample sync and enrichment to avoid rate limits
         # Both use TikTok APIs that may share rate limit buckets
@@ -84,11 +94,11 @@ defmodule Pavoi.Workers.CreatorEnrichmentWorker do
         batch_size = Map.get(args, "batch_size", @batch_size)
         Logger.info("Starting creator enrichment (batch_size: #{batch_size})...")
 
-        case enrich_creators(batch_size) do
+        case enrich_creators(brand_id, batch_size) do
           {:ok, enrich_stats} ->
-            Settings.update_enrichment_last_sync_at()
+            Settings.update_enrichment_last_sync_at(brand_id)
             # Reset rate limit streak on successful completion
-            Settings.reset_enrichment_rate_limit_streak()
+            Settings.reset_enrichment_rate_limit_streak(brand_id)
 
             Logger.info("""
             Creator enrichment completed
@@ -108,18 +118,18 @@ defmodule Pavoi.Workers.CreatorEnrichmentWorker do
 
             Phoenix.PubSub.broadcast(
               Pavoi.PubSub,
-              "creator:enrichment",
+              "creator:enrichment:#{brand_id}",
               {:enrichment_completed, combined_stats}
             )
 
             :ok
 
           {:error, reason} ->
-            handle_enrichment_error(reason)
+            handle_enrichment_error(brand_id, reason)
         end
 
       {:error, reason} ->
-        handle_enrichment_error(reason)
+        handle_enrichment_error(brand_id, reason)
     end
   end
 
@@ -127,18 +137,18 @@ defmodule Pavoi.Workers.CreatorEnrichmentWorker do
   Manually trigger enrichment for a specific creator by username.
   Returns {:ok, creator} or {:error, reason}.
   """
-  def enrich_single(creator) when is_struct(creator, Creator) do
+  def enrich_single(brand_id, creator) when is_struct(creator, Creator) do
     if creator.tiktok_username && creator.tiktok_username != "" do
-      enrich_creator(creator)
+      enrich_creator(brand_id, creator)
     else
       {:error, :no_username}
     end
   end
 
-  defp handle_enrichment_error(reason) do
+  defp handle_enrichment_error(brand_id, reason) do
     if rate_limited_reason?(reason) do
       # Record the rate limit and get exponential backoff duration
-      streak = Settings.record_enrichment_rate_limit()
+      streak = Settings.record_enrichment_rate_limit(brand_id)
       backoff_seconds = calculate_backoff(streak)
 
       Logger.warning(
@@ -147,7 +157,7 @@ defmodule Pavoi.Workers.CreatorEnrichmentWorker do
 
       Phoenix.PubSub.broadcast(
         Pavoi.PubSub,
-        "creator:enrichment",
+        "creator:enrichment:#{brand_id}",
         {:enrichment_failed, :rate_limited}
       )
 
@@ -157,7 +167,7 @@ defmodule Pavoi.Workers.CreatorEnrichmentWorker do
 
       Phoenix.PubSub.broadcast(
         Pavoi.PubSub,
-        "creator:enrichment",
+        "creator:enrichment:#{brand_id}",
         {:enrichment_failed, reason}
       )
 
@@ -173,8 +183,8 @@ defmodule Pavoi.Workers.CreatorEnrichmentWorker do
     min(base * multiplier, @rate_limit_max_backoff_seconds)
   end
 
-  defp check_rate_limit_cooldown do
-    case Settings.get_enrichment_last_rate_limited_at() do
+  defp check_rate_limit_cooldown(brand_id) do
+    case Settings.get_enrichment_last_rate_limited_at(brand_id) do
       nil ->
         :ok
 
@@ -207,16 +217,16 @@ defmodule Pavoi.Workers.CreatorEnrichmentWorker do
   5. Creates new creators for unmatched samples
 
   Call manually:
-      Pavoi.Workers.CreatorEnrichmentWorker.sync_sample_orders()
+      Pavoi.Workers.CreatorEnrichmentWorker.sync_sample_orders(brand_id)
   """
-  def sync_sample_orders(opts \\ []) do
+  def sync_sample_orders(brand_id, opts \\ []) do
     max_pages = Keyword.get(opts, :max_pages, 100)
     Logger.info("[SampleSync] Starting sample orders sync (max_pages: #{max_pages})...")
 
     # Initialize context for sample creation
     context = %{
-      brand_id: get_pavoi_brand_id(),
-      existing_order_ids: Creators.list_existing_order_ids()
+      brand_id: brand_id,
+      existing_order_ids: Creators.list_existing_order_ids(brand_id)
     }
 
     Logger.info(
@@ -269,8 +279,9 @@ defmodule Pavoi.Workers.CreatorEnrichmentWorker do
 
   defp sync_sample_orders_page(page_token, stats, context, max_pages) do
     params = build_page_params(page_token)
+    brand_id = context.brand_id
 
-    case TiktokShop.make_api_request(:post, "/order/202309/orders/search", params, %{}) do
+    case TiktokShop.make_api_request(brand_id, :post, "/order/202309/orders/search", params, %{}) do
       {:ok, %{"data" => data}} ->
         Process.sleep(@api_delay_ms)
         handle_orders_response(data, stats, context, max_pages)
@@ -594,6 +605,8 @@ defmodule Pavoi.Workers.CreatorEnrichmentWorker do
     if MapSet.member?(existing_order_ids, order_id) do
       %{acc | samples_skipped: acc.samples_skipped + 1}
     else
+      Creators.add_creator_to_brand(creator_id, brand_id)
+
       line_items = order["line_items"] || []
       ordered_at = parse_order_timestamp(order["create_time"])
       status = determine_sample_status(order["status"])
@@ -659,18 +672,6 @@ defmodule Pavoi.Workers.CreatorEnrichmentWorker do
     end
   end
 
-  defp get_pavoi_brand_id do
-    case Catalog.get_brand_by_slug("pavoi") do
-      nil ->
-        Logger.info("[SampleSync] Creating PAVOI brand")
-        {:ok, brand} = Catalog.create_brand(%{name: "PAVOI", slug: "pavoi"})
-        brand.id
-
-      brand ->
-        brand.id
-    end
-  end
-
   defp maybe_put(map, _key, nil, _validator), do: map
   defp maybe_put(map, _key, "", _validator), do: map
 
@@ -696,10 +697,10 @@ defmodule Pavoi.Workers.CreatorEnrichmentWorker do
   defp phone_is_masked?(""), do: true
   defp phone_is_masked?(phone), do: String.contains?(phone, "*")
 
-  defp enrich_creators(batch_size) do
+  defp enrich_creators(brand_id, batch_size) do
     # Get total count of creators needing enrichment for progress tracking
-    total_needing_enrichment = count_creators_needing_enrichment()
-    creators = get_creators_to_enrich(batch_size)
+    total_needing_enrichment = count_creators_needing_enrichment(brand_id)
+    creators = get_creators_to_enrich(brand_id, batch_size)
 
     Logger.info(
       "Found #{length(creators)} creators to enrich this batch (#{total_needing_enrichment} total remaining)"
@@ -714,7 +715,10 @@ defmodule Pavoi.Workers.CreatorEnrichmentWorker do
       halted_reason: nil
     }
 
-    final_state = Enum.reduce_while(creators, initial_state, &process_creator/2)
+    final_state =
+      Enum.reduce_while(creators, initial_state, fn creator, state ->
+        process_creator(brand_id, creator, state)
+      end)
 
     # Calculate remaining after this batch
     remaining = max(0, total_needing_enrichment - final_state.stats.enriched)
@@ -734,12 +738,15 @@ defmodule Pavoi.Workers.CreatorEnrichmentWorker do
     end
   end
 
-  defp count_creators_needing_enrichment do
+  defp count_creators_needing_enrichment(brand_id) do
     seven_days_ago = DateTime.add(DateTime.utc_now(), -7, :day)
 
     query =
       from(c in Creator,
+        join: bc in Pavoi.Creators.BrandCreator,
+        on: bc.creator_id == c.id,
         where: not is_nil(c.tiktok_username) and c.tiktok_username != "",
+        where: bc.brand_id == ^brand_id,
         where: is_nil(c.last_enriched_at) or c.last_enriched_at < ^seven_days_ago,
         select: count(c.id)
       )
@@ -747,20 +754,20 @@ defmodule Pavoi.Workers.CreatorEnrichmentWorker do
     Repo.one(query) || 0
   end
 
-  defp process_creator(%Creator{tiktok_username: nil}, state) do
+  defp process_creator(_brand_id, %Creator{tiktok_username: nil}, state) do
     skip_creator(state)
   end
 
-  defp process_creator(%Creator{tiktok_username: ""}, state) do
+  defp process_creator(_brand_id, %Creator{tiktok_username: ""}, state) do
     skip_creator(state)
   end
 
-  defp process_creator(creator, state) do
+  defp process_creator(brand_id, creator, state) do
     stats = state.stats
 
     if stats.enriched > 0, do: Process.sleep(@api_delay_ms)
 
-    result = enrich_creator(creator)
+    result = enrich_creator(brand_id, creator)
     new_stats = update_stats(result, stats)
     process_creator_result(result, new_stats, state)
   end
@@ -818,7 +825,19 @@ defmodule Pavoi.Workers.CreatorEnrichmentWorker do
 
   defp rate_limited_reason?(_reason), do: false
 
-  defp get_creators_to_enrich(limit) do
+  defp normalize_brand_id(brand_id) when is_integer(brand_id), do: brand_id
+
+  defp normalize_brand_id(brand_id) when is_binary(brand_id) do
+    String.to_integer(brand_id)
+  end
+
+  defp resolve_brand_id(nil) do
+    {:error, :brand_id_required}
+  end
+
+  defp resolve_brand_id(brand_id), do: {:ok, normalize_brand_id(brand_id)}
+
+  defp get_creators_to_enrich(brand_id, limit) do
     # Prioritize:
     # 1. Creators with recent samples (last 30 days)
     # 2. Creators with no enrichment data
@@ -830,7 +849,11 @@ defmodule Pavoi.Workers.CreatorEnrichmentWorker do
     # Query creators who need enrichment, prioritized by sample recency
     query =
       from(c in Creator,
+        join: bc in Pavoi.Creators.BrandCreator,
+        on: bc.creator_id == c.id,
         left_join: s in assoc(c, :creator_samples),
+        on: s.brand_id == ^brand_id,
+        where: bc.brand_id == ^brand_id,
         where: not is_nil(c.tiktok_username) and c.tiktok_username != "",
         where:
           is_nil(c.last_enriched_at) or
@@ -851,24 +874,24 @@ defmodule Pavoi.Workers.CreatorEnrichmentWorker do
     Repo.all(query)
   end
 
-  defp enrich_creator(creator) do
+  defp enrich_creator(brand_id, creator) do
     # Prefer user_id-based enrichment (more reliable, handles username changes)
     # Fall back to username search if no user_id available
     if creator.tiktok_user_id && creator.tiktok_user_id != "" do
-      enrich_creator_by_user_id(creator)
+      enrich_creator_by_user_id(brand_id, creator)
     else
-      enrich_creator_by_username(creator)
+      enrich_creator_by_username(brand_id, creator)
     end
   end
 
   # Enrich using stable user_id - can detect handle changes
-  defp enrich_creator_by_user_id(creator) do
-    case TiktokShop.get_marketplace_creator(creator.tiktok_user_id) do
+  defp enrich_creator_by_user_id(brand_id, creator) do
+    case TiktokShop.get_marketplace_creator(brand_id, creator.tiktok_user_id) do
       {:ok, marketplace_data} ->
         # Check if handle changed
         current_username = marketplace_data["username"]
         handle_change = detect_handle_change(creator, current_username)
-        update_creator_from_marketplace(creator, marketplace_data, handle_change)
+        update_creator_from_marketplace(brand_id, creator, marketplace_data, handle_change)
 
       {:error, reason} ->
         if rate_limited_reason?(reason) do
@@ -879,7 +902,7 @@ defmodule Pavoi.Workers.CreatorEnrichmentWorker do
           )
 
           # Fall back to username search if user_id lookup fails
-          enrich_creator_by_username(creator)
+          enrich_creator_by_username(brand_id, creator)
         end
 
         {:error, reason}
@@ -887,10 +910,10 @@ defmodule Pavoi.Workers.CreatorEnrichmentWorker do
   end
 
   # Enrich using username search (original method)
-  defp enrich_creator_by_username(creator) do
+  defp enrich_creator_by_username(brand_id, creator) do
     username = creator.tiktok_username
 
-    case TiktokShop.search_marketplace_creators(keyword: username) do
+    case TiktokShop.search_marketplace_creators(brand_id, keyword: username) do
       {:ok, %{creators: creators}} ->
         # Find exact match by username
         case find_exact_match(creators, username) do
@@ -899,7 +922,7 @@ defmodule Pavoi.Workers.CreatorEnrichmentWorker do
             {:error, :not_found}
 
           marketplace_creator ->
-            update_creator_from_marketplace(creator, marketplace_creator, nil)
+            update_creator_from_marketplace(brand_id, creator, marketplace_creator, nil)
         end
 
       {:error, reason} ->
@@ -920,7 +943,9 @@ defmodule Pavoi.Workers.CreatorEnrichmentWorker do
   defp detect_handle_change(creator, current_username) do
     stored_username = creator.tiktok_username
     normalized_current = String.downcase(String.trim(current_username))
-    normalized_stored = if stored_username, do: String.downcase(String.trim(stored_username)), else: nil
+
+    normalized_stored =
+      if stored_username, do: String.downcase(String.trim(stored_username)), else: nil
 
     if normalized_stored && normalized_current != normalized_stored do
       Logger.info(
@@ -945,7 +970,7 @@ defmodule Pavoi.Workers.CreatorEnrichmentWorker do
     end)
   end
 
-  defp update_creator_from_marketplace(creator, marketplace_data, handle_change) do
+  defp update_creator_from_marketplace(brand_id, creator, marketplace_data, handle_change) do
     # Extract metrics from marketplace response
     avatar_url = get_in(marketplace_data, ["avatar", "url"])
 
@@ -976,9 +1001,10 @@ defmodule Pavoi.Workers.CreatorEnrichmentWorker do
     case Creators.update_creator(creator, attrs) do
       {:ok, updated_creator} ->
         # Also create a performance snapshot for historical tracking
-        create_enrichment_snapshot(updated_creator, marketplace_data, deltas)
+        create_enrichment_snapshot(brand_id, updated_creator, marketplace_data, deltas)
 
         username_display = updated_creator.tiktok_username || creator.tiktok_username
+
         Logger.debug(
           "Enriched @#{username_display}: #{attrs[:follower_count]} followers, $#{(attrs[:total_gmv_cents] || 0) / 100} GMV (cumulative: $#{(attrs[:cumulative_gmv_cents] || 0) / 100})"
         )
@@ -1035,7 +1061,11 @@ defmodule Pavoi.Workers.CreatorEnrichmentWorker do
         cumulative_video_gmv_cents: (creator.cumulative_video_gmv_cents || 0) + video_gmv_delta,
         cumulative_live_gmv_cents: (creator.cumulative_live_gmv_cents || 0) + live_gmv_delta
       },
-      %{gmv_delta_cents: gmv_delta, video_gmv_delta_cents: video_gmv_delta, live_gmv_delta_cents: live_gmv_delta}
+      %{
+        gmv_delta_cents: gmv_delta,
+        video_gmv_delta_cents: video_gmv_delta,
+        live_gmv_delta_cents: live_gmv_delta
+      }
     }
   end
 
@@ -1055,7 +1085,10 @@ defmodule Pavoi.Workers.CreatorEnrichmentWorker do
   # Apply handle change: update username and preserve old one in history
   defp maybe_put_handle_change(attrs, _creator, nil), do: attrs
 
-  defp maybe_put_handle_change(attrs, creator, %{old_username: old_username, new_username: new_username}) do
+  defp maybe_put_handle_change(attrs, creator, %{
+         old_username: old_username,
+         new_username: new_username
+       }) do
     # Get existing previous usernames, add the old one if not already present
     previous = creator.previous_tiktok_usernames || []
     normalized_old = String.downcase(String.trim(old_username))
@@ -1119,7 +1152,7 @@ defmodule Pavoi.Workers.CreatorEnrichmentWorker do
     Pavoi.Storage.store_creator_avatar(avatar_url, creator.id)
   end
 
-  defp create_enrichment_snapshot(creator, marketplace_data, deltas) do
+  defp create_enrichment_snapshot(brand_id, creator, marketplace_data, deltas) do
     # Create a performance snapshot for historical tracking
     attrs = %{
       creator_id: creator.id,
@@ -1139,7 +1172,7 @@ defmodule Pavoi.Workers.CreatorEnrichmentWorker do
     # Add delta fields for audit trail
     attrs = Map.merge(attrs, deltas)
 
-    case Creators.create_performance_snapshot(attrs) do
+    case Creators.create_performance_snapshot(brand_id, attrs) do
       {:ok, _snapshot} -> :ok
       # Snapshot creation failure shouldn't fail enrichment
       {:error, _} -> :ok

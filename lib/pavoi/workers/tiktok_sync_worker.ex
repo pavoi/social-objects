@@ -38,40 +38,57 @@ defmodule Pavoi.Workers.TiktokSyncWorker do
   alias Pavoi.TiktokShop
 
   @impl Oban.Worker
-  def perform(%Oban.Job{}) do
-    Logger.info("Starting TikTok Shop product sync...")
+  def perform(%Oban.Job{args: args}) do
+    case resolve_brand_id(Map.get(args, "brand_id")) do
+      {:ok, brand_id} ->
+        Logger.info("Starting TikTok Shop product sync...")
 
-    # Broadcast sync start event
-    Phoenix.PubSub.broadcast(Pavoi.PubSub, "tiktok:sync", {:tiktok_sync_started})
+        # Broadcast sync start event
+        Phoenix.PubSub.broadcast(Pavoi.PubSub, "tiktok:sync:#{brand_id}", {:tiktok_sync_started})
 
-    case sync_all_products() do
-      {:ok, counts} ->
-        Logger.info("""
-        ✅ TikTok Shop sync completed successfully
-           - Products synced: #{counts.products}
-           - Variants synced: #{counts.variants}
-           - New products created: #{counts.new_products}
-           - Matched with Shopify: #{counts.matched}
-        """)
+        case sync_all_products(brand_id) do
+          {:ok, counts} ->
+            Logger.info("""
+            ✅ TikTok Shop sync completed successfully
+               - Products synced: #{counts.products}
+               - Variants synced: #{counts.variants}
+               - New products created: #{counts.new_products}
+               - Matched with Shopify: #{counts.matched}
+            """)
 
-        # Update last sync timestamp
-        Settings.update_tiktok_last_sync_at()
+            # Update last sync timestamp
+            Settings.update_tiktok_last_sync_at(brand_id)
 
-        # Broadcast sync complete event
-        Phoenix.PubSub.broadcast(Pavoi.PubSub, "tiktok:sync", {:tiktok_sync_completed, counts})
+            # Broadcast sync complete event
+            Phoenix.PubSub.broadcast(
+              Pavoi.PubSub,
+              "tiktok:sync:#{brand_id}",
+              {:tiktok_sync_completed, counts}
+            )
 
-        :ok
+            :ok
 
-      {:error, :rate_limited} ->
-        handle_rate_limit()
+          {:error, :rate_limited} ->
+            handle_rate_limit(brand_id)
 
-      {:error, {:rate_limited, _reason}} ->
-        handle_rate_limit()
+          {:error, {:rate_limited, _reason}} ->
+            handle_rate_limit(brand_id)
+
+          {:error, reason} ->
+            Logger.error("TikTok Shop sync failed: #{inspect(reason)}")
+
+            Phoenix.PubSub.broadcast(
+              Pavoi.PubSub,
+              "tiktok:sync:#{brand_id}",
+              {:tiktok_sync_failed, reason}
+            )
+
+            {:error, reason}
+        end
 
       {:error, reason} ->
-        Logger.error("TikTok Shop sync failed: #{inspect(reason)}")
-        Phoenix.PubSub.broadcast(Pavoi.PubSub, "tiktok:sync", {:tiktok_sync_failed, reason})
-        {:error, reason}
+        Logger.error("[TiktokSync] Failed to resolve brand_id: #{inspect(reason)}")
+        {:discard, reason}
     end
   end
 
@@ -84,15 +101,15 @@ defmodule Pavoi.Workers.TiktokSyncWorker do
     - `{:ok, %{products: count, variants: count, new_products: count, matched: count}}` on success
     - `{:error, reason}` on failure
   """
-  def sync_all_products do
+  def sync_all_products(brand_id) do
     counts = %{products: 0, variants: 0, new_products: 0, matched: 0}
 
-    with {:ok, tiktok_products} <- fetch_all_products_with_pagination(),
+    with {:ok, tiktok_products} <- fetch_all_products_with_pagination(brand_id),
          _ <- Logger.info("Fetched #{length(tiktok_products)} products from TikTok Shop"),
          valid_products <- filter_products_with_valid_pricing(tiktok_products),
          {:ok, final_counts, products_needing_images} <-
-           sync_products_phase1(valid_products, counts) do
-      images_synced = sync_images_in_parallel(products_needing_images)
+           sync_products_phase1(brand_id, valid_products, counts) do
+      images_synced = sync_images_in_parallel(brand_id, products_needing_images)
       Logger.info("Images synced for #{images_synced} products")
       {:ok, final_counts}
     else
@@ -106,12 +123,12 @@ defmodule Pavoi.Workers.TiktokSyncWorker do
     end
   end
 
-  defp handle_rate_limit do
+  defp handle_rate_limit(brand_id) do
     Logger.warning("Rate limited by TikTok Shop API, will retry")
 
     Phoenix.PubSub.broadcast(
       Pavoi.PubSub,
-      "tiktok:sync",
+      "tiktok:sync:#{brand_id}",
       {:tiktok_sync_failed, :rate_limited}
     )
 
@@ -133,7 +150,7 @@ defmodule Pavoi.Workers.TiktokSyncWorker do
     valid
   end
 
-  defp sync_products_phase1(valid_products, counts) do
+  defp sync_products_phase1(brand_id, valid_products, counts) do
     initial_state = {:ok, counts, []}
     total = length(valid_products)
 
@@ -141,7 +158,7 @@ defmodule Pavoi.Workers.TiktokSyncWorker do
     |> Enum.with_index(1)
     |> Enum.reduce_while(initial_state, fn {tiktok_product, index}, {:ok, acc, image_queue} ->
       log_sync_progress(index, total)
-      sync_and_accumulate(tiktok_product, acc, image_queue)
+      sync_and_accumulate(brand_id, tiktok_product, acc, image_queue)
     end)
   end
 
@@ -151,17 +168,23 @@ defmodule Pavoi.Workers.TiktokSyncWorker do
 
   defp log_sync_progress(_index, _total), do: :ok
 
-  defp fetch_all_products_with_pagination(page_token \\ nil, accumulated_products \\ []) do
+  defp fetch_all_products_with_pagination(brand_id, page_token \\ nil, accumulated_products \\ []) do
     # Build query parameters with pagination (50 is a good balance for TikTok API)
     params = %{page_size: 50}
     params = if page_token, do: Map.put(params, :page_token, page_token), else: params
 
-    case TiktokShop.make_api_request(:post, "/product/202309/products/search", params, %{}) do
+    case TiktokShop.make_api_request(
+           brand_id,
+           :post,
+           "/product/202309/products/search",
+           params,
+           %{}
+         ) do
       {:ok, %{"data" => %{"products" => products, "next_page_token" => next_token}}}
       when not is_nil(next_token) and next_token != "" ->
         # More pages available, fetch next page
         Logger.debug("Fetched page with #{length(products)} products, continuing...")
-        fetch_all_products_with_pagination(next_token, accumulated_products ++ products)
+        fetch_all_products_with_pagination(brand_id, next_token, accumulated_products ++ products)
 
       {:ok, %{"data" => %{"products" => products}}} ->
         # Last page or only page
@@ -177,8 +200,13 @@ defmodule Pavoi.Workers.TiktokSyncWorker do
     end
   end
 
-  defp fetch_product_details(tiktok_product_id) do
-    case TiktokShop.make_api_request(:get, "/product/202309/products/#{tiktok_product_id}", %{}) do
+  defp fetch_product_details(brand_id, tiktok_product_id) do
+    case TiktokShop.make_api_request(
+           brand_id,
+           :get,
+           "/product/202309/products/#{tiktok_product_id}",
+           %{}
+         ) do
       {:ok, %{"data" => product_data}} ->
         {:ok, product_data}
 
@@ -198,8 +226,8 @@ defmodule Pavoi.Workers.TiktokSyncWorker do
     end
   end
 
-  defp sync_and_accumulate(tiktok_product, acc, image_queue) do
-    case sync_product(tiktok_product) do
+  defp sync_and_accumulate(brand_id, tiktok_product, acc, image_queue) do
+    case sync_product(brand_id, tiktok_product) do
       {:ok, {product, tiktok_product_id, needs_images?, variant_count, is_new, is_matched}} ->
         new_acc = %{
           acc
@@ -228,7 +256,7 @@ defmodule Pavoi.Workers.TiktokSyncWorker do
     end
   end
 
-  defp sync_product(tiktok_product) do
+  defp sync_product(brand_id, tiktok_product) do
     tiktok_product_id = tiktok_product["id"]
     tiktok_title = tiktok_product["title"]
     tiktok_skus = tiktok_product["skus"] || []
@@ -236,15 +264,18 @@ defmodule Pavoi.Workers.TiktokSyncWorker do
     transaction_result =
       Repo.transaction(fn ->
         # Try to find matching product by matching any SKU
-        {matching_product, _matching_variant, is_matched} = find_matching_product(tiktok_skus)
+        {matching_product, _matching_variant, is_matched} =
+          find_matching_product(brand_id, tiktok_skus)
 
         # Also check for existing product by tiktok_product_id (prevents duplicates)
-        existing_tiktok_product = Catalog.get_product_by_tiktok_product_id(tiktok_product_id)
+        existing_tiktok_product =
+          Catalog.get_product_by_tiktok_product_id(brand_id, tiktok_product_id)
 
         # Sync product and variant data
         # Priority: SKU match > existing TikTok product > create new
         {product, result} =
           sync_product_data(
+            brand_id,
             matching_product,
             existing_tiktok_product,
             tiktok_product_id,
@@ -291,7 +322,7 @@ defmodule Pavoi.Workers.TiktokSyncWorker do
     needs_images or missing_description
   end
 
-  defp sync_images_in_parallel(products_needing_images) do
+  defp sync_images_in_parallel(brand_id, products_needing_images) do
     # Deduplicate by product_id to avoid race conditions in parallel processing
     # (multiple TikTok products can map to the same local product)
     unique_products =
@@ -309,7 +340,7 @@ defmodule Pavoi.Workers.TiktokSyncWorker do
       unique_products
       |> Task.async_stream(
         fn {product, tiktok_id} ->
-          fetch_and_sync_images(product, tiktok_id)
+          fetch_and_sync_images(brand_id, product, tiktok_id)
         end,
         max_concurrency: 10,
         timeout: 30_000,
@@ -332,8 +363,8 @@ defmodule Pavoi.Workers.TiktokSyncWorker do
     end
   end
 
-  defp fetch_and_sync_images(product, tiktok_product_id) do
-    case fetch_product_details(tiktok_product_id) do
+  defp fetch_and_sync_images(brand_id, product, tiktok_product_id) do
+    case fetch_product_details(brand_id, tiktok_product_id) do
       {:ok, product_data} ->
         replace_tiktok_images(product, product_data)
         sync_description_from_tiktok(product, product_data)
@@ -372,6 +403,7 @@ defmodule Pavoi.Workers.TiktokSyncWorker do
   end
 
   defp sync_product_data(
+         brand_id,
          matching_product,
          existing_tiktok_product,
          tiktok_product_id,
@@ -411,14 +443,16 @@ defmodule Pavoi.Workers.TiktokSyncWorker do
 
       # Case 4: No existing product found - create new TikTok-only product
       true ->
-        result = create_tiktok_only_product(tiktok_product_id, tiktok_title, tiktok_skus)
+        result =
+          create_tiktok_only_product(brand_id, tiktok_product_id, tiktok_title, tiktok_skus)
+
         # Fetch the newly created product
-        product = Catalog.get_product_by_tiktok_product_id(tiktok_product_id)
+        product = Catalog.get_product_by_tiktok_product_id(brand_id, tiktok_product_id)
         {product, result}
     end
   end
 
-  defp find_matching_product(tiktok_skus) do
+  defp find_matching_product(brand_id, tiktok_skus) do
     seller_skus = Enum.map(tiktok_skus, & &1["seller_sku"]) |> Enum.reject(&is_nil/1)
 
     if Enum.empty?(seller_skus) do
@@ -428,8 +462,9 @@ defmodule Pavoi.Workers.TiktokSyncWorker do
       # If multiple variants match, they should all belong to the same product
       variant =
         from(v in Pavoi.Catalog.ProductVariant,
-          where: v.sku in ^seller_skus,
-          preload: :product,
+          join: p in assoc(v, :product),
+          where: v.sku in ^seller_skus and p.brand_id == ^brand_id,
+          preload: [product: p],
           limit: 1
         )
         |> Repo.one()
@@ -467,10 +502,7 @@ defmodule Pavoi.Workers.TiktokSyncWorker do
     end
   end
 
-  defp create_tiktok_only_product(tiktok_product_id, tiktok_title, tiktok_skus) do
-    # Get or create a default brand for TikTok-only products
-    brand = get_or_create_tiktok_brand()
-
+  defp create_tiktok_only_product(brand_id, tiktok_product_id, tiktok_title, tiktok_skus) do
     # Calculate minimum price from TikTok SKUs
     min_price = get_minimum_sku_price(tiktok_skus)
 
@@ -481,11 +513,10 @@ defmodule Pavoi.Workers.TiktokSyncWorker do
       name: tiktok_title,
       description: nil,
       original_price_cents: min_price,
-      sale_price_cents: nil,
-      brand_id: brand.id
+      sale_price_cents: nil
     }
 
-    case Catalog.create_product(product_attrs) do
+    case Catalog.create_product(brand_id, product_attrs) do
       {:ok, product} ->
         # Create variants from TikTok SKUs
         variant_count = create_variants_from_tiktok_skus(product, tiktok_skus)
@@ -790,28 +821,6 @@ defmodule Pavoi.Workers.TiktokSyncWorker do
     end
   end
 
-  defp get_or_create_tiktok_brand do
-    # Use the PAVOI brand for all products (TikTok products are also PAVOI products)
-    slug = "pavoi"
-
-    case Catalog.get_brand_by_slug(slug) do
-      nil ->
-        Logger.info("Creating PAVOI brand for TikTok products")
-
-        case Catalog.create_brand(%{name: "PAVOI", slug: slug}) do
-          {:ok, brand} ->
-            brand
-
-          {:error, changeset} ->
-            Logger.error("Failed to create PAVOI brand: #{inspect(changeset.errors)}")
-            raise "Failed to create PAVOI brand"
-        end
-
-      brand ->
-        brand
-    end
-  end
-
   defp get_minimum_sku_price([]), do: nil
 
   defp get_minimum_sku_price(skus) do
@@ -833,4 +842,16 @@ defmodule Pavoi.Workers.TiktokSyncWorker do
   end
 
   defp parse_tiktok_price(_), do: nil
+
+  defp normalize_brand_id(brand_id) when is_integer(brand_id), do: brand_id
+
+  defp normalize_brand_id(brand_id) when is_binary(brand_id) do
+    String.to_integer(brand_id)
+  end
+
+  defp resolve_brand_id(nil) do
+    {:error, :brand_id_required}
+  end
+
+  defp resolve_brand_id(brand_id), do: {:ok, normalize_brand_id(brand_id)}
 end

@@ -84,7 +84,9 @@ defmodule Pavoi.Workers.GmvBackfillWorker do
         exists(
           from(s in CreatorPerformanceSnapshot,
             where: s.creator_id == parent_as(:creator).id,
-            where: not is_nil(s.gmv_cents) or not is_nil(s.video_gmv_cents) or not is_nil(s.live_gmv_cents)
+            where:
+              not is_nil(s.gmv_cents) or not is_nil(s.video_gmv_cents) or
+                not is_nil(s.live_gmv_cents)
           )
         ),
       select: c.id,
@@ -131,7 +133,10 @@ defmodule Pavoi.Workers.GmvBackfillWorker do
     end
   rescue
     e ->
-      Logger.error("[GmvBackfill] Error processing creator #{creator_id}: #{Exception.message(e)}")
+      Logger.error(
+        "[GmvBackfill] Error processing creator #{creator_id}: #{Exception.message(e)}"
+      )
+
       :error
   end
 

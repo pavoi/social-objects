@@ -13,7 +13,7 @@ defmodule Pavoi.Workers.TiktokLiveMonitorWorker do
   The accounts to monitor are configured in the application config:
 
       config :pavoi, :tiktok_live_monitor,
-        accounts: ["pavoi"]
+        accounts: ["brand_handle"]
 
   """
 
@@ -32,46 +32,58 @@ defmodule Pavoi.Workers.TiktokLiveMonitorWorker do
   @impl Oban.Worker
   def perform(%Oban.Job{args: args}) do
     source = Map.get(args, "source", "cron")
-    accounts = monitored_accounts()
 
-    Logger.debug("Checking live status for accounts: #{inspect(accounts)}")
+    case resolve_brand_id(Map.get(args, "brand_id")) do
+      {:ok, brand_id} ->
+        accounts = monitored_accounts(brand_id)
 
-    Enum.each(accounts, &check_account/1)
+        Logger.debug("Checking live status for accounts: #{inspect(accounts)}")
 
-    Settings.update_tiktok_live_last_scan_at()
+        Enum.each(accounts, &check_account(&1, brand_id))
 
-    Phoenix.PubSub.broadcast(Pavoi.PubSub, "tiktok_live:scan", {:scan_completed, source})
+        Settings.update_tiktok_live_last_scan_at(brand_id)
 
-    :ok
+        Phoenix.PubSub.broadcast(
+          Pavoi.PubSub,
+          "tiktok_live:scan:#{brand_id}",
+          {:scan_completed, source}
+        )
+
+        :ok
+
+      {:error, reason} ->
+        Logger.error("[TiktokLiveMonitor] Failed to resolve brand_id: #{inspect(reason)}")
+        {:discard, reason}
+    end
   end
 
-  defp check_account(unique_id) do
+  defp check_account(unique_id, brand_id) do
     Logger.debug("Checking if @#{unique_id} is live")
 
     case Client.fetch_room_info(unique_id) do
       {:ok, %{is_live: true, room_id: room_id} = room_info} ->
-        handle_live_detected(unique_id, room_id, room_info)
+        handle_live_detected(brand_id, unique_id, room_id, room_info)
 
       {:ok, %{is_live: false}} ->
         Logger.debug("@#{unique_id} is not live")
-        handle_not_live(unique_id)
+        handle_not_live(brand_id, unique_id)
 
       {:error, :room_id_not_found} ->
         Logger.debug("@#{unique_id} is not live (no room found)")
-        handle_not_live(unique_id)
+        handle_not_live(brand_id, unique_id)
 
       {:error, reason} ->
         Logger.warning("Failed to check live status for @#{unique_id}: #{inspect(reason)}")
     end
   end
 
-  defp handle_live_detected(unique_id, room_id, room_info) do
+  defp handle_live_detected(brand_id, unique_id, room_id, room_info) do
     Logger.info("@#{unique_id} is LIVE in room #{room_id}")
 
     # Check if we're already capturing this stream
-    case get_active_stream(room_id) do
+    case get_active_stream(brand_id, room_id) do
       nil ->
-        handle_no_active_stream(unique_id, room_id, room_info)
+        handle_no_active_stream(brand_id, unique_id, room_id, room_info)
 
       stream ->
         # Check if the capture is actually healthy (receiving events)
@@ -79,56 +91,56 @@ defmodule Pavoi.Workers.TiktokLiveMonitorWorker do
           Logger.debug("Already capturing stream #{stream.id} for room #{room_id}")
         else
           Logger.warning("Stream #{stream.id} capture appears stale, restarting worker")
-          restart_stale_capture(stream, unique_id)
+          restart_stale_capture(stream, unique_id, brand_id)
         end
     end
   end
 
-  defp handle_no_active_stream(unique_id, room_id, room_info) do
+  defp handle_no_active_stream(brand_id, unique_id, room_id, room_info) do
     # Check if there's a recently-ended stream for the same room we can resume
     # This handles app restarts/deployments during a live broadcast
-    case get_resumable_stream(room_id) do
+    case get_resumable_stream(brand_id, room_id) do
       nil ->
         # Check if there's ANY recent stream for this room_id that might still be
         # part of the same broadcast (handles long gaps from disconnects/reconnects)
-        case get_any_recent_stream_for_room(room_id) do
+        case get_any_recent_stream_for_room(brand_id, room_id) do
           nil ->
-            start_capture(unique_id, room_id, room_info)
+            start_capture(brand_id, unique_id, room_id, room_info)
 
           stream ->
             Logger.info(
               "Found recent stream #{stream.id} for room #{room_id}, resuming instead of creating new"
             )
 
-            resume_capture(stream, unique_id)
+            resume_capture(stream, unique_id, brand_id)
         end
 
       stream ->
-        resume_capture(stream, unique_id)
+        resume_capture(stream, unique_id, brand_id)
     end
   end
 
-  defp handle_not_live(unique_id) do
+  defp handle_not_live(brand_id, unique_id) do
     # Check if we have any capturing streams for this account that should be marked ended
     import Ecto.Query
 
     capturing_streams =
       from(s in Stream,
-        where: s.unique_id == ^unique_id and s.status == :capturing
+        where: s.brand_id == ^brand_id and s.unique_id == ^unique_id and s.status == :capturing
       )
       |> Repo.all()
 
     Enum.each(capturing_streams, fn stream ->
       Logger.info("Marking stream #{stream.id} as ended (account no longer live)")
 
-      case Pavoi.TiktokLive.mark_stream_ended(stream.id) do
+      case Pavoi.TiktokLive.mark_stream_ended(brand_id, stream.id) do
         {:ok, :ended} ->
           # Enqueue Slack report job for the completed stream
           # Delay 10 minutes to allow monitor to detect if stream is actually still live
           # (handles false end detection during deploys/API blips)
           Logger.info("Enqueueing stream report for stream #{stream.id} (scheduled in 10 min)")
 
-          %{stream_id: stream.id}
+          %{stream_id: stream.id, brand_id: brand_id}
           |> StreamReportWorker.new(schedule_in: 600)
           |> Oban.insert()
 
@@ -138,9 +150,10 @@ defmodule Pavoi.Workers.TiktokLiveMonitorWorker do
     end)
   end
 
-  defp start_capture(unique_id, room_id, room_info) do
+  defp start_capture(brand_id, unique_id, room_id, room_info) do
     # Create stream record
     stream_attrs = %{
+      brand_id: brand_id,
       room_id: room_id,
       unique_id: unique_id,
       title: room_info[:title],
@@ -150,19 +163,19 @@ defmodule Pavoi.Workers.TiktokLiveMonitorWorker do
       raw_metadata: Map.drop(room_info, [:is_live])
     }
 
-    case %Stream{} |> Stream.changeset(stream_attrs) |> Repo.insert() do
+    case %Stream{brand_id: brand_id} |> Stream.changeset(stream_attrs) |> Repo.insert() do
       {:ok, stream} ->
         Logger.info("Created stream record #{stream.id} for @#{unique_id}")
 
         # Enqueue the stream worker to handle the actual capture
-        %{stream_id: stream.id, unique_id: unique_id}
+        %{stream_id: stream.id, unique_id: unique_id, brand_id: brand_id}
         |> TiktokLiveStreamWorker.new()
         |> Oban.insert()
 
         # Broadcast that capture has started
         Phoenix.PubSub.broadcast(
           Pavoi.PubSub,
-          "tiktok_live:monitor",
+          "tiktok_live:monitor:#{brand_id}",
           {:capture_started, stream}
         )
 
@@ -176,11 +189,11 @@ defmodule Pavoi.Workers.TiktokLiveMonitorWorker do
     end
   end
 
-  defp get_active_stream(room_id) do
+  defp get_active_stream(brand_id, room_id) do
     import Ecto.Query
 
     from(s in Stream,
-      where: s.room_id == ^room_id and s.status == :capturing,
+      where: s.brand_id == ^brand_id and s.room_id == ^room_id and s.status == :capturing,
       limit: 1
     )
     |> Repo.one()
@@ -189,13 +202,13 @@ defmodule Pavoi.Workers.TiktokLiveMonitorWorker do
   # Find a stream that ended recently and can be resumed
   # This handles app restarts/deployments - if a stream with the same room_id
   # ended within the last 10 minutes, it's likely the same broadcast
-  defp get_resumable_stream(room_id) do
+  defp get_resumable_stream(brand_id, room_id) do
     import Ecto.Query
 
     cutoff = DateTime.utc_now() |> DateTime.add(-10, :minute)
 
     from(s in Stream,
-      where: s.room_id == ^room_id and s.status == :ended,
+      where: s.brand_id == ^brand_id and s.room_id == ^room_id and s.status == :ended,
       where: s.ended_at > ^cutoff,
       order_by: [desc: s.ended_at],
       limit: 1
@@ -207,13 +220,13 @@ defmodule Pavoi.Workers.TiktokLiveMonitorWorker do
   # This is a broader check than get_resumable_stream and handles the case where
   # a stream was marked ended > 10 minutes ago but the TikTok broadcast is still
   # ongoing (e.g., after a long disconnect/reconnect gap)
-  defp get_any_recent_stream_for_room(room_id) do
+  defp get_any_recent_stream_for_room(brand_id, room_id) do
     import Ecto.Query
 
     cutoff = DateTime.utc_now() |> DateTime.add(-6, :hour)
 
     from(s in Stream,
-      where: s.room_id == ^room_id and s.started_at > ^cutoff,
+      where: s.brand_id == ^brand_id and s.room_id == ^room_id and s.started_at > ^cutoff,
       order_by: [desc: s.started_at],
       limit: 1
     )
@@ -221,7 +234,7 @@ defmodule Pavoi.Workers.TiktokLiveMonitorWorker do
   end
 
   # Resume a previously-ended stream by setting it back to capturing
-  defp resume_capture(stream, unique_id) do
+  defp resume_capture(stream, unique_id, brand_id) do
     Logger.info("Resuming stream #{stream.id} for @#{unique_id} (same room_id, ended recently)")
 
     case stream
@@ -229,14 +242,14 @@ defmodule Pavoi.Workers.TiktokLiveMonitorWorker do
          |> Repo.update() do
       {:ok, updated_stream} ->
         # Enqueue the stream worker to resume capture
-        %{stream_id: updated_stream.id, unique_id: unique_id}
+        %{stream_id: updated_stream.id, unique_id: unique_id, brand_id: brand_id}
         |> TiktokLiveStreamWorker.new()
         |> Oban.insert()
 
         # Broadcast that capture has resumed
         Phoenix.PubSub.broadcast(
           Pavoi.PubSub,
-          "tiktok_live:monitor",
+          "tiktok_live:monitor:#{brand_id}",
           {:capture_resumed, updated_stream}
         )
 
@@ -266,7 +279,9 @@ defmodule Pavoi.Workers.TiktokLiveMonitorWorker do
 
       recent_stat =
         from(s in StreamStat,
-          where: s.stream_id == ^stream.id and s.recorded_at > ^cutoff,
+          where:
+            s.brand_id == ^stream.brand_id and s.stream_id == ^stream.id and
+              s.recorded_at > ^cutoff,
           limit: 1
         )
         |> Repo.one()
@@ -276,7 +291,7 @@ defmodule Pavoi.Workers.TiktokLiveMonitorWorker do
   end
 
   # Restart a stale capture by re-enqueuing the worker
-  defp restart_stale_capture(stream, unique_id) do
+  defp restart_stale_capture(stream, unique_id, brand_id) do
     # Cancel any existing scheduled/available jobs for this stream
     import Ecto.Query
 
@@ -287,15 +302,26 @@ defmodule Pavoi.Workers.TiktokLiveMonitorWorker do
     |> Repo.update_all(set: [state: "cancelled", cancelled_at: DateTime.utc_now()])
 
     # Enqueue a fresh worker
-    %{stream_id: stream.id, unique_id: unique_id}
+    %{stream_id: stream.id, unique_id: unique_id, brand_id: brand_id}
     |> TiktokLiveStreamWorker.new()
     |> Oban.insert()
 
     Logger.info("Restarted capture worker for stream #{stream.id}")
   end
 
-  defp monitored_accounts do
-    Application.get_env(:pavoi, :tiktok_live_monitor, [])
-    |> Keyword.get(:accounts, ["pavoi"])
+  defp monitored_accounts(brand_id) do
+    Settings.get_tiktok_live_accounts(brand_id)
   end
+
+  defp normalize_brand_id(brand_id) when is_integer(brand_id), do: brand_id
+
+  defp normalize_brand_id(brand_id) when is_binary(brand_id) do
+    String.to_integer(brand_id)
+  end
+
+  defp resolve_brand_id(nil) do
+    {:error, :brand_id_required}
+  end
+
+  defp resolve_brand_id(brand_id), do: {:ok, normalize_brand_id(brand_id)}
 end

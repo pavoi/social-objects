@@ -30,11 +30,11 @@ defmodule Pavoi.Workers.StreamReportWorker do
   alias Pavoi.TiktokLive
 
   @impl Oban.Worker
-  def perform(%Oban.Job{args: %{"stream_id" => stream_id}}) do
-    stream = TiktokLive.get_stream!(stream_id)
+  def perform(%Oban.Job{args: %{"stream_id" => stream_id, "brand_id" => brand_id}}) do
+    stream = TiktokLive.get_stream!(brand_id, stream_id)
 
     case report_guard(stream) do
-      :ok -> generate_and_send_report(stream_id)
+      :ok -> generate_and_send_report(brand_id, stream_id)
       {:cancel, reason} -> {:cancel, reason}
       {:snooze, seconds} -> {:snooze, seconds}
     end
@@ -61,7 +61,17 @@ defmodule Pavoi.Workers.StreamReportWorker do
 
         {:cancel, :report_already_sent}
 
-      # Guard 3: Skip reports for "false start" streams
+      # Guard 3: Ensure ended_at is set
+      # (prevents reports with wrong duration if stream was recovered and ended again
+      # but ended_at wasn't updated - race condition between reconciler and mark_stream_ended)
+      is_nil(stream.ended_at) ->
+        Logger.warning(
+          "Stream #{stream.id} has status=ended but ended_at is nil, snoozing to wait for update"
+        )
+
+        {:snooze, 30}
+
+      # Guard 4: Skip reports for "false start" streams
       # (very short duration with minimal comments indicates a false end signal from TikTok)
       false_start_stream?(stream) ->
         Logger.info(
@@ -158,16 +168,16 @@ defmodule Pavoi.Workers.StreamReportWorker do
     Application.get_env(:pavoi, :env) == :dev
   end
 
-  defp generate_and_send_report(stream_id) do
+  defp generate_and_send_report(brand_id, stream_id) do
     # Claim FIRST to prevent multiple workers doing duplicate expensive work
     # (classification, sentiment analysis, GMV API calls)
     # In dev, skip the claim to allow re-sending for testing
     if dev_mode?() do
-      do_generate_and_send_report(stream_id)
+      do_generate_and_send_report(brand_id, stream_id)
     else
-      case TiktokLive.mark_report_sent(stream_id) do
+      case TiktokLive.mark_report_sent(brand_id, stream_id) do
         {:ok, :marked} ->
-          do_generate_and_send_report(stream_id)
+          do_generate_and_send_report(brand_id, stream_id)
 
         {:error, :already_sent} ->
           Logger.info("Report for stream #{stream_id} claimed by another job")
@@ -176,16 +186,16 @@ defmodule Pavoi.Workers.StreamReportWorker do
     end
   end
 
-  defp do_generate_and_send_report(stream_id) do
+  defp do_generate_and_send_report(brand_id, stream_id) do
     Logger.info("Generating stream report for stream #{stream_id}")
 
     # Classify comments before generating report
     # This ensures comment sentiment/category data is available for the report
-    classify_comments(stream_id)
+    classify_comments(brand_id, stream_id)
 
-    with {:ok, report_data} <- StreamReport.generate(stream_id),
+    with {:ok, report_data} <- StreamReport.generate(brand_id, stream_id),
          :ok <- validate_sentiment_if_needed(report_data),
-         :ok <- persist_gmv_data(stream_id, report_data),
+         :ok <- persist_gmv_data(brand_id, stream_id, report_data),
          :ok <- log_report_summary(stream_id, report_data),
          {:ok, :sent} <- StreamReport.send_to_slack(report_data) do
       Logger.info("Stream report sent successfully for stream #{stream_id}")
@@ -197,7 +207,7 @@ defmodule Pavoi.Workers.StreamReportWorker do
           "Stream #{stream_id} report missing sentiment analysis (stream has comments), will retry"
         )
 
-        clear_report_sent(stream_id)
+        clear_report_sent(brand_id, stream_id)
         {:error, :sentiment_generation_failed}
 
       {:error, "Slack not configured" <> _} = error ->
@@ -208,7 +218,7 @@ defmodule Pavoi.Workers.StreamReportWorker do
       {:error, reason} ->
         Logger.error("Failed to send stream report for stream #{stream_id}: #{inspect(reason)}")
         # Clear the claim so retries can try again
-        clear_report_sent(stream_id)
+        clear_report_sent(brand_id, stream_id)
         {:error, reason}
     end
   end
@@ -248,19 +258,19 @@ defmodule Pavoi.Workers.StreamReportWorker do
 
   defp validate_sentiment_if_needed(_report_data), do: :ok
 
-  defp clear_report_sent(stream_id) do
+  defp clear_report_sent(brand_id, stream_id) do
     import Ecto.Query
     alias Pavoi.Repo
     alias Pavoi.TiktokLive.Stream
 
-    from(s in Stream, where: s.id == ^stream_id)
+    from(s in Stream, where: s.brand_id == ^brand_id and s.id == ^stream_id)
     |> Repo.update_all(set: [report_sent_at: nil])
   end
 
-  defp persist_gmv_data(_stream_id, %{gmv_data: nil}), do: :ok
+  defp persist_gmv_data(_brand_id, _stream_id, %{gmv_data: nil}), do: :ok
 
-  defp persist_gmv_data(stream_id, %{gmv_data: gmv_data}) do
-    case TiktokLive.update_stream_gmv(stream_id, gmv_data) do
+  defp persist_gmv_data(brand_id, stream_id, %{gmv_data: gmv_data}) do
+    case TiktokLive.update_stream_gmv(brand_id, stream_id, gmv_data) do
       {:ok, _stream} ->
         Logger.info("Persisted GMV data for stream #{stream_id}")
         :ok
@@ -272,9 +282,9 @@ defmodule Pavoi.Workers.StreamReportWorker do
     end
   end
 
-  defp classify_comments(stream_id) do
+  defp classify_comments(brand_id, stream_id) do
     # Get flash sale texts to pass to classifier
-    flash_sales = StreamReport.detect_flash_sale_comments(stream_id)
+    flash_sales = StreamReport.detect_flash_sale_comments(brand_id, stream_id)
     flash_sale_texts = Enum.map(flash_sales, & &1.text)
 
     case CommentClassifier.classify_stream_comments(stream_id, flash_sale_texts: flash_sale_texts) do
