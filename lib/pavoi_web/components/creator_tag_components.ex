@@ -181,7 +181,17 @@ defmodule PavoiWeb.CreatorTagComponents do
             >
               <div class="tag-picker__item-check">
                 <%= if tag.id in @selected_tag_ids do %>
-                  <.icon name="hero-check" class="size-4" />
+                  <svg
+                    class="size-4"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  >
+                    <path d="m4.5 12.75 6 6 9-13.5" />
+                  </svg>
                 <% end %>
               </div>
               <div class={"tag-picker__item-color color-accent--#{tag.color}"}></div>
@@ -239,7 +249,17 @@ defmodule PavoiWeb.CreatorTagComponents do
         <%= if @selected_count > 0 do %>
           <span class="tag-filter__clear-x" phx-click="clear_tag_filter" title="Clear filter">×</span>
         <% else %>
-          <.icon name="hero-chevron-down" class="size-4" />
+          <svg
+            class="size-4"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <path d="m19.5 8.25-7.5 7.5-7.5-7.5" />
+          </svg>
         <% end %>
       </button>
 
@@ -363,7 +383,7 @@ defmodule PavoiWeb.CreatorTagComponents do
           <textarea
             id="batch-select-textarea"
             class="batch-select-modal__textarea"
-            placeholder={"@user1\nuser2\nhttps://tiktok.com/@user3"}
+            placeholder="@user1\nuser2\nhttps://tiktok.com/@user3"
             phx-keyup="batch_select_input_change"
             phx-debounce="100"
           ><%= @input %></textarea>

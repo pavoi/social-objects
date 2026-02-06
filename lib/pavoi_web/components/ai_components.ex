@@ -29,7 +29,17 @@ defmodule PavoiWeb.AIComponents do
       role="alert"
     >
       <div class="toast__content toast__content--info">
-        <.icon name="hero-arrow-path" class="spinner spinner--spinning" />
+        <svg
+          class="spinner spinner--spinning"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" /><path d="M3 3v5h5" /><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16" /><path d="M16 21h5v-5" />
+        </svg>
         <div class="toast__text">
           <div class="toast__title">Generating talking points...</div>
           <div class="toast__details">
@@ -59,13 +69,43 @@ defmodule PavoiWeb.AIComponents do
         @generation.status == "failed" && "toast__content--error"
       ]}>
         <%= if @generation.status == "completed" do %>
-          <.icon name="hero-check-circle" class="spinner" />
+          <svg
+            class="spinner"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <circle cx="12" cy="12" r="10" /><path d="m9 12 2 2 4-4" />
+          </svg>
         <% end %>
         <%= if @generation.status == "partial" do %>
-          <.icon name="hero-exclamation-triangle" class="spinner" />
+          <svg
+            class="spinner"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3" /><path d="M12 9v4" /><path d="M12 17h.01" />
+          </svg>
         <% end %>
         <%= if @generation.status == "failed" do %>
-          <.icon name="hero-x-circle" class="spinner" />
+          <svg
+            class="spinner"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <circle cx="12" cy="12" r="10" /><path d="m15 9-6 6" /><path d="m9 9 6 6" />
+          </svg>
         <% end %>
 
         <div class="toast__text">

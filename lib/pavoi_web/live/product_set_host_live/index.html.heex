@@ -1,19 +1,26 @@
-<div
-  id="product-set-host-container"
-  class="host-container"
-  phx-hook="ProductSetHostKeyboard"
+<Layouts.app
+  flash={@flash}
+  current_scope={@current_scope}
+  current_brand={@current_brand}
+  current_page={@current_page}
 >
-  <PavoiWeb.HostViewComponents.host_content
-    session={@product_set}
-    current_session_product={@current_product_set_product}
-    current_product={@current_product}
-    product_images={@product_images}
-    talking_points_html={@talking_points_html}
-    host_message={@host_message}
-    current_position={@current_position}
-    total_products={@total_products}
-    show_header={true}
-    products_panel_collapsed={@products_panel_collapsed}
-    session_panel_collapsed={@product_set_panel_collapsed}
-  />
-</div>
+  <div
+    id="product-set-host-container"
+    class="host-container"
+    phx-hook="ProductSetHostKeyboard"
+  >
+    <PavoiWeb.HostViewComponents.host_content
+      session={@product_set}
+      current_session_product={@current_product_set_product}
+      current_product={@current_product}
+      product_images={@product_images}
+      talking_points_html={@talking_points_html}
+      host_message={@host_message}
+      current_position={@current_position}
+      total_products={@total_products}
+      show_header={true}
+      products_panel_collapsed={@products_panel_collapsed}
+      session_panel_collapsed={@product_set_panel_collapsed}
+    />
+  </div>
+</Layouts.app>

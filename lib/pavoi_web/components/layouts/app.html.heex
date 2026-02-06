@@ -1,0 +1,44 @@
+<% current_scope = assigns[:current_scope] %>
+<% current_brand = assigns[:current_brand] %>
+<% current_page = assigns[:current_page] %>
+<% show_nav = current_scope && current_page && current_brand %>
+
+<main class="app-shell">
+  <%= if show_nav do %>
+    <div class="app-navbar">
+      <.nav_tabs
+        current_page={current_page}
+        current_scope={current_scope}
+        current_brand={current_brand}
+        user_brands={assigns[:user_brands] || []}
+        current_host={assigns[:current_host]}
+        syncing={assigns[:syncing] || false}
+        last_sync_at={assigns[:last_sync_at]}
+        tiktok_syncing={assigns[:tiktok_syncing] || false}
+        tiktok_last_sync_at={assigns[:tiktok_last_sync_at]}
+        bigquery_syncing={assigns[:bigquery_syncing] || false}
+        bigquery_last_sync_at={assigns[:bigquery_last_sync_at]}
+        enrichment_syncing={assigns[:enrichment_syncing] || false}
+        enrichment_last_sync_at={assigns[:enrichment_last_sync_at]}
+        stream_scan_syncing={assigns[:stream_scan_syncing] || assigns[:scanning] || false}
+        stream_last_scan_at={assigns[:last_scan_at]}
+        stream_scan_enabled={
+          if(is_nil(assigns[:stream_scan_enabled]), do: true, else: assigns[:stream_scan_enabled])
+        }
+        capture_input={assigns[:capture_input] || ""}
+        capture_loading={assigns[:capture_loading] || false}
+        capture_error={assigns[:capture_error]}
+        is_admin={current_scope && current_scope.user && current_scope.user.is_admin}
+      />
+    </div>
+  <% end %>
+
+  <div class="app-content">
+    <Layouts.flash_group flash={@flash} />
+    <%= if assigns[:inner_content] do %>
+      {@inner_content}
+    <% else %>
+      {render_slot(@inner_block)}
+    <% end %>
+  </div>
+</main>

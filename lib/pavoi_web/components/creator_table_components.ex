@@ -308,14 +308,18 @@ defmodule PavoiWeb.CreatorTableComponents do
               phx-value-id={creator.id}
               class={[
                 @on_row_click && "cursor-pointer hover:bg-hover",
-                (@select_all_matching || (@selected_ids && MapSet.member?(@selected_ids, creator.id))) && "row--selected"
+                (@select_all_matching || (@selected_ids && MapSet.member?(@selected_ids, creator.id))) &&
+                  "row--selected"
               ]}
             >
               <%!-- 1. Checkbox --%>
               <td data-column-id="checkbox" class="col-checkbox" phx-click="stop_propagation">
                 <input
                   type="checkbox"
-                  checked={@select_all_matching || (@selected_ids && MapSet.member?(@selected_ids, creator.id))}
+                  checked={
+                    @select_all_matching ||
+                      (@selected_ids && MapSet.member?(@selected_ids, creator.id))
+                  }
                   phx-click="toggle_selection"
                   phx-value-id={creator.id}
                 />
@@ -544,7 +548,17 @@ defmodule PavoiWeb.CreatorTableComponents do
     ~H"""
     <%= if Enum.empty?(@samples) do %>
       <div class="empty-state">
-        <.icon name="hero-gift" class="empty-state__icon size-8" />
+        <svg
+          class="empty-state__icon size-8"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <path d="M20 12v10H4V12M2 7h20v5H2zM12 22V7M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7zM12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z" />
+        </svg>
         <p class="empty-state__title">No samples yet</p>
         <p class="empty-state__description">
           Samples will appear here when synced from TikTok Shop
@@ -611,7 +625,17 @@ defmodule PavoiWeb.CreatorTableComponents do
     ~H"""
     <%= if Enum.empty?(@purchases) do %>
       <div class="empty-state">
-        <.icon name="hero-shopping-bag" class="empty-state__icon size-8" />
+        <svg
+          class="empty-state__icon size-8"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4zM3 6h18M16 10a4 4 0 0 1-8 0" />
+        </svg>
         <p class="empty-state__title">No purchases yet</p>
         <p class="empty-state__description">
           Orders placed by this creator will appear here
@@ -690,7 +714,17 @@ defmodule PavoiWeb.CreatorTableComponents do
     ~H"""
     <%= if Enum.empty?(@videos) do %>
       <div class="empty-state">
-        <.icon name="hero-video-camera" class="empty-state__icon size-8" />
+        <svg
+          class="empty-state__icon size-8"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <path d="m22 8-6 4 6 4V8Z" /><rect x="2" y="6" width="14" height="12" rx="2" />
+        </svg>
         <p class="empty-state__title">No videos found</p>
         <p class="empty-state__description">
           Video data syncs from TikTok Shop affiliate analytics
@@ -755,7 +789,22 @@ defmodule PavoiWeb.CreatorTableComponents do
     ~H"""
     <%= if Enum.empty?(@snapshots) do %>
       <div class="empty-state">
-        <.icon name="hero-chart-bar" class="empty-state__icon size-8" />
+        <svg
+          class="empty-state__icon size-8"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <line x1="12" y1="20" x2="12" y2="10" /><line x1="18" y1="20" x2="18" y2="4" /><line
+            x1="6"
+            y1="20"
+            x2="6"
+            y2="16"
+          />
+        </svg>
         <p class="empty-state__title">No performance snapshots</p>
         <p class="empty-state__description">
           Historical metrics from Refunnel and other sources appear here
@@ -904,7 +953,9 @@ defmodule PavoiWeb.CreatorTableComponents do
                   </span>
                 <% end %>
               </span>
-              <span class="creator-modal-stat__value">{format_gmv(@creator.cumulative_gmv_cents)}</span>
+              <span class="creator-modal-stat__value">
+                {format_gmv(@creator.cumulative_gmv_cents)}
+              </span>
             </div>
             <div class="creator-modal-stat">
               <span class="creator-modal-stat__label">90-Day GMV</span>

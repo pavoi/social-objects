@@ -1,95 +1,118 @@
-<div class="template-editor-page">
-  <.form for={@form} phx-change="validate" phx-submit="save" id="template-form">
-    <%!-- Top bar with form fields and actions --%>
-    <header class="template-editor-header">
-      <.link navigate={~p"/creators?pt=templates"} class="template-editor-back">
-        <.icon name="hero-arrow-left" class="h-5 w-5" />
-        <span>Back</span>
-      </.link>
-
-      <div class="template-editor-fields">
-        <div class="template-editor-field">
-          <label for="email_template_name">Name</label>
-          <input
-            type="text"
-            id="email_template_name"
-            name="email_template[name]"
-            value={@form[:name].value}
-            placeholder="Template name"
-            disabled={not @is_new}
-            class="input"
-          />
-        </div>
-
-        <%!-- Subject field only for email templates --%>
-        <div
-          :if={@template_type == "email"}
-          class="template-editor-field template-editor-field--grow"
+<Layouts.app
+  flash={@flash}
+  current_scope={@current_scope}
+  current_brand={@current_brand}
+  current_page={@current_page}
+>
+  <div class="template-editor-page">
+    <.form for={@form} phx-change="validate" phx-submit="save" id="template-form">
+      <%!-- Top bar with form fields and actions --%>
+      <header class="template-editor-header">
+        <.link
+          navigate={
+            PavoiWeb.BrandRoutes.brand_path(
+              @current_brand,
+              "/creators?pt=templates",
+              @current_host
+            )
+          }
+          class="template-editor-back"
         >
-          <label for="email_template_subject">Subject</label>
-          <input
-            type="text"
-            id="email_template_subject"
-            name="email_template[subject]"
-            value={@form[:subject].value}
-            placeholder="Email subject line"
-            class="input"
-          />
-        </div>
-
-        <div class="template-editor-field">
-          <label for="email_template_lark_preset">Lark Community</label>
-          <select
-            id="email_template_lark_preset"
-            name="email_template[lark_preset]"
-            class="input"
+          <svg
+            class="h-5 w-5"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
           >
-            <option value="jewelry" selected={@form[:lark_preset].value == "jewelry"}>
-              Jewelry
-            </option>
-            <option value="active" selected={@form[:lark_preset].value == "active"}>
-              Active
-            </option>
-            <option value="top_creators" selected={@form[:lark_preset].value == "top_creators"}>
-              Top Creators
-            </option>
-          </select>
-        </div>
-      </div>
-
-      <div class="template-editor-actions">
-        <.link navigate={~p"/creators?pt=templates"} class="button button--ghost">
-          Cancel
+            <path d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18" />
+          </svg>
+          <span>Back</span>
         </.link>
-        <button type="submit" class="button button--primary">
-          Save Template
-        </button>
+
+        <div class="template-editor-fields">
+          <div class="template-editor-field">
+            <.input
+              field={@form[:name]}
+              type="text"
+              label="Name"
+              placeholder="Template name"
+              disabled={not @is_new}
+            />
+          </div>
+
+          <%!-- Subject field only for email templates --%>
+          <div
+            :if={@template_type == "email"}
+            class="template-editor-field template-editor-field--grow"
+          >
+            <.input
+              field={@form[:subject]}
+              type="text"
+              label="Subject"
+              placeholder="Email subject line"
+            />
+          </div>
+
+          <div class="template-editor-field">
+            <.input
+              field={@form[:lark_preset]}
+              type="select"
+              label="Lark Community"
+              options={[
+                {"Jewelry", "jewelry"},
+                {"Active", "active"},
+                {"Top Creators", "top_creators"}
+              ]}
+            />
+          </div>
+        </div>
+
+        <div class="template-editor-actions">
+          <.link
+            navigate={
+              PavoiWeb.BrandRoutes.brand_path(
+                @current_brand,
+                "/creators?pt=templates",
+                @current_host
+              )
+            }
+            class="button button--ghost"
+          >
+            Cancel
+          </.link>
+          <button type="submit" class="button button--primary">
+            Save Template
+          </button>
+        </div>
+      </header>
+
+      <%!-- Hidden fields --%>
+      <input
+        type="hidden"
+        id="email_template_html_body"
+        name="email_template[html_body]"
+        value={@form[:html_body].value}
+      />
+      <input type="hidden" name="email_template[type]" value={@template_type} />
+      <input
+        type="hidden"
+        name="email_template[form_config]"
+        value={Jason.encode!(@form[:form_config].value || %{})}
+      />
+
+      <%!-- GrapesJS editor container with template type --%>
+      <div
+        id="template-editor-container"
+        phx-hook="TemplateEditor"
+        phx-update="ignore"
+        data-html-content={@form[:html_body].value}
+        data-template-type={@template_type}
+        class="template-editor-container"
+      >
       </div>
-    </header>
-
-    <%!-- Hidden fields --%>
-    <input
-      type="hidden"
-      id="email_template_html_body"
-      name="email_template[html_body]"
-      value={@form[:html_body].value}
-    />
-    <input type="hidden" name="email_template[type]" value={@template_type} />
-    <input
-      type="hidden"
-      name="email_template[form_config]"
-      value={Jason.encode!(@form[:form_config].value || %{})}
-    />
-
-    <%!-- GrapesJS editor container with template type --%>
-    <div
-      id="template-editor-container"
-      phx-hook="TemplateEditor"
-      phx-update="ignore"
-      data-html-content={@form[:html_body].value}
-      data-template-type={@template_type}
-      class="template-editor-container"
-    >
-    </div>
-  </.form>
-</div>
+    </.form>
+  </div>
+</Layouts.app>

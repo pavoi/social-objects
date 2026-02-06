@@ -70,6 +70,7 @@ defmodule PavoiWeb.ProductSetsLive.Index do
   alias Pavoi.Storage
   alias Pavoi.Workers.ShopifySyncWorker
   alias Pavoi.Workers.TiktokSyncWorker
+  alias PavoiWeb.BrandRoutes
 
   import PavoiWeb.AIComponents
   import PavoiWeb.ProductComponents
@@ -77,26 +78,30 @@ defmodule PavoiWeb.ProductSetsLive.Index do
 
   @impl true
   def mount(_params, _session, socket) do
+    brand = socket.assigns.current_brand
+    brand_id = brand.id
+
     # Subscribe to session list changes for real-time updates across tabs
     if connected?(socket) do
-      Phoenix.PubSub.subscribe(Pavoi.PubSub, "product_sets:list")
-      Phoenix.PubSub.subscribe(Pavoi.PubSub, "shopify:sync")
-      Phoenix.PubSub.subscribe(Pavoi.PubSub, "tiktok:sync")
-      Phoenix.PubSub.subscribe(Pavoi.PubSub, "ai:talking_points")
+      Phoenix.PubSub.subscribe(Pavoi.PubSub, "product_sets:#{brand_id}:list")
+      Phoenix.PubSub.subscribe(Pavoi.PubSub, "shopify:sync:#{brand_id}")
+      Phoenix.PubSub.subscribe(Pavoi.PubSub, "tiktok:sync:#{brand_id}")
+      Phoenix.PubSub.subscribe(Pavoi.PubSub, "ai:talking_points:#{brand_id}")
     end
 
-    brands = Catalog.list_brands()
-    last_sync_at = Settings.get_shopify_last_sync_at()
-    tiktok_last_sync_at = Settings.get_tiktok_last_sync_at()
+    brands = socket.assigns.user_brands |> Enum.map(& &1.brand)
+    last_sync_at = Settings.get_shopify_last_sync_at(brand_id)
+    tiktok_last_sync_at = Settings.get_tiktok_last_sync_at(brand_id)
 
     # Check if syncs are currently in progress
-    shopify_syncing = sync_job_active?(ShopifySyncWorker)
-    tiktok_syncing = sync_job_active?(TiktokSyncWorker)
+    shopify_syncing = sync_job_active?(ShopifySyncWorker, brand_id)
+    tiktok_syncing = sync_job_active?(TiktokSyncWorker, brand_id)
 
     socket =
       socket
       # Page tab state (sets vs products)
       |> assign(:page_tab, "sets")
+      |> assign(:brand_id, brand_id)
       # Product Sets tab state
       |> assign(:product_set_page, 1)
       |> assign(:product_sets_has_more, false)
@@ -121,7 +126,7 @@ defmodule PavoiWeb.ProductSetsLive.Index do
       )
       |> assign(
         :product_set_form,
-        to_form(ProductSet.changeset(%ProductSet{}, %{}))
+        to_form(ProductSet.changeset(%ProductSet{brand_id: brand_id}, %{}))
       )
       |> assign(
         :product_edit_form,
@@ -130,7 +135,7 @@ defmodule PavoiWeb.ProductSetsLive.Index do
       |> assign(:editing_product_set, nil)
       |> assign(
         :product_set_edit_form,
-        to_form(ProductSet.changeset(%ProductSet{}, %{}))
+        to_form(ProductSet.changeset(%ProductSet{brand_id: brand_id}, %{}))
       )
       |> assign(:product_search_query, "")
       |> assign(:product_page, 1)
@@ -223,7 +228,8 @@ defmodule PavoiWeb.ProductSetsLive.Index do
   def handle_info({:sync_completed, counts}, socket) do
     # Reload sessions to pick up any product changes
     # Reset pagination to page 1 and reload
-    last_sync_at = Settings.get_shopify_last_sync_at()
+    brand_id = socket.assigns.current_brand.id
+    last_sync_at = Settings.get_shopify_last_sync_at(brand_id)
 
     socket =
       socket
@@ -234,7 +240,7 @@ defmodule PavoiWeb.ProductSetsLive.Index do
       |> maybe_reload_browse_products()
       |> put_flash(
         :info,
-        "Shopify sync complete: #{counts.products} products, #{counts.brands} brands, #{counts.images} images"
+        "Shopify sync complete: #{counts.products} products, #{counts.images} images"
       )
 
     {:noreply, socket}
@@ -269,7 +275,8 @@ defmodule PavoiWeb.ProductSetsLive.Index do
 
   @impl true
   def handle_info({:tiktok_sync_completed, _counts}, socket) do
-    tiktok_last_sync_at = Settings.get_tiktok_last_sync_at()
+    brand_id = socket.assigns.current_brand.id
+    tiktok_last_sync_at = Settings.get_tiktok_last_sync_at(brand_id)
 
     socket =
       socket
@@ -351,7 +358,11 @@ defmodule PavoiWeb.ProductSetsLive.Index do
     # If a product modal is currently open, refresh it with updated talking points
     socket =
       if socket.assigns.editing_product do
-        product = Catalog.get_product_with_images!(socket.assigns.editing_product.id)
+        product =
+          Catalog.get_product_with_images!(
+            socket.assigns.brand_id,
+            socket.assigns.editing_product.id
+          )
 
         changes = %{
           "original_price_cents" => format_cents_to_dollars(product.original_price_cents),
@@ -400,7 +411,7 @@ defmodule PavoiWeb.ProductSetsLive.Index do
       {:noreply, socket}
     else
       # Close expanded product set on Escape by removing query param
-      {:noreply, push_patch(socket, to: ~p"/product-sets")}
+      {:noreply, push_patch(socket, to: product_sets_path(socket))}
     end
   end
 
@@ -429,7 +440,7 @@ defmodule PavoiWeb.ProductSetsLive.Index do
         end
       end
 
-    {:noreply, push_patch(socket, to: ~p"/product-sets?#{query_params}")}
+    {:noreply, push_patch(socket, to: product_sets_path(socket, query_params))}
   end
 
   @impl true
@@ -472,7 +483,7 @@ defmodule PavoiWeb.ProductSetsLive.Index do
         query_params
       end
 
-    {:noreply, push_patch(socket, to: ~p"/product-sets?#{query_params}")}
+    {:noreply, push_patch(socket, to: product_sets_path(socket, query_params))}
   end
 
   @impl true
@@ -558,7 +569,7 @@ defmodule PavoiWeb.ProductSetsLive.Index do
         params
       end
 
-    {:noreply, push_patch(socket, to: ~p"/product-sets?#{params}")}
+    {:noreply, push_patch(socket, to: product_sets_path(socket, params))}
   end
 
   @impl true
@@ -566,8 +577,8 @@ defmodule PavoiWeb.ProductSetsLive.Index do
     # Preserve expanded session in URL when closing new session modal
     path =
       case socket.assigns.expanded_product_set_id do
-        nil -> ~p"/product-sets"
-        session_id -> ~p"/product-sets?#{%{s: session_id}}"
+        nil -> product_sets_path(socket)
+        session_id -> product_sets_path(socket, %{s: session_id})
       end
 
     socket =
@@ -575,7 +586,7 @@ defmodule PavoiWeb.ProductSetsLive.Index do
       |> assign(:show_new_product_set_modal, false)
       |> assign(
         :product_set_form,
-        to_form(ProductSet.changeset(%ProductSet{}, %{}))
+        to_form(ProductSet.changeset(%ProductSet{brand_id: socket.assigns.brand_id}, %{}))
       )
       |> push_patch(to: path)
 
@@ -591,52 +602,16 @@ defmodule PavoiWeb.ProductSetsLive.Index do
 
     # Check for duplicate session name
     name = params["name"]
-    brand_id = params["brand_id"]
-    brand_id_int = if brand_id && brand_id != "", do: normalize_id(brand_id), else: nil
+    brand_id = socket.assigns.brand_id
 
     changeset =
-      if name && name != "" && brand_id_int &&
-           ProductSets.product_set_name_exists?(name, brand_id_int) do
+      if name && name != "" && ProductSets.product_set_name_exists?(name, brand_id) do
         Ecto.Changeset.add_error(changeset, :name, "already exists for this brand")
       else
         changeset
       end
 
-    # Check if brand_id actually changed (normalize to strings for comparison)
-    current_brand_id = get_in(socket.assigns.product_set_form.params, ["brand_id"]) |> to_string()
-    new_brand_id = params["brand_id"] |> to_string()
-    brand_changed = current_brand_id != new_brand_id
-
-    socket = assign(socket, :product_set_form, to_form(changeset))
-
-    # Only reload products if brand actually changed
-    socket =
-      if brand_changed do
-        if new_brand_id != "" do
-          socket
-          |> assign(:product_search_query, "")
-          |> assign(:product_page, 1)
-          |> assign(:selected_product_ids, MapSet.new())
-          |> assign(:selected_product_order, [])
-          |> assign(:new_product_set_products_map, %{})
-          |> assign(:new_session_display_order, [])
-          |> load_products_for_new_session()
-        else
-          socket
-          |> stream(:new_product_set_products, [], reset: true)
-          |> assign(:new_product_set_has_more, false)
-          |> assign(:product_search_query, "")
-          |> assign(:product_total_count, 0)
-          |> assign(:selected_product_ids, MapSet.new())
-          |> assign(:selected_product_order, [])
-          |> assign(:new_product_set_products_map, %{})
-          |> assign(:new_session_display_order, [])
-        end
-      else
-        socket
-      end
-
-    {:noreply, socket}
+    {:noreply, assign(socket, :product_set_form, to_form(changeset))}
   end
 
   @impl true
@@ -664,7 +639,11 @@ defmodule PavoiWeb.ProductSetsLive.Index do
     # Extract selected product IDs in order (preserves paste/selection order)
     selected_ids = socket.assigns.selected_product_order
 
-    case ProductSets.create_product_set_with_products(product_set_params, selected_ids) do
+    case ProductSets.create_product_set_with_products(
+           socket.assigns.brand_id,
+           product_set_params,
+           selected_ids
+         ) do
       {:ok, _created_session} ->
         # Preserve expanded state across reload (or expand the newly created session)
         expanded_id = socket.assigns.expanded_product_set_id
@@ -672,8 +651,8 @@ defmodule PavoiWeb.ProductSetsLive.Index do
         # Remove "new" param from URL, preserve expanded session if any
         path =
           case expanded_id do
-            nil -> ~p"/product-sets"
-            session_id -> ~p"/product-sets?#{%{s: session_id}}"
+            nil -> product_sets_path(socket)
+            session_id -> product_sets_path(socket, %{s: session_id})
           end
 
         socket =
@@ -682,7 +661,7 @@ defmodule PavoiWeb.ProductSetsLive.Index do
           |> assign(:show_new_product_set_modal, false)
           |> assign(
             :product_set_form,
-            to_form(ProductSet.changeset(%ProductSet{}, %{}))
+            to_form(ProductSet.changeset(%ProductSet{brand_id: socket.assigns.brand_id}, %{}))
           )
           |> assign(:product_search_query, "")
           |> assign(:product_page, 1)
@@ -983,7 +962,7 @@ defmodule PavoiWeb.ProductSetsLive.Index do
 
   def handle_event("delete_product_set", %{"product-set-id" => session_id}, socket) do
     session_id = normalize_id(session_id)
-    session = ProductSets.get_product_set!(session_id)
+    session = ProductSets.get_product_set!(socket.assigns.brand_id, session_id)
 
     case ProductSets.delete_product_set(session) do
       {:ok, _session} ->
@@ -996,8 +975,8 @@ defmodule PavoiWeb.ProductSetsLive.Index do
         # Update URL based on whether we cleared the expanded session
         path =
           case expanded_id do
-            nil -> ~p"/product-sets"
-            id -> ~p"/product-sets?#{%{s: id}}"
+            nil -> product_sets_path(socket)
+            id -> product_sets_path(socket, %{s: id})
           end
 
         socket =
@@ -1022,10 +1001,10 @@ defmodule PavoiWeb.ProductSetsLive.Index do
   def handle_event("duplicate_product_set", %{"product-set-id" => session_id}, socket) do
     session_id = normalize_id(session_id)
 
-    case ProductSets.duplicate_product_set(session_id) do
+    case ProductSets.duplicate_product_set(socket.assigns.brand_id, session_id) do
       {:ok, new_product_set} ->
         # Build URL to expand the newly created session
-        path = ~p"/product-sets?#{%{s: new_product_set.id}}"
+        path = product_sets_path(socket, %{s: new_product_set.id})
 
         # Prepare edit modal for the duplicated session
         changeset = ProductSet.changeset(new_product_set, %{})
@@ -1089,7 +1068,7 @@ defmodule PavoiWeb.ProductSetsLive.Index do
 
   @impl true
   def handle_event("show_edit_product_modal", %{"product-id" => product_id}, socket) do
-    product = Catalog.get_product_with_images!(product_id)
+    product = Catalog.get_product_with_images!(socket.assigns.brand_id, product_id)
 
     # Convert prices from cents to dollars for display by passing as changes
     changes = %{
@@ -1125,7 +1104,7 @@ defmodule PavoiWeb.ProductSetsLive.Index do
           |> maybe_add_param(:sort, socket.assigns.browse_product_sort_by)
           |> maybe_add_param(:platform, socket.assigns.platform_filter)
 
-        push_patch(socket, to: ~p"/product-sets?#{query_params}")
+        push_patch(socket, to: product_sets_path(socket, query_params))
       else
         socket
       end
@@ -1166,7 +1145,7 @@ defmodule PavoiWeb.ProductSetsLive.Index do
   @impl true
   def handle_event("show_edit_product_set_modal", %{"product-set-id" => session_id}, socket) do
     session_id = normalize_id(session_id)
-    session = ProductSets.get_product_set!(session_id)
+    session = ProductSets.get_product_set!(socket.assigns.brand_id, session_id)
     changeset = ProductSet.changeset(session, %{})
 
     socket =
@@ -1182,14 +1161,17 @@ defmodule PavoiWeb.ProductSetsLive.Index do
     # Preserve expanded session in URL when closing edit modal
     path =
       case socket.assigns.expanded_product_set_id do
-        nil -> ~p"/product-sets"
-        session_id -> ~p"/product-sets?#{%{s: session_id}}"
+        nil -> product_sets_path(socket)
+        session_id -> product_sets_path(socket, %{s: session_id})
       end
 
     socket =
       socket
       |> assign(:editing_product_set, nil)
-      |> assign(:product_set_edit_form, to_form(ProductSet.changeset(%ProductSet{}, %{})))
+      |> assign(
+        :product_set_edit_form,
+        to_form(ProductSet.changeset(%ProductSet{brand_id: socket.assigns.brand_id}, %{}))
+      )
       |> push_patch(to: path)
 
     {:noreply, socket}
@@ -1233,7 +1215,10 @@ defmodule PavoiWeb.ProductSetsLive.Index do
           socket
           |> reload_product_sets()
           |> assign(:editing_product_set, nil)
-          |> assign(:product_set_edit_form, to_form(ProductSet.changeset(%ProductSet{}, %{})))
+          |> assign(
+            :product_set_edit_form,
+            to_form(ProductSet.changeset(%ProductSet{brand_id: socket.assigns.brand_id}, %{}))
+          )
           |> put_flash(:info, "Product set updated successfully")
 
         {:noreply, socket}
@@ -1401,8 +1386,9 @@ defmodule PavoiWeb.ProductSetsLive.Index do
         socket
       ) do
     session_id = normalize_id(session_id)
+    brand_id = socket.assigns.brand_id
 
-    case AI.generate_product_set_talking_points_async(session_id) do
+    case AI.generate_product_set_talking_points_async(brand_id, session_id) do
       {:ok, _generation} ->
         # The handle_info callbacks will handle the UI updates
         {:noreply, socket}
@@ -1419,8 +1405,9 @@ defmodule PavoiWeb.ProductSetsLive.Index do
   @impl true
   def handle_event("generate_product_talking_points", %{"product-id" => product_id}, socket) do
     product_id = String.to_integer(product_id)
+    brand_id = socket.assigns.brand_id
 
-    case AI.generate_talking_points_async(product_id) do
+    case AI.generate_talking_points_async(brand_id, product_id) do
       {:ok, _generation} ->
         socket =
           socket
@@ -1446,7 +1433,7 @@ defmodule PavoiWeb.ProductSetsLive.Index do
   def handle_event("show_share_modal", %{"product-set-id" => product_set_id}, socket) do
     product_set_id = normalize_id(product_set_id)
     token = ProductSets.generate_share_token(product_set_id)
-    share_url = url(~p"/share/#{token}")
+    share_url = BrandRoutes.brand_url(socket.assigns.current_brand, "/share/#{token}")
 
     socket =
       socket
@@ -1514,7 +1501,7 @@ defmodule PavoiWeb.ProductSetsLive.Index do
   @impl true
   def handle_event("change_page_tab", %{"tab" => tab}, socket) do
     params = build_tab_query_params(socket, page_tab: tab)
-    {:noreply, push_patch(socket, to: ~p"/product-sets?#{params}")}
+    {:noreply, push_patch(socket, to: product_sets_path(socket, params))}
   end
 
   # =============================================================================
@@ -1531,7 +1518,7 @@ defmodule PavoiWeb.ProductSetsLive.Index do
       |> maybe_add_param(:sort, socket.assigns.browse_product_sort_by)
       |> maybe_add_param(:platform, socket.assigns.platform_filter)
 
-    {:noreply, push_patch(socket, to: ~p"/product-sets?#{query_params}")}
+    {:noreply, push_patch(socket, to: product_sets_path(socket, query_params))}
   end
 
   @impl true
@@ -1542,7 +1529,7 @@ defmodule PavoiWeb.ProductSetsLive.Index do
       |> maybe_add_param(:sort, sort_by)
       |> maybe_add_param(:platform, socket.assigns.platform_filter)
 
-    {:noreply, push_patch(socket, to: ~p"/product-sets?#{query_params}")}
+    {:noreply, push_patch(socket, to: product_sets_path(socket, query_params))}
   end
 
   @impl true
@@ -1553,7 +1540,7 @@ defmodule PavoiWeb.ProductSetsLive.Index do
       |> maybe_add_param(:sort, socket.assigns.browse_product_sort_by)
       |> maybe_add_param(:platform, platform)
 
-    {:noreply, push_patch(socket, to: ~p"/product-sets?#{query_params}")}
+    {:noreply, push_patch(socket, to: product_sets_path(socket, query_params))}
   end
 
   @impl true
@@ -1574,7 +1561,7 @@ defmodule PavoiWeb.ProductSetsLive.Index do
       |> maybe_add_param(:sort, socket.assigns.browse_product_sort_by)
       |> maybe_add_param(:platform, socket.assigns.platform_filter)
 
-    {:noreply, push_patch(socket, to: ~p"/product-sets?#{query_params}")}
+    {:noreply, push_patch(socket, to: product_sets_path(socket, query_params))}
   end
 
   @impl true
@@ -1590,14 +1577,14 @@ defmodule PavoiWeb.ProductSetsLive.Index do
       |> assign(:editing_product, nil)
       |> assign(:product_edit_form, to_form(Product.changeset(%Product{}, %{})))
       |> assign(:current_image_index, 0)
-      |> push_patch(to: ~p"/product-sets?#{query_params}")
+      |> push_patch(to: product_sets_path(socket, query_params))
 
     {:noreply, socket}
   end
 
   @impl true
   def handle_event("trigger_shopify_sync", _params, socket) do
-    %{}
+    %{"brand_id" => socket.assigns.brand_id}
     |> ShopifySyncWorker.new()
     |> Oban.insert()
 
@@ -1611,7 +1598,7 @@ defmodule PavoiWeb.ProductSetsLive.Index do
 
   @impl true
   def handle_event("trigger_tiktok_sync", _params, socket) do
-    %{}
+    %{"brand_id" => socket.assigns.brand_id}
     |> TiktokSyncWorker.new()
     |> Oban.insert()
 
@@ -1662,7 +1649,7 @@ defmodule PavoiWeb.ProductSetsLive.Index do
 
       index ->
         # Reload only this session from the database
-        updated_session = ProductSets.get_product_set!(session_id)
+        updated_session = ProductSets.get_product_set!(socket.assigns.brand_id, session_id)
 
         # Replace the session in the list
         updated_sessions = List.replace_at(sessions, index, updated_session)
@@ -1689,75 +1676,55 @@ defmodule PavoiWeb.ProductSetsLive.Index do
 
   defp load_products_for_new_session(socket, opts \\ [append: false]) do
     append = Keyword.get(opts, :append, false)
-
-    brand_id = get_in(socket.assigns.product_set_form.params, ["brand_id"])
+    brand_id = socket.assigns.brand_id
     search_query = socket.assigns.product_search_query
     page = if append, do: socket.assigns.product_page + 1, else: 1
 
-    case brand_id do
-      nil ->
-        socket
-        |> assign(:loading_products, false)
-        |> stream(:new_product_set_products, [], reset: true)
-        |> assign(:new_product_set_has_more, false)
-        |> assign(:product_total_count, 0)
+    try do
+      result =
+        Catalog.search_products_paginated(
+          brand_id,
+          search_query: search_query,
+          page: page,
+          per_page: 20
+        )
 
-      "" ->
-        socket
-        |> assign(:loading_products, false)
-        |> stream(:new_product_set_products, [], reset: true)
-        |> assign(:new_product_set_has_more, false)
-        |> assign(:product_total_count, 0)
+      # Precompute primary images and include selected state
+      products_with_state =
+        Enum.map(result.products, fn product ->
+          product_with_image = add_primary_image(product)
 
-      brand_id_str ->
-        try do
-          brand_id = normalize_id(brand_id_str)
-
-          result =
-            Catalog.search_products_paginated(
-              brand_id: brand_id,
-              search_query: search_query,
-              page: page,
-              per_page: 20
-            )
-
-          # Precompute primary images and include selected state
-          products_with_state =
-            Enum.map(result.products, fn product ->
-              product_with_image = add_primary_image(product)
-
-              Map.put(
-                product_with_image,
-                :selected,
-                MapSet.member?(socket.assigns.selected_product_ids, product.id)
-              )
-            end)
-
-          # Build a map for quick lookup by product ID
-          products_map =
-            if append do
-              socket.assigns.new_product_set_products_map
-            else
-              %{}
-            end
-            |> Map.merge(Map.new(products_with_state, &{&1.id, &1}))
-
-          socket
-          |> assign(:loading_products, false)
-          |> assign(:new_product_set_products_map, products_map)
-          |> stream(:new_product_set_products, products_with_state,
-            reset: !append,
-            at: if(append, do: -1, else: 0)
+          Map.put(
+            product_with_image,
+            :selected,
+            MapSet.member?(socket.assigns.selected_product_ids, product.id)
           )
-          |> assign(:product_total_count, result.total)
-          |> assign(:product_page, result.page)
-          |> assign(:new_product_set_has_more, result.has_more)
-        rescue
-          _e ->
-            socket
-            |> assign(:loading_products, false)
-            |> put_flash(:error, "Failed to load products")
+        end)
+
+      # Build a map for quick lookup by product ID
+      products_map =
+        if append do
+          socket.assigns.new_product_set_products_map
+        else
+          %{}
         end
+        |> Map.merge(Map.new(products_with_state, &{&1.id, &1}))
+
+      socket
+      |> assign(:loading_products, false)
+      |> assign(:new_product_set_products_map, products_map)
+      |> stream(:new_product_set_products, products_with_state,
+        reset: !append,
+        at: if(append, do: -1, else: 0)
+      )
+      |> assign(:product_total_count, result.total)
+      |> assign(:product_page, result.page)
+      |> assign(:new_product_set_has_more, result.has_more)
+    rescue
+      _e ->
+        socket
+        |> assign(:loading_products, false)
+        |> put_flash(:error, "Failed to load products")
     end
   end
 
@@ -1809,13 +1776,11 @@ defmodule PavoiWeb.ProductSetsLive.Index do
 
   defp maybe_show_new_product_set_modal(socket, _value) do
     # "new" param exists (any value), show the new session modal and initialize state
-    # Always use PAVOI brand
-    pavoi_brand = Catalog.get_brand_by_name("PAVOI")
-    brand_id = if pavoi_brand, do: pavoi_brand.id, else: nil
+    brand_id = socket.assigns.brand_id
 
     # Initialize session form with brand_id pre-set
     product_set_form =
-      to_form(ProductSet.changeset(%ProductSet{}, %{"brand_id" => brand_id}))
+      to_form(ProductSet.changeset(%ProductSet{brand_id: brand_id}, %{}))
 
     socket
     |> assign(:show_new_product_set_modal, true)
@@ -1854,7 +1819,7 @@ defmodule PavoiWeb.ProductSetsLive.Index do
 
           result =
             Catalog.search_products_paginated(
-              brand_id: session.brand_id,
+              session.brand_id,
               search_query: search_query,
               exclude_ids: existing_product_ids,
               page: page,
@@ -1999,8 +1964,8 @@ defmodule PavoiWeb.ProductSetsLive.Index do
       |> assign(enter_hint_key, false)
       |> assign(display_order_key, [])
     else
-      opts = if brand_id, do: [brand_id: brand_id], else: []
-      {found_products, _not_found_ids} = Catalog.find_products_by_ids(product_ids, opts)
+      {found_products, _not_found_ids} =
+        Catalog.find_products_by_ids(brand_id, product_ids)
 
       # Get current selections to preserve selected state for already-selected items
       current_selected = socket.assigns[selected_ids_key]
@@ -2148,6 +2113,7 @@ defmodule PavoiWeb.ProductSetsLive.Index do
 
     result =
       ProductSets.list_product_sets_with_details_paginated(
+        socket.assigns.brand_id,
         page: page,
         per_page: 20,
         search_query: search_query
@@ -2238,7 +2204,7 @@ defmodule PavoiWeb.ProductSetsLive.Index do
 
   defp maybe_open_browse_product_modal(socket, product_id_str) do
     product_id = String.to_integer(product_id_str)
-    product = Catalog.get_product_with_images!(product_id)
+    product = Catalog.get_product_with_images!(socket.assigns.brand_id, product_id)
 
     changes = %{
       "original_price_cents" => format_cents_to_dollars(product.original_price_cents),
@@ -2258,6 +2224,7 @@ defmodule PavoiWeb.ProductSetsLive.Index do
 
   defp load_products_for_browse(socket, opts \\ [append: false]) do
     append = Keyword.get(opts, :append, false)
+    brand_id = socket.assigns.brand_id
     search_query = socket.assigns.browse_product_search_query
     sort_by = socket.assigns.browse_product_sort_by
     platform_filter = socket.assigns.platform_filter
@@ -2266,6 +2233,7 @@ defmodule PavoiWeb.ProductSetsLive.Index do
     try do
       result =
         Catalog.search_products_paginated(
+          brand_id,
           search_query: search_query,
           sort_by: sort_by,
           platform_filter: platform_filter,
@@ -2310,7 +2278,7 @@ defmodule PavoiWeb.ProductSetsLive.Index do
   end
 
   # Check if a sync job is currently active (executing or available)
-  defp sync_job_active?(worker_module) do
+  defp sync_job_active?(worker_module, brand_id) do
     import Ecto.Query
 
     worker_name = inspect(worker_module)
@@ -2318,9 +2286,41 @@ defmodule PavoiWeb.ProductSetsLive.Index do
     Pavoi.Repo.exists?(
       from(j in Oban.Job,
         where: j.worker == ^worker_name,
-        where: j.state in ["executing", "available", "scheduled"]
+        where: j.state in ["executing", "available", "scheduled"],
+        where: fragment("?->>'brand_id' = ?", j.args, ^to_string(brand_id))
       )
     )
+  end
+
+  defp product_sets_path(socket, params \\ "")
+
+  defp product_sets_path(socket, params) when is_map(params) do
+    build_product_sets_path(socket, query_suffix(params))
+  end
+
+  defp product_sets_path(socket, params) when is_binary(params) do
+    build_product_sets_path(socket, params)
+  end
+
+  defp build_product_sets_path(socket, suffix) do
+    BrandRoutes.brand_path(
+      socket.assigns.current_brand,
+      "/product-sets#{suffix}",
+      socket.assigns.current_host
+    )
+  end
+
+  defp query_suffix(params) do
+    cleaned =
+      params
+      |> Enum.reject(fn {_key, value} -> value in [nil, ""] end)
+      |> Map.new()
+
+    if cleaned == %{} do
+      ""
+    else
+      "?" <> URI.encode_query(cleaned)
+    end
   end
 
   # Helper to build query params for tab navigation

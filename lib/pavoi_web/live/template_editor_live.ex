@@ -17,6 +17,7 @@ defmodule PavoiWeb.TemplateEditorLive do
 
   alias Pavoi.Communications
   alias Pavoi.Communications.EmailTemplate
+  alias PavoiWeb.BrandRoutes
 
   @impl true
   def mount(_params, _session, socket) do
@@ -31,7 +32,8 @@ defmodule PavoiWeb.TemplateEditorLive do
   defp apply_action(socket, :new, params) do
     # Support ?type=page query param for page templates
     template_type = params["type"] || "email"
-    template = %EmailTemplate{lark_preset: "jewelry", type: template_type}
+    brand_id = socket.assigns.current_brand.id
+    template = %EmailTemplate{brand_id: brand_id, lark_preset: "jewelry", type: template_type}
     changeset = Communications.change_email_template(template)
 
     page_title =
@@ -46,7 +48,8 @@ defmodule PavoiWeb.TemplateEditorLive do
   end
 
   defp apply_action(socket, :edit, %{"id" => id}) do
-    template = Communications.get_email_template!(id)
+    brand_id = socket.assigns.current_brand.id
+    template = Communications.get_email_template!(brand_id, id)
     changeset = Communications.change_email_template(template)
 
     page_title =
@@ -99,10 +102,11 @@ defmodule PavoiWeb.TemplateEditorLive do
   def handle_event("save", %{"email_template" => params}, socket) do
     # Decode form_config if it's a JSON string
     params = decode_form_config(params)
+    brand_id = socket.assigns.current_brand.id
 
     result =
       if socket.assigns.is_new do
-        Communications.create_email_template(params)
+        Communications.create_email_template(brand_id, params)
       else
         Communications.update_email_template(socket.assigns.template, params)
       end
@@ -112,7 +116,14 @@ defmodule PavoiWeb.TemplateEditorLive do
         socket =
           socket
           |> put_flash(:info, "Template saved successfully")
-          |> push_navigate(to: ~p"/creators?pt=templates")
+          |> push_navigate(
+            to:
+              BrandRoutes.brand_path(
+                socket.assigns.current_brand,
+                "/creators?pt=templates",
+                socket.assigns.current_host
+              )
+          )
 
         {:noreply, socket}
 

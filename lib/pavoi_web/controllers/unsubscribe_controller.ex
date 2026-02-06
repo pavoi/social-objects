@@ -1,18 +1,21 @@
 defmodule PavoiWeb.UnsubscribeController do
   use PavoiWeb, :controller
 
+  alias Pavoi.Catalog
   alias Pavoi.Outreach
   alias Pavoi.Repo
+  alias Pavoi.Settings
 
   @doc """
   Handles unsubscribe requests from email links.
   Shows a confirmation page after unsubscribing.
   """
   def unsubscribe(conn, %{"token" => token}) do
-    with {:ok, creator_id} <- Outreach.verify_unsubscribe_token(token),
+    with {:ok, payload} <- Outreach.verify_unsubscribe_token(token),
+         {creator_id, brand} <- resolve_payload(payload),
          %{} = creator <- Repo.get(Pavoi.Creators.Creator, creator_id),
          {:ok, _} <- Outreach.mark_email_opted_out(creator, "unsubscribe") do
-      render_success(conn, creator.email)
+      render_success(conn, creator.email, brand)
     else
       {:error, :expired} -> render_error(conn, "This unsubscribe link has expired.")
       {:error, :invalid} -> render_error(conn, "This unsubscribe link is invalid.")
@@ -21,14 +24,16 @@ defmodule PavoiWeb.UnsubscribeController do
     end
   end
 
-  defp render_success(conn, email) do
+  defp render_success(conn, email, brand) do
+    brand_name = brand_name(brand)
+
     html(conn, """
     <!DOCTYPE html>
     <html>
     <head>
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width, initial-scale=1.0">
-      <title>Unsubscribed - Pavoi</title>
+      <title>Unsubscribed - #{brand_name}</title>
       <style>
         body {
           font-family: Georgia, 'Times New Roman', serif;
@@ -73,6 +78,8 @@ defmodule PavoiWeb.UnsubscribeController do
   end
 
   defp render_error(conn, message) do
+    brand_name = brand_name(nil)
+
     conn
     |> put_status(400)
     |> html("""
@@ -81,7 +88,7 @@ defmodule PavoiWeb.UnsubscribeController do
     <head>
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width, initial-scale=1.0">
-      <title>Unsubscribe Error - Pavoi</title>
+      <title>Unsubscribe Error - #{brand_name}</title>
       <style>
         body {
           font-family: Georgia, 'Times New Roman', serif;
@@ -117,6 +124,19 @@ defmodule PavoiWeb.UnsubscribeController do
     </html>
     """)
   end
+
+  defp resolve_payload(%{creator_id: creator_id, brand_id: brand_id}) do
+    {creator_id, Catalog.get_brand(brand_id)}
+  end
+
+  defp resolve_payload(creator_id) when is_integer(creator_id) do
+    {creator_id, nil}
+  end
+
+  defp resolve_payload(_payload), do: {nil, nil}
+
+  defp brand_name(%{name: name}) when is_binary(name) and name != "", do: name
+  defp brand_name(_), do: Settings.app_name()
 
   defp html_escape(nil), do: ""
 

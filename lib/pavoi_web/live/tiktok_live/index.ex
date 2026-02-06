@@ -17,6 +17,7 @@ defmodule PavoiWeb.TiktokLive.Index do
   alias Pavoi.Settings
   alias Pavoi.TiktokLive, as: TiktokLiveContext
   alias Pavoi.Workers.StreamReportWorker
+  alias PavoiWeb.BrandRoutes
 
   import PavoiWeb.TiktokLiveComponents
   import PavoiWeb.ViewHelpers
@@ -27,13 +28,15 @@ defmodule PavoiWeb.TiktokLive.Index do
 
   @impl true
   def mount(_params, _session, socket) do
+    brand_id = socket.assigns.current_brand.id
+
     # Subscribe to global TikTok live events
     if connected?(socket) do
-      Phoenix.PubSub.subscribe(Pavoi.PubSub, "tiktok_live:events")
-      Phoenix.PubSub.subscribe(Pavoi.PubSub, "tiktok_live:scan")
+      Phoenix.PubSub.subscribe(Pavoi.PubSub, "tiktok_live:events:#{brand_id}")
+      Phoenix.PubSub.subscribe(Pavoi.PubSub, "tiktok_live:scan:#{brand_id}")
     end
 
-    last_scan_at = Settings.get_tiktok_live_last_scan_at()
+    last_scan_at = Settings.get_tiktok_live_last_scan_at(brand_id)
 
     socket =
       socket
@@ -68,7 +71,7 @@ defmodule PavoiWeb.TiktokLive.Index do
       |> assign(:scanning, false)
       |> assign(:last_scan_at, last_scan_at)
       |> assign(:sending_stream_report, false)
-      |> assign(:slack_dev_user_id_present, slack_dev_user_id_present?())
+      |> assign(:slack_dev_user_id_present, slack_dev_user_id_present?(brand_id))
       |> assign(:stream_report_last_sent_at, nil)
       |> assign(:stream_report_last_error, nil)
       # Product set linking state
@@ -95,6 +98,7 @@ defmodule PavoiWeb.TiktokLive.Index do
       |> assign(:streams_sentiment, %{})
       |> assign(:all_streams_for_select, [])
       |> assign(:prev_analytics_stream_id, :not_set)
+      |> assign(:brand_id, brand_id)
 
     {:ok, socket}
   end
@@ -117,31 +121,31 @@ defmodule PavoiWeb.TiktokLive.Index do
   @impl true
   def handle_event("filter_status", %{"status" => status}, socket) do
     params = build_query_params(socket, status_filter: status, page: 1)
-    {:noreply, push_patch(socket, to: ~p"/streams?#{params}")}
+    {:noreply, push_patch(socket, to: streams_path(socket, params))}
   end
 
   @impl true
   def handle_event("filter_date", %{"date" => date}, socket) do
     params = build_query_params(socket, date_filter: date, page: 1)
-    {:noreply, push_patch(socket, to: ~p"/streams?#{params}")}
+    {:noreply, push_patch(socket, to: streams_path(socket, params))}
   end
 
   @impl true
   def handle_event("search_streams", %{"value" => query}, socket) do
     params = build_query_params(socket, search_query: query, page: 1)
-    {:noreply, push_patch(socket, to: ~p"/streams?#{params}")}
+    {:noreply, push_patch(socket, to: streams_path(socket, params))}
   end
 
   @impl true
   def handle_event("sort_column", %{"field" => field, "dir" => dir}, socket) do
     params = build_query_params(socket, sort_by: field, sort_dir: dir, page: 1)
-    {:noreply, push_patch(socket, to: ~p"/streams?#{params}")}
+    {:noreply, push_patch(socket, to: streams_path(socket, params))}
   end
 
   @impl true
   def handle_event("scan_streams", _params, socket) do
     socket =
-      case TiktokLiveContext.check_live_status_now("manual") do
+      case TiktokLiveContext.check_live_status_now(socket.assigns.brand_id, "manual") do
         {:ok, _job} ->
           assign(socket, :scanning, true)
 
@@ -159,7 +163,7 @@ defmodule PavoiWeb.TiktokLive.Index do
     # Optionally navigate directly to a specific tab (e.g., "product_sets")
     tab = Map.get(params, "tab")
     query_params = build_query_params(socket, stream_id: id, tab: tab)
-    {:noreply, push_patch(socket, to: ~p"/streams?#{query_params}")}
+    {:noreply, push_patch(socket, to: streams_path(socket, query_params))}
   end
 
   @impl true
@@ -184,7 +188,7 @@ defmodule PavoiWeb.TiktokLive.Index do
       |> assign(:all_product_sets, [])
       |> assign(:product_set_search_query, "")
       |> assign(:product_interest, [])
-      |> push_patch(to: ~p"/streams?#{params}")
+      |> push_patch(to: streams_path(socket, params))
 
     {:noreply, socket}
   end
@@ -202,14 +206,14 @@ defmodule PavoiWeb.TiktokLive.Index do
   @impl true
   def handle_event("change_tab", %{"tab" => tab}, socket) do
     params = build_query_params(socket, tab: tab)
-    {:noreply, push_patch(socket, to: ~p"/streams?#{params}")}
+    {:noreply, push_patch(socket, to: streams_path(socket, params))}
   end
 
   @impl true
   def handle_event("delete_stream", %{"id" => id}, socket) do
     stream_id = String.to_integer(id)
 
-    case TiktokLiveContext.delete_stream(stream_id) do
+    case TiktokLiveContext.delete_stream(socket.assigns.brand_id, stream_id) do
       {:ok, _stream} ->
         socket =
           socket
@@ -223,7 +227,7 @@ defmodule PavoiWeb.TiktokLive.Index do
           |> assign(:stream_stats, [])
           |> assign(:page, 1)
           |> load_streams()
-          |> push_patch(to: ~p"/streams")
+          |> push_patch(to: streams_path(socket))
 
         {:noreply, socket}
 
@@ -262,10 +266,15 @@ defmodule PavoiWeb.TiktokLive.Index do
     # If linking from a suggestion, mark as "auto" linked
     linked_by = if params["source"] == "suggestion", do: "auto", else: "manual"
 
-    case TiktokLiveContext.link_stream_to_product_set(stream_id, session_id, linked_by: linked_by) do
+    case TiktokLiveContext.link_stream_to_product_set(
+           socket.assigns.brand_id,
+           stream_id,
+           session_id,
+           linked_by: linked_by
+         ) do
       {:ok, _} ->
-        linked = TiktokLiveContext.get_linked_product_sets(stream_id)
-        product_interest = load_product_interest(stream_id, linked)
+        linked = TiktokLiveContext.get_linked_product_sets(socket.assigns.brand_id, stream_id)
+        product_interest = load_product_interest(socket, stream_id, linked)
 
         socket =
           socket
@@ -286,10 +295,14 @@ defmodule PavoiWeb.TiktokLive.Index do
     stream_id = socket.assigns.selected_stream.id
     session_id = String.to_integer(session_id)
 
-    TiktokLiveContext.unlink_stream_from_product_set(stream_id, session_id)
+    TiktokLiveContext.unlink_stream_from_product_set(
+      socket.assigns.brand_id,
+      stream_id,
+      session_id
+    )
 
-    linked = TiktokLiveContext.get_linked_product_sets(stream_id)
-    product_interest = load_product_interest(stream_id, linked)
+    linked = TiktokLiveContext.get_linked_product_sets(socket.assigns.brand_id, stream_id)
+    product_interest = load_product_interest(socket, stream_id, linked)
 
     socket =
       socket
@@ -316,34 +329,34 @@ defmodule PavoiWeb.TiktokLive.Index do
   @impl true
   def handle_event("change_page_tab", %{"tab" => tab}, socket) do
     params = build_query_params(socket, page_tab: tab, analytics_page: 1)
-    {:noreply, push_patch(socket, to: ~p"/streams?#{params}")}
+    {:noreply, push_patch(socket, to: streams_path(socket, params))}
   end
 
   @impl true
   def handle_event("analytics_select_stream", %{"stream_id" => stream_id}, socket) do
     stream_id = parse_optional_int(stream_id)
     params = build_query_params(socket, analytics_stream_id: stream_id, analytics_page: 1)
-    {:noreply, push_patch(socket, to: ~p"/streams?#{params}")}
+    {:noreply, push_patch(socket, to: streams_path(socket, params))}
   end
 
   @impl true
   def handle_event("analytics_filter_sentiment", %{"sentiment" => sentiment}, socket) do
     sentiment = parse_sentiment(sentiment)
     params = build_query_params(socket, analytics_sentiment: sentiment, analytics_page: 1)
-    {:noreply, push_patch(socket, to: ~p"/streams?#{params}")}
+    {:noreply, push_patch(socket, to: streams_path(socket, params))}
   end
 
   @impl true
   def handle_event("analytics_filter_category", %{"category" => category}, socket) do
     category = parse_category(category)
     params = build_query_params(socket, analytics_category: category, analytics_page: 1)
-    {:noreply, push_patch(socket, to: ~p"/streams?#{params}")}
+    {:noreply, push_patch(socket, to: streams_path(socket, params))}
   end
 
   @impl true
   def handle_event("analytics_search", %{"value" => query}, socket) do
     params = build_query_params(socket, analytics_search: query, analytics_page: 1)
-    {:noreply, push_patch(socket, to: ~p"/streams?#{params}")}
+    {:noreply, push_patch(socket, to: streams_path(socket, params))}
   end
 
   @impl true
@@ -375,7 +388,7 @@ defmodule PavoiWeb.TiktokLive.Index do
       pid = self()
 
       Task.start(fn ->
-        result = TiktokLiveContext.start_capture(unique_id)
+        result = TiktokLiveContext.start_capture(socket.assigns.brand_id, unique_id)
         send(pid, {:capture_result, result})
       end)
 
@@ -411,8 +424,8 @@ defmodule PavoiWeb.TiktokLive.Index do
 
     # If we're viewing this stream, reload its details
     if socket.assigns.selected_stream && socket.assigns.selected_stream.id == stream_id do
-      stream = TiktokLiveContext.get_stream!(stream_id)
-      summary = TiktokLiveContext.get_stream_summary(stream_id)
+      stream = TiktokLiveContext.get_stream!(socket.assigns.brand_id, stream_id)
+      summary = TiktokLiveContext.get_stream_summary(socket.assigns.brand_id, stream_id)
 
       socket =
         socket
@@ -436,8 +449,8 @@ defmodule PavoiWeb.TiktokLive.Index do
 
     # If we're viewing this stream, reload its details
     if socket.assigns.selected_stream && socket.assigns.selected_stream.id == stream_id do
-      stream = TiktokLiveContext.get_stream!(stream_id)
-      summary = TiktokLiveContext.get_stream_summary(stream_id)
+      stream = TiktokLiveContext.get_stream!(socket.assigns.brand_id, stream_id)
+      summary = TiktokLiveContext.get_stream_summary(socket.assigns.brand_id, stream_id)
 
       socket =
         socket
@@ -521,7 +534,8 @@ defmodule PavoiWeb.TiktokLive.Index do
   def handle_info({:tiktok_live_stream_event, {:viewer_count, _count}}, socket) do
     # Viewer count update - reload stream stats
     if socket.assigns.selected_stream do
-      stream = TiktokLiveContext.get_stream!(socket.assigns.selected_stream.id)
+      stream =
+        TiktokLiveContext.get_stream!(socket.assigns.brand_id, socket.assigns.selected_stream.id)
 
       socket =
         socket
@@ -530,7 +544,7 @@ defmodule PavoiWeb.TiktokLive.Index do
       # Reload stats if on stats tab
       socket =
         if socket.assigns.active_tab == "stats" do
-          stats = TiktokLiveContext.list_stream_stats(stream.id)
+          stats = TiktokLiveContext.list_stream_stats(socket.assigns.brand_id, stream.id)
           assign(socket, :stream_stats, stats)
         else
           socket
@@ -546,8 +560,10 @@ defmodule PavoiWeb.TiktokLive.Index do
   def handle_info({:tiktok_live_stream_event, {:connected}}, socket) do
     # Stream reconnected - refresh its data to show updated status
     if socket.assigns.selected_stream do
-      stream = TiktokLiveContext.get_stream!(socket.assigns.selected_stream.id)
-      summary = TiktokLiveContext.get_stream_summary(stream.id)
+      stream =
+        TiktokLiveContext.get_stream!(socket.assigns.brand_id, socket.assigns.selected_stream.id)
+
+      summary = TiktokLiveContext.get_stream_summary(socket.assigns.brand_id, stream.id)
 
       socket =
         socket
@@ -565,8 +581,10 @@ defmodule PavoiWeb.TiktokLive.Index do
   def handle_info({:tiktok_live_stream_event, {:stream_ended}}, socket) do
     # Stream we're viewing ended
     if socket.assigns.selected_stream do
-      stream = TiktokLiveContext.get_stream!(socket.assigns.selected_stream.id)
-      summary = TiktokLiveContext.get_stream_summary(stream.id)
+      stream =
+        TiktokLiveContext.get_stream!(socket.assigns.brand_id, socket.assigns.selected_stream.id)
+
+      summary = TiktokLiveContext.get_stream_summary(socket.assigns.brand_id, stream.id)
 
       socket =
         socket
@@ -649,7 +667,7 @@ defmodule PavoiWeb.TiktokLive.Index do
 
   @impl true
   def handle_info({:scan_completed, _source}, socket) do
-    last_scan_at = Settings.get_tiktok_live_last_scan_at()
+    last_scan_at = Settings.get_tiktok_live_last_scan_at(socket.assigns.brand_id)
 
     socket =
       socket
@@ -716,6 +734,7 @@ defmodule PavoiWeb.TiktokLive.Index do
 
     streams =
       TiktokLiveContext.list_streams(
+        socket.assigns.brand_id,
         filters ++
           [
             limit: @per_page,
@@ -723,7 +742,7 @@ defmodule PavoiWeb.TiktokLive.Index do
           ]
       )
 
-    total = count_streams(filters)
+    total = count_streams(socket.assigns.brand_id, filters)
     has_more = length(streams) == @per_page && page * @per_page < total
 
     all_streams =
@@ -792,8 +811,8 @@ defmodule PavoiWeb.TiktokLive.Index do
     |> DateTime.to_date()
   end
 
-  defp count_streams(filters) do
-    TiktokLiveContext.count_streams(filters)
+  defp count_streams(brand_id, filters) do
+    TiktokLiveContext.count_streams(brand_id, filters)
   end
 
   defp maybe_load_selected_stream(socket, params) do
@@ -811,8 +830,8 @@ defmodule PavoiWeb.TiktokLive.Index do
       stream_id ->
         try do
           stream_id = String.to_integer(stream_id)
-          stream = TiktokLiveContext.get_stream!(stream_id)
-          summary = TiktokLiveContext.get_stream_summary(stream_id)
+          stream = TiktokLiveContext.get_stream!(socket.assigns.brand_id, stream_id)
+          summary = TiktokLiveContext.get_stream_summary(socket.assigns.brand_id, stream_id)
           tab = params["tab"] || "comments"
 
           socket =
@@ -827,10 +846,10 @@ defmodule PavoiWeb.TiktokLive.Index do
           socket
         rescue
           Ecto.NoResultsError ->
-            push_patch(socket, to: ~p"/streams")
+            push_patch(socket, to: streams_path(socket))
 
           ArgumentError ->
-            push_patch(socket, to: ~p"/streams")
+            push_patch(socket, to: streams_path(socket))
         end
     end
   end
@@ -840,7 +859,7 @@ defmodule PavoiWeb.TiktokLive.Index do
   end
 
   defp load_tab_data(socket, "stats", stream_id) do
-    stats = TiktokLiveContext.list_stream_stats(stream_id)
+    stats = TiktokLiveContext.list_stream_stats(socket.assigns.brand_id, stream_id)
     stream = socket.assigns.selected_stream
 
     # Build GMV data from stored hourly data (if available)
@@ -852,8 +871,8 @@ defmodule PavoiWeb.TiktokLive.Index do
   end
 
   defp load_tab_data(socket, "product_sets", stream_id) do
-    linked = TiktokLiveContext.get_linked_product_sets(stream_id)
-    product_interest = load_product_interest(stream_id, linked)
+    linked = TiktokLiveContext.get_linked_product_sets(socket.assigns.brand_id, stream_id)
+    product_interest = load_product_interest(socket, stream_id, linked)
 
     socket
     |> assign(:linked_product_sets, linked)
@@ -870,6 +889,7 @@ defmodule PavoiWeb.TiktokLive.Index do
       if socket.assigns.comment_search_query != "" do
         # Search mode - use search function
         TiktokLiveContext.search_comments(
+          socket.assigns.brand_id,
           stream_id,
           socket.assigns.comment_search_query,
           limit: @comments_per_page
@@ -878,6 +898,7 @@ defmodule PavoiWeb.TiktokLive.Index do
         # Load most recent comments
         result =
           TiktokLiveContext.list_stream_comments(
+            socket.assigns.brand_id,
             stream_id,
             page: 1,
             per_page: @comments_per_page,
@@ -1010,8 +1031,8 @@ defmodule PavoiWeb.TiktokLive.Index do
     end
   end
 
-  defp slack_dev_user_id_present? do
-    case Application.get_env(:pavoi, :slack_dev_user_id) do
+  defp slack_dev_user_id_present?(brand_id) do
+    case Settings.get_slack_dev_user_id(brand_id) do
       nil -> false
       "" -> false
       _ -> true
@@ -1019,7 +1040,8 @@ defmodule PavoiWeb.TiktokLive.Index do
   end
 
   defp enqueue_stream_report_job(socket, stream_id) do
-    case StreamReportWorker.new(%{stream_id: stream_id}) |> Oban.insert() do
+    case StreamReportWorker.new(%{stream_id: stream_id, brand_id: socket.assigns.brand_id})
+         |> Oban.insert() do
       {:ok, _job} ->
         status = stream_report_job_status(stream_id)
 
@@ -1152,6 +1174,7 @@ defmodule PavoiWeb.TiktokLive.Index do
 
     sessions =
       ProductSets.list_product_sets_with_details_paginated(
+        socket.assigns.brand_id,
         search_query: search_query,
         page: 1,
         per_page: 10
@@ -1163,10 +1186,14 @@ defmodule PavoiWeb.TiktokLive.Index do
     assign(socket, :all_product_sets, available)
   end
 
-  defp load_product_interest(stream_id, linked_product_sets) do
+  defp load_product_interest(socket, stream_id, linked_product_sets) do
     case linked_product_sets do
       [session | _] ->
-        TiktokLiveContext.get_product_interest_summary(stream_id, session.id)
+        TiktokLiveContext.get_product_interest_summary(
+          socket.assigns.brand_id,
+          stream_id,
+          session.id
+        )
 
       [] ->
         []
@@ -1238,7 +1265,7 @@ defmodule PavoiWeb.TiktokLive.Index do
 
     sentiment_map =
       if length(stream_ids) > 0 do
-        TiktokLiveContext.get_streams_sentiment_summary(stream_ids)
+        TiktokLiveContext.get_streams_sentiment_summary(socket.assigns.brand_id, stream_ids)
       else
         %{}
       end
@@ -1269,7 +1296,14 @@ defmodule PavoiWeb.TiktokLive.Index do
   defp load_all_streams_for_select(socket) do
     # Only load if not already loaded
     if Enum.empty?(socket.assigns.all_streams_for_select) do
-      streams = TiktokLiveContext.list_streams(limit: 100, sort_by: "started", sort_dir: "desc")
+      streams =
+        TiktokLiveContext.list_streams(
+          socket.assigns.brand_id,
+          limit: 100,
+          sort_by: "started",
+          sort_dir: "desc"
+        )
+
       assign(socket, :all_streams_for_select, streams)
     else
       socket
@@ -1283,8 +1317,11 @@ defmodule PavoiWeb.TiktokLive.Index do
       [stream_id: socket.assigns.analytics_stream_id]
       |> Enum.reject(fn {_k, v} -> is_nil(v) end)
 
-    sentiment_breakdown = TiktokLiveContext.get_aggregate_sentiment_breakdown(opts)
-    category_breakdown = TiktokLiveContext.get_aggregate_category_breakdown(opts)
+    sentiment_breakdown =
+      TiktokLiveContext.get_aggregate_sentiment_breakdown(socket.assigns.brand_id, opts)
+
+    category_breakdown =
+      TiktokLiveContext.get_aggregate_category_breakdown(socket.assigns.brand_id, opts)
 
     # Pre-compute chart JSON to prevent re-computation on every component render
     sentiment_chart_json = build_sentiment_chart_json(sentiment_breakdown)
@@ -1366,7 +1403,7 @@ defmodule PavoiWeb.TiktokLive.Index do
       ]
       |> Enum.reject(fn {_k, v} -> is_nil(v) or v == "" end)
 
-    result = TiktokLiveContext.list_classified_comments(query_opts)
+    result = TiktokLiveContext.list_classified_comments(socket.assigns.brand_id, query_opts)
 
     comments =
       if append do
@@ -1381,5 +1418,36 @@ defmodule PavoiWeb.TiktokLive.Index do
     |> assign(:analytics_has_more, result.has_more)
     |> assign(:analytics_page, page)
     |> assign(:analytics_loading, false)
+  end
+
+  defp streams_path(socket, params \\ "")
+
+  defp streams_path(socket, params) when is_map(params) do
+    build_streams_path(socket, query_suffix(params))
+  end
+
+  defp streams_path(socket, params) when is_binary(params) do
+    build_streams_path(socket, params)
+  end
+
+  defp build_streams_path(socket, suffix) do
+    BrandRoutes.brand_path(
+      socket.assigns.current_brand,
+      "/streams#{suffix}",
+      socket.assigns.current_host
+    )
+  end
+
+  defp query_suffix(params) do
+    cleaned =
+      params
+      |> Enum.reject(fn {_key, value} -> value in [nil, ""] end)
+      |> Map.new()
+
+    if cleaned == %{} do
+      ""
+    else
+      "?" <> URI.encode_query(cleaned)
+    end
   end
 end

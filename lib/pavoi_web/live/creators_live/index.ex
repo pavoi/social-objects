@@ -11,7 +11,6 @@ defmodule PavoiWeb.CreatorsLive.Index do
 
   on_mount {PavoiWeb.NavHooks, :set_current_page}
 
-  alias Pavoi.Catalog
   alias Pavoi.Communications
   alias Pavoi.Communications.TemplateRenderer
   alias Pavoi.Creators
@@ -22,6 +21,7 @@ defmodule PavoiWeb.CreatorsLive.Index do
   alias Pavoi.Workers.BigQueryOrderSyncWorker
   alias Pavoi.Workers.CreatorEnrichmentWorker
   alias Pavoi.Workers.CreatorOutreachWorker
+  alias PavoiWeb.BrandRoutes
 
   import PavoiWeb.CreatorTagComponents
   import PavoiWeb.CreatorTableComponents
@@ -31,23 +31,22 @@ defmodule PavoiWeb.CreatorsLive.Index do
 
   @impl true
   def mount(_params, _session, socket) do
+    brand_id = socket.assigns.current_brand.id
+
     # Subscribe to BigQuery sync, enrichment, and outreach events
     if connected?(socket) do
-      Phoenix.PubSub.subscribe(Pavoi.PubSub, "bigquery:sync")
-      Phoenix.PubSub.subscribe(Pavoi.PubSub, "creator:enrichment")
-      Phoenix.PubSub.subscribe(Pavoi.PubSub, "outreach:updates")
+      Phoenix.PubSub.subscribe(Pavoi.PubSub, "bigquery:sync:#{brand_id}")
+      Phoenix.PubSub.subscribe(Pavoi.PubSub, "creator:enrichment:#{brand_id}")
+      Phoenix.PubSub.subscribe(Pavoi.PubSub, "outreach:updates:#{brand_id}")
     end
 
-    bigquery_last_sync_at = Settings.get_bigquery_last_sync_at()
-    bigquery_syncing = sync_job_blocked?(BigQueryOrderSyncWorker)
-    enrichment_last_sync_at = Settings.get_enrichment_last_sync_at()
-    enrichment_syncing = sync_job_blocked?(CreatorEnrichmentWorker)
+    bigquery_last_sync_at = Settings.get_bigquery_last_sync_at(brand_id)
+    bigquery_syncing = sync_job_blocked?(BigQueryOrderSyncWorker, brand_id)
+    enrichment_last_sync_at = Settings.get_enrichment_last_sync_at(brand_id)
+    enrichment_syncing = sync_job_blocked?(CreatorEnrichmentWorker, brand_id)
     features = Application.get_env(:pavoi, :features, [])
 
-    # Get the PAVOI brand for tag operations
-    pavoi_brand = Catalog.get_brand_by_slug("pavoi")
-    brand_id = if pavoi_brand, do: pavoi_brand.id, else: nil
-    available_tags = if brand_id, do: Creators.list_tags_for_brand(brand_id), else: []
+    available_tags = Creators.list_tags_for_brand(brand_id)
 
     socket =
       socket
@@ -111,7 +110,7 @@ defmodule PavoiWeb.CreatorsLive.Index do
       |> assign(:delta_period, nil)
       |> assign(:time_preset, "all")
       # Data freshness state
-      |> assign(:videos_last_import_at, Settings.get_videos_last_import_at())
+      |> assign(:videos_last_import_at, Settings.get_videos_last_import_at(brand_id))
       # Page tab (creators vs templates)
       |> assign(:page_tab, "creators")
       # Email template management (for Templates tab)
@@ -139,25 +138,25 @@ defmodule PavoiWeb.CreatorsLive.Index do
   @impl true
   def handle_event("search", %{"value" => query}, socket) do
     params = build_query_params(socket, search_query: query, page: 1)
-    {:noreply, push_patch(socket, to: ~p"/creators?#{params}")}
+    {:noreply, push_patch(socket, to: creators_path(socket, params))}
   end
 
   @impl true
   def handle_event("filter_badge", %{"badge" => badge}, socket) do
     params = build_query_params(socket, badge_filter: badge, page: 1)
-    {:noreply, push_patch(socket, to: ~p"/creators?#{params}")}
+    {:noreply, push_patch(socket, to: creators_path(socket, params))}
   end
 
   @impl true
   def handle_event("sort_column", %{"field" => field, "dir" => dir}, socket) do
     params = build_query_params(socket, sort_by: field, sort_dir: dir, page: 1)
-    {:noreply, push_patch(socket, to: ~p"/creators?#{params}")}
+    {:noreply, push_patch(socket, to: creators_path(socket, params))}
   end
 
   @impl true
   def handle_event("navigate_to_creator", %{"id" => id}, socket) do
     params = build_query_params(socket, creator_id: id)
-    {:noreply, push_patch(socket, to: ~p"/creators?#{params}")}
+    {:noreply, push_patch(socket, to: creators_path(socket, params))}
   end
 
   @impl true
@@ -176,7 +175,7 @@ defmodule PavoiWeb.CreatorsLive.Index do
         |> assign(:contact_form, nil)
         |> assign(:tag_picker_open_for, nil)
         |> assign(:tag_picker_source, nil)
-        |> push_patch(to: ~p"/creators?#{params}")
+        |> push_patch(to: creators_path(socket, params))
 
       {:noreply, socket}
     end
@@ -193,7 +192,7 @@ defmodule PavoiWeb.CreatorsLive.Index do
       end
 
     params = build_query_params(socket, tab: tab)
-    {:noreply, push_patch(socket, to: ~p"/creators?#{params}")}
+    {:noreply, push_patch(socket, to: creators_path(socket, params))}
   end
 
   @impl true
@@ -236,7 +235,7 @@ defmodule PavoiWeb.CreatorsLive.Index do
     case Creators.update_creator(socket.assigns.selected_creator, params) do
       {:ok, creator} ->
         # Reload with minimal associations (not all tab data)
-        creator = Creators.get_creator_for_modal!(creator.id)
+        creator = Creators.get_creator_for_modal!(socket.assigns.brand_id, creator.id)
 
         socket =
           socket
@@ -263,7 +262,7 @@ defmodule PavoiWeb.CreatorsLive.Index do
      enqueue_sync_job(
        socket,
        BigQueryOrderSyncWorker,
-       %{"source" => "manual"},
+       %{"source" => "manual", "brand_id" => socket.assigns.brand_id},
        :bigquery_syncing,
        "BigQuery orders sync initiated..."
      )}
@@ -275,7 +274,7 @@ defmodule PavoiWeb.CreatorsLive.Index do
      enqueue_sync_job(
        socket,
        CreatorEnrichmentWorker,
-       %{"source" => "manual"},
+       %{"source" => "manual", "brand_id" => socket.assigns.brand_id},
        :enrichment_syncing,
        "Creator enrichment started..."
      )}
@@ -305,7 +304,7 @@ defmodule PavoiWeb.CreatorsLive.Index do
   def handle_event("clear_status_filter", _params, socket) do
     socket = assign(socket, :show_status_filter, false)
     params = build_query_params(socket, outreach_status: nil, page: 1)
-    {:noreply, push_patch(socket, to: ~p"/creators?#{params}")}
+    {:noreply, push_patch(socket, to: creators_path(socket, params))}
   end
 
   @impl true
@@ -314,7 +313,7 @@ defmodule PavoiWeb.CreatorsLive.Index do
     status = if status == "", do: nil, else: status
     socket = assign(socket, :show_status_filter, false)
     params = build_query_params(socket, outreach_status: status, page: 1)
-    {:noreply, push_patch(socket, to: ~p"/creators?#{params}")}
+    {:noreply, push_patch(socket, to: creators_path(socket, params))}
   end
 
   @impl true
@@ -378,8 +377,9 @@ defmodule PavoiWeb.CreatorsLive.Index do
   @impl true
   def handle_event("show_send_modal", _params, socket) do
     if has_selection?(socket) do
-      templates = Communications.list_email_templates()
-      default_template = Communications.get_default_email_template()
+      brand_id = socket.assigns.brand_id
+      templates = Communications.list_email_templates(brand_id)
+      default_template = Communications.get_default_email_template(brand_id)
 
       socket =
         socket
@@ -418,7 +418,9 @@ defmodule PavoiWeb.CreatorsLive.Index do
   def handle_event("send_outreach", _params, socket) do
     with {:ok, template_id} <- validate_template_selected(socket),
          {:ok, sendable_ids} <- get_sendable_creator_ids(socket) do
-      {:ok, count} = CreatorOutreachWorker.enqueue_batch(sendable_ids, template_id)
+      {:ok, count} =
+        CreatorOutreachWorker.enqueue_batch(socket.assigns.brand_id, sendable_ids, template_id)
+
       {:noreply, handle_outreach_success(socket, count)}
     else
       {:error, message} -> {:noreply, put_flash(socket, :error, message)}
@@ -432,7 +434,7 @@ defmodule PavoiWeb.CreatorsLive.Index do
   @impl true
   def handle_event("open_tag_picker", %{"creator-id" => creator_id}, socket) do
     creator_id = String.to_integer(creator_id)
-    selected_tag_ids = Creators.get_tag_ids_for_creator(creator_id)
+    selected_tag_ids = Creators.get_tag_ids_for_creator(socket.assigns.brand_id, creator_id)
     random_color = Enum.random(@tag_colors)
 
     socket =
@@ -452,7 +454,7 @@ defmodule PavoiWeb.CreatorsLive.Index do
     creator = socket.assigns.selected_creator
 
     if creator do
-      selected_tag_ids = Creators.get_tag_ids_for_creator(creator.id)
+      selected_tag_ids = Creators.get_tag_ids_for_creator(socket.assigns.brand_id, creator.id)
       random_color = Enum.random(@tag_colors)
 
       socket =
@@ -640,7 +642,7 @@ defmodule PavoiWeb.CreatorsLive.Index do
   def handle_event("confirm_delete_tag", %{"tag_id" => tag_id}, socket) do
     brand_id = socket.assigns.brand_id
 
-    case Creators.get_tag(tag_id) do
+    case Creators.get_tag(brand_id, tag_id) do
       nil ->
         {:noreply, put_flash(socket, :error, "Tag not found")}
 
@@ -684,20 +686,20 @@ defmodule PavoiWeb.CreatorsLive.Index do
       end
 
     params = build_query_params(socket, filter_tag_ids: new_filter_ids, page: 1)
-    {:noreply, push_patch(socket, to: ~p"/creators?#{params}")}
+    {:noreply, push_patch(socket, to: creators_path(socket, params))}
   end
 
   @impl true
   def handle_event("clear_tag_filter", _params, socket) do
     params = build_query_params(socket, filter_tag_ids: [], page: 1)
-    {:noreply, push_patch(socket, to: ~p"/creators?#{params}")}
+    {:noreply, push_patch(socket, to: creators_path(socket, params))}
   end
 
   @impl true
   def handle_event("set_time_preset", %{"preset" => preset}, socket) do
     delta_period = preset_to_delta_period(preset)
     params = build_query_params(socket, delta_period: delta_period, page: 1)
-    {:noreply, push_patch(socket, to: ~p"/creators?#{params}")}
+    {:noreply, push_patch(socket, to: creators_path(socket, params))}
   end
 
   # Batch tag handlers
@@ -815,7 +817,8 @@ defmodule PavoiWeb.CreatorsLive.Index do
   def handle_event("batch_select_parse", _params, socket) do
     input = socket.assigns.batch_select_input
 
-    {found_creators, not_found_handles} = Creators.find_creators_by_handles(input)
+    {found_creators, not_found_handles} =
+      Creators.find_creators_by_handles(socket.assigns.brand_id, input)
 
     # Pre-select all found creators
     preview_ids = found_creators |> Enum.map(& &1.id) |> MapSet.new()
@@ -870,7 +873,7 @@ defmodule PavoiWeb.CreatorsLive.Index do
   @impl true
   def handle_event("change_page_tab", %{"tab" => tab}, socket) do
     params = build_query_params(socket, page_tab: tab)
-    {:noreply, push_patch(socket, to: ~p"/creators?#{params}")}
+    {:noreply, push_patch(socket, to: creators_path(socket, params))}
   end
 
   @impl true
@@ -880,7 +883,7 @@ defmodule PavoiWeb.CreatorsLive.Index do
       |> assign(:show_send_modal, false)
 
     params = build_query_params(socket, page_tab: "templates")
-    {:noreply, push_patch(socket, to: ~p"/creators?#{params}")}
+    {:noreply, push_patch(socket, to: creators_path(socket, params))}
   end
 
   # =============================================================================
@@ -889,11 +892,11 @@ defmodule PavoiWeb.CreatorsLive.Index do
 
   @impl true
   def handle_event("preview_template", %{"id" => id}, socket) do
-    template = Communications.get_email_template!(id)
+    template = Communications.get_email_template!(socket.assigns.brand_id, id)
 
     {subject, html} =
       if template.type == "page" do
-        {nil, template_preview_html(template)}
+        {nil, template_preview_html(template, socket.assigns.current_brand.name)}
       else
         TemplateRenderer.render_preview(template)
       end
@@ -921,14 +924,19 @@ defmodule PavoiWeb.CreatorsLive.Index do
   @impl true
   def handle_event("filter_template_type", %{"type" => type}, socket) do
     params = build_query_params(socket, template_type_filter: type)
-    {:noreply, push_patch(socket, to: ~p"/creators?#{params}")}
+    {:noreply, push_patch(socket, to: creators_path(socket, params))}
   end
 
   @impl true
   def handle_event("set_default_template", %{"id" => id}, socket) do
-    template = Communications.get_email_template!(id)
+    template = Communications.get_email_template!(socket.assigns.brand_id, id)
     {:ok, _} = Communications.set_default_template(template)
-    templates = Communications.list_all_templates_by_type(socket.assigns.template_type_filter)
+
+    templates =
+      Communications.list_all_templates_by_type(
+        socket.assigns.brand_id,
+        socket.assigns.template_type_filter
+      )
 
     socket =
       socket
@@ -940,9 +948,14 @@ defmodule PavoiWeb.CreatorsLive.Index do
 
   @impl true
   def handle_event("delete_template", %{"id" => id}, socket) do
-    template = Communications.get_email_template!(id)
+    template = Communications.get_email_template!(socket.assigns.brand_id, id)
     {:ok, _} = Communications.delete_email_template(template)
-    templates = Communications.list_all_templates_by_type(socket.assigns.template_type_filter)
+
+    templates =
+      Communications.list_all_templates_by_type(
+        socket.assigns.brand_id,
+        socket.assigns.template_type_filter
+      )
 
     socket =
       socket
@@ -1013,7 +1026,11 @@ defmodule PavoiWeb.CreatorsLive.Index do
   defp handle_outreach_success(socket, count) do
     if socket.assigns.selected_creator do
       # Single-select: reload creator and stay on modal
-      updated_creator = Creators.get_creator_for_modal!(socket.assigns.selected_creator.id)
+      updated_creator =
+        Creators.get_creator_for_modal!(
+          socket.assigns.brand_id,
+          socket.assigns.selected_creator.id
+        )
 
       socket
       |> assign(:show_send_modal, false)
@@ -1032,7 +1049,7 @@ defmodule PavoiWeb.CreatorsLive.Index do
       |> assign(:select_all_matching, false)
       |> assign(:sendable_selected_count, 0)
       |> put_flash(:info, "Queued #{count} emails for sending")
-      |> push_patch(to: ~p"/creators?status=contacted")
+      |> push_patch(to: creators_path(socket, %{status: "contacted"}))
     end
   end
 
@@ -1082,7 +1099,10 @@ defmodule PavoiWeb.CreatorsLive.Index do
     socket =
       socket
       |> assign(:bigquery_syncing, false)
-      |> assign(:bigquery_last_sync_at, Settings.get_bigquery_last_sync_at())
+      |> assign(
+        :bigquery_last_sync_at,
+        Settings.get_bigquery_last_sync_at(socket.assigns.brand_id)
+      )
       |> assign(:page, 1)
       |> load_creators()
       |> put_flash(
@@ -1114,7 +1134,10 @@ defmodule PavoiWeb.CreatorsLive.Index do
     socket =
       socket
       |> assign(:enrichment_syncing, false)
-      |> assign(:enrichment_last_sync_at, Settings.get_enrichment_last_sync_at())
+      |> assign(
+        :enrichment_last_sync_at,
+        Settings.get_enrichment_last_sync_at(socket.assigns.brand_id)
+      )
       |> assign(:page, 1)
       |> load_creators()
       |> put_flash(
@@ -1163,12 +1186,13 @@ defmodule PavoiWeb.CreatorsLive.Index do
   # Refresh creator data Phase 2 - see handle_event("refresh_creator_data", ...)
   @impl true
   def handle_info({:refresh_creator_data, id}, socket) do
-    creator = Creators.get_creator!(id)
+    creator = Creators.get_creator!(socket.assigns.brand_id, id)
 
-    case CreatorEnrichmentWorker.enrich_single(creator) do
+    case CreatorEnrichmentWorker.enrich_single(socket.assigns.brand_id, creator) do
       {:ok, updated_creator} ->
         # Reload creator with full modal data
-        updated_creator = Creators.get_creator_for_modal!(updated_creator.id)
+        updated_creator =
+          Creators.get_creator_for_modal!(socket.assigns.brand_id, updated_creator.id)
 
         socket =
           socket
@@ -1214,12 +1238,13 @@ defmodule PavoiWeb.CreatorsLive.Index do
 
   # Check if there's a job that would block new inserts due to uniqueness constraint
   # This includes: available, scheduled, or executing jobs
-  defp sync_job_blocked?(worker) do
+  defp sync_job_blocked?(worker, brand_id) do
     worker_name = inspect(worker)
 
     from(j in Oban.Job,
       where: j.worker == ^worker_name,
-      where: j.state in ["available", "scheduled", "executing"]
+      where: j.state in ["available", "scheduled", "executing"],
+      where: fragment("?->>'brand_id' = ?", j.args, ^to_string(brand_id))
     )
     |> Pavoi.Repo.exists?()
   end
@@ -1242,6 +1267,12 @@ defmodule PavoiWeb.CreatorsLive.Index do
         |> assign(assign_key, false)
         |> put_flash(:error, "Failed to enqueue sync: #{inspect(changeset.errors)}")
     end
+  end
+
+  defp creators_path(socket, params) when is_map(params) do
+    query = URI.encode_query(params)
+    path = if query == "", do: "/creators", else: "/creators?#{query}"
+    BrandRoutes.brand_path(socket.assigns.current_brand, path, socket.assigns.current_host)
   end
 
   defp apply_params(socket, params) do
@@ -1282,7 +1313,10 @@ defmodule PavoiWeb.CreatorsLive.Index do
   # Load templates when on templates tab
   defp maybe_load_templates(socket, "templates", template_type) do
     socket
-    |> assign(:templates, Communications.list_all_templates_by_type(template_type))
+    |> assign(
+      :templates,
+      Communications.list_all_templates_by_type(socket.assigns.brand_id, template_type)
+    )
   end
 
   defp maybe_load_templates(socket, _, _template_type), do: socket
@@ -1345,23 +1379,24 @@ defmodule PavoiWeb.CreatorsLive.Index do
       |> maybe_add_opt(:sort_dir, sort_dir)
       |> maybe_add_opt(:outreach_status, outreach_status)
       |> maybe_add_tag_filter(filter_tag_ids)
+      |> Keyword.put(:brand_id, brand_id)
 
     result = Creators.search_creators_unified(opts)
 
     # Batch load all related data in efficient queries instead of N+1
     creator_ids = Enum.map(result.creators, & &1.id)
-    outreach_logs_map = Outreach.get_latest_email_outreach_logs(creator_ids)
-    sample_counts_map = Creators.batch_count_samples(creator_ids)
-    last_sample_at_map = Creators.batch_get_last_sample_at(creator_ids)
+    outreach_logs_map = Outreach.get_latest_email_outreach_logs(brand_id, creator_ids)
+    sample_counts_map = Creators.batch_count_samples(brand_id, creator_ids)
+    last_sample_at_map = Creators.batch_get_last_sample_at(brand_id, creator_ids)
     tags_map = Creators.batch_list_tags_for_creators(creator_ids, brand_id)
-    video_counts_map = Creators.batch_count_videos(creator_ids)
-    commission_map = Creators.batch_sum_commission(creator_ids)
+    video_counts_map = Creators.batch_count_videos(brand_id, creator_ids)
+    commission_map = Creators.batch_sum_commission(brand_id, creator_ids)
 
     # Load snapshot deltas if a time period is selected
     snapshot_deltas_map =
       case delta_period do
         nil -> %{}
-        days -> Creators.batch_load_snapshot_deltas(creator_ids, days)
+        days -> Creators.batch_load_snapshot_deltas(brand_id, creator_ids, days)
       end
 
     # Default snapshot delta when period is selected but no data exists
@@ -1413,9 +1448,9 @@ defmodule PavoiWeb.CreatorsLive.Index do
 
   # Always load outreach stats for the status filter dropdown
   defp load_outreach_stats(socket) do
-    stats = Outreach.get_outreach_stats()
-    sampled_count = Creators.count_sampled_creators()
-    sent_today = Outreach.count_sent_today()
+    stats = Outreach.get_outreach_stats(socket.assigns.brand_id)
+    sampled_count = Creators.count_sampled_creators(socket.assigns.brand_id)
+    sent_today = Outreach.count_sent_today(socket.assigns.brand_id)
 
     # Merge sampled count into stats
     stats = Map.put(stats, :sampled, sampled_count)
@@ -1579,9 +1614,9 @@ defmodule PavoiWeb.CreatorsLive.Index do
 
       creator_id ->
         # Load only basic creator info + tags (not samples/videos/performance)
-        creator = Creators.get_creator_for_modal!(creator_id)
+        creator = Creators.get_creator_for_modal!(socket.assigns.brand_id, creator_id)
         tab = params["tab"] || "contact"
-        fulfillment_stats = Creators.get_fulfillment_stats(creator_id)
+        fulfillment_stats = Creators.get_fulfillment_stats(socket.assigns.brand_id, creator_id)
 
         socket
         |> assign(:selected_creator, creator)
@@ -1604,7 +1639,11 @@ defmodule PavoiWeb.CreatorsLive.Index do
     if socket.assigns.modal_samples do
       socket
     else
-      assign(socket, :modal_samples, Creators.get_samples_for_modal(creator_id))
+      assign(
+        socket,
+        :modal_samples,
+        Creators.get_samples_for_modal(socket.assigns.brand_id, creator_id)
+      )
     end
   end
 
@@ -1612,7 +1651,11 @@ defmodule PavoiWeb.CreatorsLive.Index do
     if socket.assigns.modal_purchases do
       socket
     else
-      assign(socket, :modal_purchases, Creators.get_purchases_for_modal(creator_id))
+      assign(
+        socket,
+        :modal_purchases,
+        Creators.get_purchases_for_modal(socket.assigns.brand_id, creator_id)
+      )
     end
   end
 
@@ -1620,7 +1663,11 @@ defmodule PavoiWeb.CreatorsLive.Index do
     if socket.assigns.modal_videos do
       socket
     else
-      assign(socket, :modal_videos, Creators.get_videos_for_modal(creator_id))
+      assign(
+        socket,
+        :modal_videos,
+        Creators.get_videos_for_modal(socket.assigns.brand_id, creator_id)
+      )
     end
   end
 
@@ -1628,7 +1675,11 @@ defmodule PavoiWeb.CreatorsLive.Index do
     if socket.assigns.modal_performance do
       socket
     else
-      assign(socket, :modal_performance, Creators.get_performance_for_modal(creator_id))
+      assign(
+        socket,
+        :modal_performance,
+        Creators.get_performance_for_modal(socket.assigns.brand_id, creator_id)
+      )
     end
   end
 

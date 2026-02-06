@@ -14,11 +14,13 @@ defmodule PavoiWeb.ProductSetHostLive.Index do
   on_mount {PavoiWeb.NavHooks, :set_current_page}
 
   alias Pavoi.ProductSets
+  alias PavoiWeb.BrandRoutes
 
   @impl true
   def mount(%{"id" => product_set_id}, _session, socket) do
     product_set_id = String.to_integer(product_set_id)
-    product_set = ProductSets.get_product_set!(product_set_id)
+    brand_id = socket.assigns.current_brand.id
+    product_set = ProductSets.get_product_set!(brand_id, product_set_id)
 
     socket =
       assign(socket,
@@ -86,7 +88,11 @@ defmodule PavoiWeb.ProductSetHostLive.Index do
         socket =
           push_patch(socket,
             to:
-              ~p"/product-sets/#{socket.assigns.product_set_id}/host?sp=#{new_state.current_product_set_product_id}&img=0"
+              BrandRoutes.brand_path(
+                socket.assigns.current_brand,
+                "/product-sets/#{socket.assigns.product_set_id}/host?sp=#{new_state.current_product_set_product_id}&img=0",
+                socket.assigns.current_host
+              )
           )
 
         {:noreply, socket}
@@ -104,7 +110,11 @@ defmodule PavoiWeb.ProductSetHostLive.Index do
         socket =
           push_patch(socket,
             to:
-              ~p"/product-sets/#{socket.assigns.product_set_id}/host?sp=#{new_state.current_product_set_product_id}&img=#{new_state.current_image_index}"
+              BrandRoutes.brand_path(
+                socket.assigns.current_brand,
+                "/product-sets/#{socket.assigns.product_set_id}/host?sp=#{new_state.current_product_set_product_id}&img=#{new_state.current_image_index}",
+                socket.assigns.current_host
+              )
           )
 
         {:noreply, socket}
@@ -121,7 +131,11 @@ defmodule PavoiWeb.ProductSetHostLive.Index do
         socket =
           push_patch(socket,
             to:
-              ~p"/product-sets/#{socket.assigns.product_set_id}/host?sp=#{new_state.current_product_set_product_id}&img=#{new_state.current_image_index}"
+              BrandRoutes.brand_path(
+                socket.assigns.current_brand,
+                "/product-sets/#{socket.assigns.product_set_id}/host?sp=#{new_state.current_product_set_product_id}&img=#{new_state.current_image_index}",
+                socket.assigns.current_host
+              )
           )
 
         {:noreply, socket}
@@ -187,7 +201,11 @@ defmodule PavoiWeb.ProductSetHostLive.Index do
           |> assign(:products_panel_collapsed, true)
           |> push_patch(
             to:
-              ~p"/product-sets/#{socket.assigns.product_set_id}/host?sp=#{new_state.current_product_set_product_id}&img=0"
+              BrandRoutes.brand_path(
+                socket.assigns.current_brand,
+                "/product-sets/#{socket.assigns.product_set_id}/host?sp=#{new_state.current_product_set_product_id}&img=0",
+                socket.assigns.current_host
+              )
           )
 
         {:noreply, socket}
@@ -205,7 +223,11 @@ defmodule PavoiWeb.ProductSetHostLive.Index do
         socket =
           push_patch(socket,
             to:
-              ~p"/product-sets/#{socket.assigns.product_set_id}/host?sp=#{new_state.current_product_set_product_id}&img=0"
+              BrandRoutes.brand_path(
+                socket.assigns.current_brand,
+                "/product-sets/#{socket.assigns.product_set_id}/host?sp=#{new_state.current_product_set_product_id}&img=0",
+                socket.assigns.current_host
+              )
           )
 
         {:noreply, socket}
@@ -225,7 +247,11 @@ defmodule PavoiWeb.ProductSetHostLive.Index do
         socket =
           push_patch(socket,
             to:
-              ~p"/product-sets/#{socket.assigns.product_set_id}/host?sp=#{new_state.current_product_set_product_id}&img=0"
+              BrandRoutes.brand_path(
+                socket.assigns.current_brand,
+                "/product-sets/#{socket.assigns.product_set_id}/host?sp=#{new_state.current_product_set_product_id}&img=0",
+                socket.assigns.current_host
+              )
           )
 
         {:noreply, socket}

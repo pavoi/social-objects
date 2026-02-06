@@ -1,272 +1,286 @@
-<div
-  id="product-set-controller"
-  class="controller-container"
-  phx-hook="ControllerHaptic"
+<Layouts.app
+  flash={@flash}
+  current_scope={@current_scope}
+  current_brand={@current_brand}
+  current_page={@current_page}
 >
-  <%!-- TOP: Header with back button, product set name, and notes toggle --%>
-  <div class="controller-header">
-    <.link navigate={~p"/product-sets"} class="controller-back-link">
-      <svg
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        stroke-width="2"
-        class="controller-back-icon"
-      >
-        <polyline points="15 18 9 12 15 6"></polyline>
-      </svg>
-    </.link>
-    <span class="controller-header__title">{@product_set.name}</span>
-    <span class="controller-header__count">
-      <%= if @current_position do %>
-        {@current_position}/{@total_products}
-      <% else %>
-        {@total_products}
-      <% end %>
-    </span>
-    <button
-      type="button"
-      class={[
-        "controller-notes-toggle",
-        @product_set_notes_visible && "controller-notes-toggle--on"
-      ]}
-      phx-click="toggle_product_set_notes"
-      title={
-        if @product_set_notes_visible,
-          do: "Hide product set notes",
-          else: "Show product set notes"
-      }
-    >
-      <span class="controller-notes-toggle__label">Show notes</span>
-      <span class="controller-notes-toggle__track">
-        <span class="controller-notes-toggle__thumb"></span>
-      </span>
-    </button>
-  </div>
-
-  <%!-- Message to Host (Collapsible, starts collapsed) --%>
   <div
-    id="message-panel"
-    class={[
-      "controller-panel controller-panel--message",
-      @message_panel_collapsed && "controller-panel--collapsed"
-    ]}
+    id="product-set-controller"
+    class="controller-container"
+    phx-hook="ControllerHaptic"
   >
-    <div class="controller-panel__header" phx-click="toggle_message_panel">
-      <span class="controller-panel__title">Message to Host</span>
-      <%= if @host_message && @message_panel_collapsed do %>
-        <div class={"message-preview message-preview--#{@host_message.color}"}>
-          <span class="message-preview__text">{@host_message.text}</span>
-          <button
-            type="button"
-            class="message-preview__clear"
-            phx-click="clear_host_message"
-            aria-label="Clear message"
-          >
-            ×
-          </button>
-        </div>
-      <% end %>
-      <svg
-        class="controller-panel__chevron"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        stroke-width="2"
+    <%!-- TOP: Header with back button, product set name, and notes toggle --%>
+    <div class="controller-header">
+      <.link
+        navigate={PavoiWeb.BrandRoutes.brand_path(@current_brand, "/product-sets", @current_host)}
+        class="controller-back-link"
       >
-        <polyline points="6 9 12 15 18 9"></polyline>
-      </svg>
+        <svg
+          class="controller-back-icon"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <path d="M15.75 19.5 8.25 12l7.5-7.5" />
+        </svg>
+      </.link>
+      <span class="controller-header__title">{@product_set.name}</span>
+      <span class="controller-header__count">
+        <%= if @current_position do %>
+          {@current_position}/{@total_products}
+        <% else %>
+          {@total_products}
+        <% end %>
+      </span>
+      <button
+        type="button"
+        class={[
+          "controller-notes-toggle",
+          @product_set_notes_visible && "controller-notes-toggle--on"
+        ]}
+        phx-click="toggle_product_set_notes"
+        title={
+          if @product_set_notes_visible,
+            do: "Hide product set notes",
+            else: "Show product set notes"
+        }
+      >
+        <span class="controller-notes-toggle__label">Show notes</span>
+        <span class="controller-notes-toggle__track">
+          <span class="controller-notes-toggle__thumb"></span>
+        </span>
+      </button>
     </div>
 
-    <div class="controller-panel__body">
-      <form phx-submit="send_host_message" class="controller-message-form">
-        <textarea
-          name="message"
-          placeholder="Type a message..."
-          rows="2"
-          class="controller-message-input"
-          phx-change="update_message_draft"
-          phx-hook="MessageInput"
-          id="controller-message-input"
-        ><%= @message_draft %></textarea>
-
-        <div class="controller-message-actions">
-          <%!-- Inline Color Picker --%>
-          <div class="controller-color-picker">
-            <%= for color <- ~w(amber blue green red purple gray) do %>
-              <button
-                type="button"
-                class={[
-                  "controller-color-btn",
-                  "color-accent--#{color}",
-                  @selected_color == color && "controller-color-btn--active"
-                ]}
-                phx-click="select_color"
-                phx-value-color={color}
-                title={String.capitalize(color)}
-              />
-            <% end %>
-          </div>
-
-          <div class="controller-message-buttons">
+    <%!-- Message to Host (Collapsible, starts collapsed) --%>
+    <div
+      id="message-panel"
+      class={[
+        "controller-panel controller-panel--message",
+        @message_panel_collapsed && "controller-panel--collapsed"
+      ]}
+    >
+      <div class="controller-panel__header" phx-click="toggle_message_panel">
+        <span class="controller-panel__title">Message to Host</span>
+        <%= if @host_message && @message_panel_collapsed do %>
+          <div class={"message-preview message-preview--#{@host_message.color}"}>
+            <span class="message-preview__text">{@host_message.text}</span>
             <button
               type="button"
-              phx-click="open_preset_modal"
-              class="controller-btn controller-btn--secondary"
+              class="message-preview__clear"
+              phx-click="clear_host_message"
+              aria-label="Clear message"
             >
-              Presets
+              ×
             </button>
-            <%= if @host_message do %>
-              <button
-                type="button"
-                phx-click="clear_host_message"
-                class="controller-btn controller-btn--secondary"
-              >
-                Clear
-              </button>
-            <% end %>
-            <button type="submit" class="controller-btn controller-btn--primary">
-              Send
-            </button>
-          </div>
-        </div>
-      </form>
-    </div>
-  </div>
-
-  <%!-- MIDDLE: Product Grid (Scrollable, takes remaining space) --%>
-  <div class="controller-products" phx-hook="ControllerKeyboard" id="controller-products">
-    <div class="controller-products__grid">
-      <%= for sp <- Enum.sort_by(@product_set.product_set_products, & &1.position) do %>
-        <button
-          type="button"
-          class={[
-            "controller-product-card",
-            @current_product_set_product && @current_product_set_product.id == sp.id &&
-              "controller-product-card--active"
-          ]}
-          phx-click="jump_to_product"
-          phx-value-position={sp.position}
-          data-haptic="true"
-        >
-          <div class="controller-product-card__image-container">
-            <span class="controller-product-card__position">{sp.position}</span>
-            <%= if image = primary_image(sp.product) do %>
-              <img
-                src={public_image_url(image.thumbnail_path || image.path)}
-                alt=""
-                class="controller-product-card__image"
-                loading="lazy"
-              />
-            <% else %>
-              <div class="controller-product-card__placeholder"></div>
-            <% end %>
-          </div>
-          <span class="controller-product-card__name">{sp.featured_name || sp.product.name}</span>
-        </button>
-      <% end %>
-    </div>
-  </div>
-
-  <%!-- BOTTOM: Voice Control (Collapsible, conditional) --%>
-  <%= if @voice_control_enabled do %>
-    <div
-      id="voice-control"
-      class="controller-panel controller-panel--voice"
-      phx-hook="VoiceControl"
-      phx-update="ignore"
-      data-total-products={@total_products}
-      data-vad-worklet-url={@voice_assets.vad_worklet}
-      data-vad-model-url={@voice_assets.vad_model}
-      data-ort-wasm-url={@voice_assets.ort_wasm}
-      data-ort-jsep-url={@voice_assets.ort_wasm_jsep}
-    >
-      <%!-- Voice control UI is rendered by the JS hook --%>
-    </div>
-  <% end %>
-
-  <%!-- Message Presets Modal --%>
-  <%= if @show_preset_modal do %>
-    <.modal id="preset-modal" show={true} on_cancel={JS.push("close_preset_modal")}>
-      <div class="modal__header">
-        <h2 class="modal__title">Message Presets</h2>
-      </div>
-
-      <div class="modal__body preset-modal-body">
-        <%!-- Existing Presets --%>
-        <%= if Enum.empty?(@message_presets) do %>
-          <div class="preset-empty">
-            <p>No presets yet. Create one below!</p>
-          </div>
-        <% else %>
-          <div class="preset-list">
-            <%= for preset <- @message_presets do %>
-              <div class="preset-item" data-color={preset.color}>
-                <button
-                  type="button"
-                  class="preset-item__select"
-                  phx-click="select_preset"
-                  phx-value-id={preset.id}
-                >
-                  <div class={"preset-item__color color-accent--#{preset.color}"}></div>
-                  <div class="preset-item__text">{preset.message_text}</div>
-                </button>
-                <button
-                  type="button"
-                  class="preset-item__delete"
-                  phx-click="delete_preset"
-                  phx-value-id={preset.id}
-                  title="Delete preset"
-                >
-                  ×
-                </button>
-              </div>
-            <% end %>
           </div>
         <% end %>
-
-        <%!-- Create New Preset Form --%>
-        <div class="preset-create">
-          <h3>Create New Preset</h3>
-          <form phx-submit="create_preset">
-            <div class="form-group">
-              <label for="preset-message" class="label">Message</label>
-              <textarea
-                id="preset-message"
-                name="message_text"
-                placeholder="e.g., We'll be right back!"
-                rows="2"
-                required
-                maxlength="1000"
-                class="textarea"
-              ></textarea>
-            </div>
-
-            <div class="form-group">
-              <label class="label">Color</label>
-              <div class="color-selector">
-                <%= for color <- ~w(amber blue green red purple gray) do %>
-                  <label class="color-option">
-                    <input
-                      type="radio"
-                      name="color"
-                      value={color}
-                      required
-                      checked={color == "amber"}
-                    />
-                    <div class={"color-swatch color-accent--#{color}"}></div>
-                    <span class="color-label">{String.capitalize(color)}</span>
-                  </label>
-                <% end %>
-              </div>
-            </div>
-
-            <div class="form-actions">
-              <button type="submit" class="button button--primary">Create Preset</button>
-            </div>
-          </form>
-        </div>
+        <svg
+          class="controller-panel__chevron"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+        >
+          <polyline points="6 9 12 15 18 9"></polyline>
+        </svg>
       </div>
-    </.modal>
-  <% end %>
-</div>
+
+      <div class="controller-panel__body">
+        <form phx-submit="send_host_message" class="controller-message-form">
+          <textarea
+            name="message"
+            placeholder="Type a message..."
+            rows="2"
+            class="controller-message-input"
+            phx-change="update_message_draft"
+            phx-hook="MessageInput"
+            id="controller-message-input"
+          ><%= @message_draft %></textarea>
+
+          <div class="controller-message-actions">
+            <%!-- Inline Color Picker --%>
+            <div class="controller-color-picker">
+              <%= for color <- ~w(amber blue green red purple gray) do %>
+                <button
+                  type="button"
+                  class={[
+                    "controller-color-btn",
+                    "color-accent--#{color}",
+                    @selected_color == color && "controller-color-btn--active"
+                  ]}
+                  phx-click="select_color"
+                  phx-value-color={color}
+                  title={String.capitalize(color)}
+                />
+              <% end %>
+            </div>
+
+            <div class="controller-message-buttons">
+              <button
+                type="button"
+                phx-click="open_preset_modal"
+                class="controller-btn controller-btn--secondary"
+              >
+                Presets
+              </button>
+              <%= if @host_message do %>
+                <button
+                  type="button"
+                  phx-click="clear_host_message"
+                  class="controller-btn controller-btn--secondary"
+                >
+                  Clear
+                </button>
+              <% end %>
+              <button type="submit" class="controller-btn controller-btn--primary">
+                Send
+              </button>
+            </div>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <%!-- MIDDLE: Product Grid (Scrollable, takes remaining space) --%>
+    <div class="controller-products" phx-hook="ControllerKeyboard" id="controller-products">
+      <div class="controller-products__grid">
+        <%= for sp <- Enum.sort_by(@product_set.product_set_products, & &1.position) do %>
+          <button
+            type="button"
+            class={[
+              "controller-product-card",
+              @current_product_set_product && @current_product_set_product.id == sp.id &&
+                "controller-product-card--active"
+            ]}
+            phx-click="jump_to_product"
+            phx-value-position={sp.position}
+            data-haptic="true"
+          >
+            <div class="controller-product-card__image-container">
+              <span class="controller-product-card__position">{sp.position}</span>
+              <%= if image = primary_image(sp.product) do %>
+                <img
+                  src={public_image_url(image.thumbnail_path || image.path)}
+                  alt=""
+                  class="controller-product-card__image"
+                  loading="lazy"
+                />
+              <% else %>
+                <div class="controller-product-card__placeholder"></div>
+              <% end %>
+            </div>
+            <span class="controller-product-card__name">
+              {sp.featured_name || sp.product.name}
+            </span>
+          </button>
+        <% end %>
+      </div>
+    </div>
+
+    <%!-- BOTTOM: Voice Control (Collapsible, conditional) --%>
+    <%= if @voice_control_enabled do %>
+      <div
+        id="voice-control"
+        class="controller-panel controller-panel--voice"
+        phx-hook="VoiceControl"
+        phx-update="ignore"
+        data-total-products={@total_products}
+        data-vad-worklet-url={@voice_assets.vad_worklet}
+        data-vad-model-url={@voice_assets.vad_model}
+        data-ort-wasm-url={@voice_assets.ort_wasm}
+        data-ort-jsep-url={@voice_assets.ort_wasm_jsep}
+      >
+        <%!-- Voice control UI is rendered by the JS hook --%>
+      </div>
+    <% end %>
+
+    <%!-- Message Presets Modal --%>
+    <%= if @show_preset_modal do %>
+      <.modal id="preset-modal" show={true} on_cancel={JS.push("close_preset_modal")}>
+        <div class="modal__header">
+          <h2 class="modal__title">Message Presets</h2>
+        </div>
+
+        <div class="modal__body preset-modal-body">
+          <%!-- Existing Presets --%>
+          <%= if Enum.empty?(@message_presets) do %>
+            <div class="preset-empty">
+              <p>No presets yet. Create one below!</p>
+            </div>
+          <% else %>
+            <div class="preset-list">
+              <%= for preset <- @message_presets do %>
+                <div class="preset-item" data-color={preset.color}>
+                  <button
+                    type="button"
+                    class="preset-item__select"
+                    phx-click="select_preset"
+                    phx-value-id={preset.id}
+                  >
+                    <div class={"preset-item__color color-accent--#{preset.color}"}></div>
+                    <div class="preset-item__text">{preset.message_text}</div>
+                  </button>
+                  <button
+                    type="button"
+                    class="preset-item__delete"
+                    phx-click="delete_preset"
+                    phx-value-id={preset.id}
+                    title="Delete preset"
+                  >
+                    ×
+                  </button>
+                </div>
+              <% end %>
+            </div>
+          <% end %>
+
+          <%!-- Create New Preset Form --%>
+          <div class="preset-create">
+            <h3>Create New Preset</h3>
+            <form phx-submit="create_preset">
+              <div class="form-group">
+                <label for="preset-message" class="label">Message</label>
+                <textarea
+                  id="preset-message"
+                  name="message_text"
+                  placeholder="e.g., We'll be right back!"
+                  rows="2"
+                  required
+                  maxlength="1000"
+                  class="textarea"
+                ></textarea>
+              </div>
+
+              <div class="form-group">
+                <label class="label">Color</label>
+                <div class="color-selector">
+                  <%= for color <- ~w(amber blue green red purple gray) do %>
+                    <label class="color-option">
+                      <input
+                        type="radio"
+                        name="color"
+                        value={color}
+                        required
+                        checked={color == "amber"}
+                      />
+                      <div class={"color-swatch color-accent--#{color}"}></div>
+                      <span class="color-label">{String.capitalize(color)}</span>
+                    </label>
+                  <% end %>
+                </div>
+              </div>
+
+              <div class="form-actions">
+                <button type="submit" class="button button--primary">Create Preset</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </.modal>
+    <% end %>
+  </div>
+</Layouts.app>

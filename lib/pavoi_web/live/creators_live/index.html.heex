@@ -1,416 +1,452 @@
-<.nav_tabs
+<Layouts.app
+  flash={@flash}
+  current_scope={@current_scope}
+  current_brand={@current_brand}
   current_page={@current_page}
-  bigquery_syncing={@bigquery_syncing}
-  bigquery_last_sync_at={@bigquery_last_sync_at}
-  enrichment_syncing={@enrichment_syncing}
-  enrichment_last_sync_at={@enrichment_last_sync_at}
-/>
-
-<div id="creators-page" class="container container--xl region creators-index" phx-hook="CsvDownload">
-  <.page_tabs active_tab={@page_tab}>
-    <:actions>
-      <%= case @page_tab do %>
-        <% "creators" -> %>
-          <%= if MapSet.size(@selected_ids) > 0 or @select_all_matching do %>
-            <div class="bulk-actions-inline">
-              <.button variant="outline" size="sm" phx-click="export_csv">
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  viewBox="0 0 20 20"
-                  fill="currentColor"
-                  class="size-4"
-                >
-                  <path d="M10.75 2.75a.75.75 0 0 0-1.5 0v8.614L6.295 8.235a.75.75 0 1 0-1.09 1.03l4.25 4.5a.75.75 0 0 0 1.09 0l4.25-4.5a.75.75 0 0 0-1.09-1.03l-2.955 3.129V2.75Z" />
-                  <path d="M3.5 12.75a.75.75 0 0 0-1.5 0v2.5A2.75 2.75 0 0 0 4.75 18h10.5A2.75 2.75 0 0 0 18 15.25v-2.5a.75.75 0 0 0-1.5 0v2.5c0 .69-.56 1.25-1.25 1.25H4.75c-.69 0-1.25-.56-1.25-1.25v-2.5Z" />
-                </svg>
-                Export CSV
-              </.button>
-              <.button variant="outline" size="sm" phx-click="show_batch_tag_picker">
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  viewBox="0 0 20 20"
-                  fill="currentColor"
-                  class="size-4"
-                >
-                  <path
-                    fill-rule="evenodd"
-                    d="M4.5 2A2.5 2.5 0 0 0 2 4.5v3.879a2.5 2.5 0 0 0 .732 1.767l7.5 7.5a2.5 2.5 0 0 0 3.536 0l3.878-3.878a2.5 2.5 0 0 0 0-3.536l-7.5-7.5A2.5 2.5 0 0 0 8.38 2H4.5ZM5 6a1 1 0 1 0 0-2 1 1 0 0 0 0 2Z"
-                    clip-rule="evenodd"
-                  />
-                </svg>
-                Add Tags
-              </.button>
-              <%= if @sendable_selected_count > 0 do %>
-                <.button variant="outline" size="sm" phx-click="show_send_modal">
+>
+  <div
+    id="creators-page"
+    class="container container--xl region creators-index"
+    phx-hook="CsvDownload"
+  >
+    <.page_tabs active_tab={@page_tab}>
+      <:actions>
+        <%= case @page_tab do %>
+          <% "creators" -> %>
+            <%= if MapSet.size(@selected_ids) > 0 or @select_all_matching do %>
+              <div class="bulk-actions-inline">
+                <.button variant="outline" size="sm" phx-click="export_csv">
                   <svg
                     xmlns="http://www.w3.org/2000/svg"
                     viewBox="0 0 20 20"
                     fill="currentColor"
                     class="size-4"
                   >
-                    <path d="M3 4a2 2 0 0 0-2 2v1.161l8.441 4.221a1.25 1.25 0 0 0 1.118 0L19 7.162V6a2 2 0 0 0-2-2H3Z" />
-                    <path d="m19 8.839-7.77 3.885a2.75 2.75 0 0 1-2.46 0L1 8.839V14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V8.839Z" />
+                    <path d="M10.75 2.75a.75.75 0 0 0-1.5 0v8.614L6.295 8.235a.75.75 0 1 0-1.09 1.03l4.25 4.5a.75.75 0 0 0 1.09 0l4.25-4.5a.75.75 0 0 0-1.09-1.03l-2.955 3.129V2.75Z" />
+                    <path d="M3.5 12.75a.75.75 0 0 0-1.5 0v2.5A2.75 2.75 0 0 0 4.75 18h10.5A2.75 2.75 0 0 0 18 15.25v-2.5a.75.75 0 0 0-1.5 0v2.5c0 .69-.56 1.25-1.25 1.25H4.75c-.69 0-1.25-.56-1.25-1.25v-2.5Z" />
                   </svg>
-                  Send Email
+                  Export CSV
                 </.button>
-              <% end %>
-            </div>
-          <% end %>
-        <% "templates" -> %>
-          <div class="template-type-buttons">
-            <.link navigate={~p"/templates/new"} class="button button--sm button--primary">
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                viewBox="0 0 20 20"
-                fill="currentColor"
-                class="size-4"
-              >
-                <path d="M10.75 4.75a.75.75 0 0 0-1.5 0v4.5h-4.5a.75.75 0 0 0 0 1.5h4.5v4.5a.75.75 0 0 0 1.5 0v-4.5h4.5a.75.75 0 0 0 0-1.5h-4.5v-4.5Z" />
-              </svg>
-              New Email Template
-            </.link>
-            <.link
-              navigate={~p"/templates/new?type=page"}
-              class="button button--sm button--outline"
-            >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                viewBox="0 0 20 20"
-                fill="currentColor"
-                class="size-4"
-              >
-                <path d="M10.75 4.75a.75.75 0 0 0-1.5 0v4.5h-4.5a.75.75 0 0 0 0 1.5h4.5v4.5a.75.75 0 0 0 1.5 0v-4.5h4.5a.75.75 0 0 0 0-1.5h-4.5v-4.5Z" />
-              </svg>
-              New Page Template
-            </.link>
-          </div>
-      <% end %>
-    </:actions>
-  </.page_tabs>
-
-  <%= case @page_tab do %>
-    <% "creators" -> %>
-      <%!-- Unified Page Header - Single Row --%>
-      <div class="page-header">
-        <div class="page-header__left">
-          <div class="page-header__search-wrapper">
-            <.search_input
-              value={@search_query}
-              on_change="search"
-              placeholder="Search by username, email, or name..."
-            />
-            <span class="creators-count">
-              {format_number(@total)} creators<%= if @select_all_matching or MapSet.size(@selected_ids) > 0 do %>
-                <span class="creators-count__separator">·</span>
-                <%= if @select_all_matching do %>
-                  <span class="creators-count__selected">{format_number(@total)} selected</span>
-                <% else %>
-                  <span class="creators-count__selected">{MapSet.size(@selected_ids)} selected</span>
+                <.button variant="outline" size="sm" phx-click="show_batch_tag_picker">
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    viewBox="0 0 20 20"
+                    fill="currentColor"
+                    class="size-4"
+                  >
+                    <path
+                      fill-rule="evenodd"
+                      d="M4.5 2A2.5 2.5 0 0 0 2 4.5v3.879a2.5 2.5 0 0 0 .732 1.767l7.5 7.5a2.5 2.5 0 0 0 3.536 0l3.878-3.878a2.5 2.5 0 0 0 0-3.536l-7.5-7.5A2.5 2.5 0 0 0 8.38 2H4.5ZM5 6a1 1 0 1 0 0-2 1 1 0 0 0 0 2Z"
+                      clip-rule="evenodd"
+                    />
+                  </svg>
+                  Add Tags
+                </.button>
+                <%= if @sendable_selected_count > 0 do %>
+                  <.button variant="outline" size="sm" phx-click="show_send_modal">
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      viewBox="0 0 20 20"
+                      fill="currentColor"
+                      class="size-4"
+                    >
+                      <path d="M3 4a2 2 0 0 0-2 2v1.161l8.441 4.221a1.25 1.25 0 0 0 1.118 0L19 7.162V6a2 2 0 0 0-2-2H3Z" />
+                      <path d="m19 8.839-7.77 3.885a2.75 2.75 0 0 1-2.46 0L1 8.839V14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V8.839Z" />
+                    </svg>
+                    Send Email
+                  </.button>
                 <% end %>
-                <%= if not @select_all_matching and MapSet.size(@selected_ids) < @total do %>
-                  <button type="button" class="creators-count__select-all" phx-click="select_all_matching">
-                    Select all
+              </div>
+            <% end %>
+          <% "templates" -> %>
+            <div class="template-type-buttons">
+              <.link
+                navigate={
+                  PavoiWeb.BrandRoutes.brand_path(@current_brand, "/templates/new", @current_host)
+                }
+                class="button button--sm button--primary"
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 20 20"
+                  fill="currentColor"
+                  class="size-4"
+                >
+                  <path d="M10.75 4.75a.75.75 0 0 0-1.5 0v4.5h-4.5a.75.75 0 0 0 0 1.5h4.5v4.5a.75.75 0 0 0 1.5 0v-4.5h4.5a.75.75 0 0 0 0-1.5h-4.5v-4.5Z" />
+                </svg>
+                New Email Template
+              </.link>
+              <.link
+                navigate={
+                  PavoiWeb.BrandRoutes.brand_path(
+                    @current_brand,
+                    "/templates/new?type=page",
+                    @current_host
+                  )
+                }
+                class="button button--sm button--outline"
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 20 20"
+                  fill="currentColor"
+                  class="size-4"
+                >
+                  <path d="M10.75 4.75a.75.75 0 0 0-1.5 0v4.5h-4.5a.75.75 0 0 0 0 1.5h4.5v4.5a.75.75 0 0 0 1.5 0v-4.5h4.5a.75.75 0 0 0 0-1.5h-4.5v-4.5Z" />
+                </svg>
+                New Page Template
+              </.link>
+            </div>
+        <% end %>
+      </:actions>
+    </.page_tabs>
+
+    <%= case @page_tab do %>
+      <% "creators" -> %>
+        <%!-- Unified Page Header - Single Row --%>
+        <div class="page-header">
+          <div class="page-header__left">
+            <div class="page-header__search-wrapper">
+              <.search_input
+                value={@search_query}
+                on_change="search"
+                placeholder="Search by username, email, or name..."
+              />
+              <span class="creators-count">
+                {format_number(@total)} creators<%= if @select_all_matching or MapSet.size(@selected_ids) > 0 do %>
+                  <span class="creators-count__separator">·</span>
+                  <%= if @select_all_matching do %>
+                    <span class="creators-count__selected">{format_number(@total)} selected</span>
+                  <% else %>
+                    <span class="creators-count__selected">
+                      {MapSet.size(@selected_ids)} selected
+                    </span>
+                  <% end %>
+                  <%= if not @select_all_matching and MapSet.size(@selected_ids) < @total do %>
+                    <button
+                      type="button"
+                      class="creators-count__select-all"
+                      phx-click="select_all_matching"
+                    >
+                      Select all
+                    </button>
+                  <% end %>
+                  <button type="button" class="creators-count__clear" phx-click="deselect_all">
+                    Clear
                   </button>
                 <% end %>
-                <button type="button" class="creators-count__clear" phx-click="deselect_all">
-                  Clear
-                </button>
-              <% end %>
-            </span>
+              </span>
+            </div>
+
+            <button type="button" class="batch-select-btn" phx-click="show_batch_select_modal">
+              Batch Select
+            </button>
+
+            <%!-- Contact Status Filter --%>
+            <form phx-change="change_outreach_status">
+              <select name="status" class="filter-select" value={@outreach_status || ""}>
+                <option value="">
+                  All Creators ({@outreach_stats.total})
+                </option>
+                <option value="sampled" selected={@outreach_status == "sampled"}>
+                  Sampled ({@outreach_stats.sampled})
+                </option>
+                <option value="never_contacted" selected={@outreach_status == "never_contacted"}>
+                  Never Contacted ({@outreach_stats.never_contacted})
+                </option>
+                <option value="contacted" selected={@outreach_status == "contacted"}>
+                  Contacted ({@outreach_stats.contacted})
+                </option>
+                <option value="opted_out" selected={@outreach_status == "opted_out"}>
+                  Opted Out ({@outreach_stats.opted_out})
+                </option>
+              </select>
+            </form>
+
+            <%!-- Data Freshness Indicator --%>
+            <.data_freshness_panel
+              videos_last_import_at={@videos_last_import_at}
+              enrichment_last_sync_at={@enrichment_last_sync_at}
+              bigquery_last_sync_at={@bigquery_last_sync_at}
+            />
           </div>
 
-          <button type="button" class="batch-select-btn" phx-click="show_batch_select_modal">
-            Batch Select
-          </button>
+          <div class="page-header__right">
+            <%!-- Filters --%>
+            <div class={"time-preset-filter #{if @time_preset != "all", do: "has-filter"}"}>
+              <div class="time-preset-filter__trigger">
+                <%= if @time_preset == "all" do %>
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke-width="1.5"
+                    stroke="currentColor"
+                    class="time-preset-filter__svg"
+                  >
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 0 1 2.25-2.25h13.5A2.25 2.25 0 0 1 21 7.5v11.25m-18 0A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75m-18 0v-7.5A2.25 2.25 0 0 1 5.25 9h13.5A2.25 2.25 0 0 1 21 11.25v7.5"
+                    />
+                  </svg>
+                <% else %>
+                  <span class="time-preset-filter__active-value">
+                    <%= case @time_preset do %>
+                      <% "7d" -> %>
+                        7d
+                      <% "30d" -> %>
+                        30d
+                      <% "90d" -> %>
+                        90d
+                      <% _ -> %>
+                        •
+                    <% end %>
+                  </span>
+                <% end %>
+              </div>
+              <div class="time-preset-filter__content">
+                <span class="filter-label">Period:</span>
+                <div class="preset-buttons">
+                  <button
+                    type="button"
+                    phx-click="set_time_preset"
+                    phx-value-preset="7d"
+                    class={"preset-btn #{if @time_preset == "7d", do: "active"}"}
+                  >
+                    7d
+                  </button>
+                  <button
+                    type="button"
+                    phx-click="set_time_preset"
+                    phx-value-preset="30d"
+                    class={"preset-btn #{if @time_preset == "30d", do: "active"}"}
+                  >
+                    30d
+                  </button>
+                  <button
+                    type="button"
+                    phx-click="set_time_preset"
+                    phx-value-preset="90d"
+                    class={"preset-btn #{if @time_preset == "90d", do: "active"}"}
+                  >
+                    90d
+                  </button>
+                  <button
+                    type="button"
+                    phx-click="set_time_preset"
+                    phx-value-preset="all"
+                    class={"preset-btn #{if @time_preset == "all", do: "active"}"}
+                  >
+                    All
+                  </button>
+                </div>
+              </div>
+            </div>
+            <.tag_filter
+              available_tags={@available_tags}
+              selected_tag_ids={@filter_tag_ids}
+            />
+          </div>
+        </div>
 
-          <%!-- Contact Status Filter --%>
-          <form phx-change="change_outreach_status">
-            <select name="status" class="filter-select" value={@outreach_status || ""}>
-              <option value="">
-                All Creators ({@outreach_stats.total})
+        <%!-- Content Area --%>
+        <%= if Enum.empty?(@creators) do %>
+          <div class="empty-state">
+            <svg
+              class="empty-state__icon size-8"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M23 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" />
+            </svg>
+            <p class="empty-state__title">No creators found</p>
+            <%= if @search_query != "" or @badge_filter != "" or @outreach_status do %>
+              <p class="empty-state__description">Try adjusting your search or filters</p>
+            <% end %>
+          </div>
+        <% else %>
+          <%!-- Infinite scroll container --%>
+          <div
+            id="creators-list"
+            class="creators-scroll-container"
+            phx-viewport-bottom={@has_more && !@loading_creators && "load_more"}
+          >
+            <.unified_creator_table
+              creators={@creators}
+              selected_ids={@selected_ids}
+              select_all_matching={@select_all_matching}
+              total_count={length(@creators)}
+              on_row_click="navigate_to_creator"
+              sort_by={@sort_by}
+              sort_dir={@sort_dir}
+              on_sort="sort_column"
+              delta_period={@delta_period}
+            />
+
+            <%= if @loading_creators do %>
+              <div class="creators-loading">
+                <div class="spinner"></div>
+                <span>Loading more creators...</span>
+              </div>
+            <% end %>
+          </div>
+        <% end %>
+      <% "templates" -> %>
+        <%!-- Template Type Filter & Actions --%>
+        <div class="template-header">
+          <form phx-change="filter_template_type">
+            <select name="type" class="filter-select">
+              <option value="email" selected={@template_type_filter == "email"}>
+                Email Templates
               </option>
-              <option value="sampled" selected={@outreach_status == "sampled"}>
-                Sampled ({@outreach_stats.sampled})
-              </option>
-              <option value="never_contacted" selected={@outreach_status == "never_contacted"}>
-                Never Contacted ({@outreach_stats.never_contacted})
-              </option>
-              <option value="contacted" selected={@outreach_status == "contacted"}>
-                Contacted ({@outreach_stats.contacted})
-              </option>
-              <option value="opted_out" selected={@outreach_status == "opted_out"}>
-                Opted Out ({@outreach_stats.opted_out})
+              <option value="page" selected={@template_type_filter == "page"}>
+                Page Templates
               </option>
             </select>
           </form>
-
-          <%!-- Data Freshness Indicator --%>
-          <.data_freshness_panel
-            videos_last_import_at={@videos_last_import_at}
-            enrichment_last_sync_at={@enrichment_last_sync_at}
-            bigquery_last_sync_at={@bigquery_last_sync_at}
-          />
         </div>
 
-        <div class="page-header__right">
-          <%!-- Filters --%>
-          <div class={"time-preset-filter #{if @time_preset != "all", do: "has-filter"}"}>
-            <div class="time-preset-filter__trigger">
-              <%= if @time_preset == "all" do %>
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke-width="1.5"
-                  stroke="currentColor"
-                  class="time-preset-filter__svg"
-                >
-                  <path
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 0 1 2.25-2.25h13.5A2.25 2.25 0 0 1 21 7.5v11.25m-18 0A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75m-18 0v-7.5A2.25 2.25 0 0 1 5.25 9h13.5A2.25 2.25 0 0 1 21 11.25v7.5"
-                  />
-                </svg>
-              <% else %>
-                <span class="time-preset-filter__active-value">
-                  <%= case @time_preset do %>
-                    <% "7d" -> %>
-                      7d
-                    <% "30d" -> %>
-                      30d
-                    <% "90d" -> %>
-                      90d
-                    <% _ -> %>
-                      •
-                  <% end %>
-                </span>
-              <% end %>
-            </div>
-            <div class="time-preset-filter__content">
-              <span class="filter-label">Period:</span>
-              <div class="preset-buttons">
-                <button
-                  type="button"
-                  phx-click="set_time_preset"
-                  phx-value-preset="7d"
-                  class={"preset-btn #{if @time_preset == "7d", do: "active"}"}
-                >
-                  7d
-                </button>
-                <button
-                  type="button"
-                  phx-click="set_time_preset"
-                  phx-value-preset="30d"
-                  class={"preset-btn #{if @time_preset == "30d", do: "active"}"}
-                >
-                  30d
-                </button>
-                <button
-                  type="button"
-                  phx-click="set_time_preset"
-                  phx-value-preset="90d"
-                  class={"preset-btn #{if @time_preset == "90d", do: "active"}"}
-                >
-                  90d
-                </button>
-                <button
-                  type="button"
-                  phx-click="set_time_preset"
-                  phx-value-preset="all"
-                  class={"preset-btn #{if @time_preset == "all", do: "active"}"}
-                >
-                  All
-                </button>
-              </div>
-            </div>
-          </div>
-          <.tag_filter
-            available_tags={@available_tags}
-            selected_tag_ids={@filter_tag_ids}
-          />
-        </div>
-      </div>
-
-      <%!-- Content Area --%>
-      <%= if Enum.empty?(@creators) do %>
-        <div class="empty-state">
-          <.icon name="hero-users" class="empty-state__icon size-8" />
-          <p class="empty-state__title">No creators found</p>
-          <%= if @search_query != "" or @badge_filter != "" or @outreach_status do %>
-            <p class="empty-state__description">Try adjusting your search or filters</p>
-          <% end %>
-        </div>
-      <% else %>
-        <%!-- Infinite scroll container --%>
-        <div
-          id="creators-list"
-          class="creators-scroll-container"
-          phx-viewport-bottom={@has_more && !@loading_creators && "load_more"}
-        >
-          <.unified_creator_table
-            creators={@creators}
-            selected_ids={@selected_ids}
-            select_all_matching={@select_all_matching}
-            total_count={length(@creators)}
-            on_row_click="navigate_to_creator"
-            sort_by={@sort_by}
-            sort_dir={@sort_dir}
-            on_sort="sort_column"
-            delta_period={@delta_period}
-          />
-
-          <%= if @loading_creators do %>
-            <div class="creators-loading">
-              <div class="spinner"></div>
-              <span>Loading more creators...</span>
-            </div>
-          <% end %>
-        </div>
-      <% end %>
-    <% "templates" -> %>
-      <%!-- Template Type Filter & Actions --%>
-      <div class="template-header">
-        <form phx-change="filter_template_type">
-          <select name="type" class="filter-select">
-            <option value="email" selected={@template_type_filter == "email"}>
-              Email Templates
-            </option>
-            <option value="page" selected={@template_type_filter == "page"}>
-              Page Templates
-            </option>
-          </select>
-        </form>
-      </div>
-
-      <%= if Enum.empty?(@templates) do %>
-        <div class="empty-state">
-          <%= if @template_type_filter == "email" do %>
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke-width="1.5"
-              stroke="currentColor"
-              class="empty-state__icon size-12"
-            >
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                d="M21.75 6.75v10.5a2.25 2.25 0 0 1-2.25 2.25h-15a2.25 2.25 0 0 1-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0 0 19.5 4.5h-15a2.25 2.25 0 0 0-2.25 2.25m19.5 0v.243a2.25 2.25 0 0 1-1.07 1.916l-7.5 4.615a2.25 2.25 0 0 1-2.36 0L3.32 8.91a2.25 2.25 0 0 1-1.07-1.916V6.75"
-              />
-            </svg>
-            <p class="empty-state__title">No email templates</p>
-            <p class="empty-state__description">
-              Create your first email template to start outreach campaigns.
-            </p>
-          <% else %>
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke-width="1.5"
-              stroke="currentColor"
-              class="empty-state__icon size-12"
-            >
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z"
-              />
-            </svg>
-            <p class="empty-state__title">No page templates</p>
-            <p class="empty-state__description">
-              Create a page template to customize the SMS consent form design.
-            </p>
-          <% end %>
-        </div>
-      <% else %>
-        <div class="template-list">
-          <%= for template <- @templates do %>
-            <div
-              class={"template-card #{if not template.is_active, do: "template-card--inactive"}"}
-              phx-click="preview_template"
-              phx-value-id={template.id}
-            >
-              <div class="template-card__preview">
-                <iframe
-                  srcdoc={template_preview_html(template)}
-                  class="template-card__preview-frame"
-                  sandbox="allow-same-origin"
-                  title={"Preview of #{template.name}"}
+        <%= if Enum.empty?(@templates) do %>
+          <div class="empty-state">
+            <%= if @template_type_filter == "email" do %>
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke-width="1.5"
+                stroke="currentColor"
+                class="empty-state__icon size-12"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  d="M21.75 6.75v10.5a2.25 2.25 0 0 1-2.25 2.25h-15a2.25 2.25 0 0 1-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0 0 19.5 4.5h-15a2.25 2.25 0 0 0-2.25 2.25m19.5 0v.243a2.25 2.25 0 0 1-1.07 1.916l-7.5 4.615a2.25 2.25 0 0 1-2.36 0L3.32 8.91a2.25 2.25 0 0 1-1.07-1.916V6.75"
                 />
-              </div>
-              <div class="template-card__info">
-                <div class="template-card__header">
-                  <div class="template-card__title-row">
-                    <h3 class="template-card__title">{template.name}</h3>
-                    <span class={"badge #{if template.type == "page", do: "badge--info", else: "badge--secondary"}"}>
-                      {if template.type == "page", do: "Page", else: "Email"}
-                    </span>
-                    <%= if template.is_default do %>
-                      <span class="badge badge--success">Default</span>
-                    <% end %>
-                    <%= if not template.is_active do %>
-                      <span class="badge badge--warning">Inactive</span>
-                    <% end %>
-                  </div>
-                  <div class="template-card__actions" phx-click="stop_propagation">
-                    <.link
-                      navigate={~p"/templates/#{template.id}/edit"}
-                      class="button button--ghost button--sm"
-                    >
-                      <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        viewBox="0 0 20 20"
-                        fill="currentColor"
-                        class="size-4"
-                      >
-                        <path d="m5.433 13.917 1.262-3.155A4 4 0 0 1 7.58 9.42l6.92-6.918a2.121 2.121 0 0 1 3 3l-6.92 6.918c-.383.383-.84.685-1.343.886l-3.154 1.262a.5.5 0 0 1-.65-.65Z" />
-                        <path d="M3.5 5.75c0-.69.56-1.25 1.25-1.25H10A.75.75 0 0 0 10 3H4.75A2.75 2.75 0 0 0 2 5.75v9.5A2.75 2.75 0 0 0 4.75 18h9.5A2.75 2.75 0 0 0 17 15.25V10a.75.75 0 0 0-1.5 0v5.25c0 .69-.56 1.25-1.25 1.25h-9.5c-.69 0-1.25-.56-1.25-1.25v-9.5Z" />
-                      </svg>
-                      Edit
-                    </.link>
-                    <%= if template.is_active and not template.is_default do %>
-                      <button
-                        type="button"
-                        phx-click="set_default_template"
-                        phx-value-id={template.id}
+              </svg>
+              <p class="empty-state__title">No email templates</p>
+              <p class="empty-state__description">
+                Create your first email template to start outreach campaigns.
+              </p>
+            <% else %>
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke-width="1.5"
+                stroke="currentColor"
+                class="empty-state__icon size-12"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z"
+                />
+              </svg>
+              <p class="empty-state__title">No page templates</p>
+              <p class="empty-state__description">
+                Create a page template to customize the SMS consent form design.
+              </p>
+            <% end %>
+          </div>
+        <% else %>
+          <div class="template-list">
+            <%= for template <- @templates do %>
+              <div
+                class={"template-card #{if not template.is_active, do: "template-card--inactive"}"}
+                phx-click="preview_template"
+                phx-value-id={template.id}
+              >
+                <div class="template-card__preview">
+                  <iframe
+                    srcdoc={template_preview_html(template, @current_brand.name)}
+                    class="template-card__preview-frame"
+                    sandbox="allow-same-origin"
+                    title={"Preview of #{template.name}"}
+                  />
+                </div>
+                <div class="template-card__info">
+                  <div class="template-card__header">
+                    <div class="template-card__title-row">
+                      <h3 class="template-card__title">{template.name}</h3>
+                      <span class={"badge #{if template.type == "page", do: "badge--info", else: "badge--secondary"}"}>
+                        {if template.type == "page", do: "Page", else: "Email"}
+                      </span>
+                      <%= if template.is_default do %>
+                        <span class="badge badge--success">Default</span>
+                      <% end %>
+                      <%= if not template.is_active do %>
+                        <span class="badge badge--warning">Inactive</span>
+                      <% end %>
+                    </div>
+                    <div class="template-card__actions" phx-click="stop_propagation">
+                      <.link
+                        navigate={
+                          PavoiWeb.BrandRoutes.brand_path(
+                            @current_brand,
+                            "/templates/#{template.id}/edit",
+                            @current_host
+                          )
+                        }
                         class="button button--ghost button--sm"
                       >
-                        Set Default
-                      </button>
-                    <% end %>
-                    <%= if not template.is_default do %>
-                      <button
-                        type="button"
-                        phx-click="delete_template"
-                        phx-value-id={template.id}
-                        data-confirm="Are you sure you want to delete this template?"
-                        class="button button--ghost button--sm button--danger"
-                      >
-                        Delete
-                      </button>
-                    <% end %>
+                        <svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          viewBox="0 0 20 20"
+                          fill="currentColor"
+                          class="size-4"
+                        >
+                          <path d="m5.433 13.917 1.262-3.155A4 4 0 0 1 7.58 9.42l6.92-6.918a2.121 2.121 0 0 1 3 3l-6.92 6.918c-.383.383-.84.685-1.343.886l-3.154 1.262a.5.5 0 0 1-.65-.65Z" />
+                          <path d="M3.5 5.75c0-.69.56-1.25 1.25-1.25H10A.75.75 0 0 0 10 3H4.75A2.75 2.75 0 0 0 2 5.75v9.5A2.75 2.75 0 0 0 4.75 18h9.5A2.75 2.75 0 0 0 17 15.25V10a.75.75 0 0 0-1.5 0v5.25c0 .69-.56 1.25-1.25 1.25h-9.5c-.69 0-1.25-.56-1.25-1.25v-9.5Z" />
+                        </svg>
+                        Edit
+                      </.link>
+                      <%= if template.is_active and not template.is_default do %>
+                        <button
+                          type="button"
+                          phx-click="set_default_template"
+                          phx-value-id={template.id}
+                          class="button button--ghost button--sm"
+                        >
+                          Set Default
+                        </button>
+                      <% end %>
+                      <%= if not template.is_default do %>
+                        <button
+                          type="button"
+                          phx-click="delete_template"
+                          phx-value-id={template.id}
+                          data-confirm="Are you sure you want to delete this template?"
+                          class="button button--ghost button--sm button--danger"
+                        >
+                          Delete
+                        </button>
+                      <% end %>
+                    </div>
                   </div>
+                  <%= if template.type == "email" do %>
+                    <div class="template-card__subject">
+                      <strong>Subject:</strong> {template.subject}
+                    </div>
+                  <% else %>
+                    <div class="template-card__subject">
+                      <strong>Lark Community:</strong> {String.capitalize(
+                        template.lark_preset || "jewelry"
+                      )}
+                    </div>
+                  <% end %>
                 </div>
-                <%= if template.type == "email" do %>
-                  <div class="template-card__subject">
-                    <strong>Subject:</strong> {template.subject}
-                  </div>
-                <% else %>
-                  <div class="template-card__subject">
-                    <strong>Lark Community:</strong> {String.capitalize(
-                      template.lark_preset || "jewelry"
-                    )}
-                  </div>
-                <% end %>
               </div>
-            </div>
-          <% end %>
-        </div>
-      <% end %>
-  <% end %>
-</div>
+            <% end %>
+          </div>
+        <% end %>
+    <% end %>
+  </div>
+</Layouts.app>
 
 <%!-- Send Outreach Modal --%>
 <%= if @show_send_modal do %>

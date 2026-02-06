@@ -319,11 +319,20 @@ defmodule PavoiWeb.ViewHelpers do
   For page templates, injects the consent form and wraps with minimal styles.
   """
   def template_preview_html(%{type: "page"} = template) do
+    template_preview_html(template, Pavoi.Settings.app_name())
+  end
+
+  def template_preview_html(template) do
+    template.html_body
+  end
+
+  def template_preview_html(%{type: "page"} = template, brand_name) do
     form_config = template.form_config || %{}
     button_text = form_config["button_text"] || "JOIN THE PROGRAM"
     email_label = form_config["email_label"] || "Email"
     phone_label = form_config["phone_label"] || "Phone Number"
     phone_placeholder = form_config["phone_placeholder"] || "(555) 123-4567"
+    brand_name = brand_name || Pavoi.Settings.app_name()
 
     # Static form HTML with inline styles (matches the inline-styled template)
     form_html = """
@@ -337,7 +346,7 @@ defmodule PavoiWeb.ViewHelpers do
         <input type="tel" placeholder="#{phone_placeholder}" style="width: 100%; padding: 12px 16px; font-family: Georgia, serif; font-size: 16px; border: 1px solid #ccc; border-radius: 4px; background: #fff; color: #2E4042;" />
       </div>
       <p style="font-size: 12px; color: #888; line-height: 1.5; margin: 16px 0 24px;">
-        By clicking "#{button_text}", you consent to receive SMS messages from Pavoi
+        By clicking "#{button_text}", you consent to receive SMS messages from #{brand_name}
         at the phone number provided. Message frequency varies. Msg &amp; data rates may apply.
         Reply STOP to unsubscribe.
       </p>
@@ -366,7 +375,7 @@ defmodule PavoiWeb.ViewHelpers do
     """
   end
 
-  def template_preview_html(template) do
+  def template_preview_html(template, _brand_name) do
     template.html_body
   end
 end

@@ -97,7 +97,17 @@ defmodule PavoiWeb.TiktokLiveComponents do
         <img src={@url} alt="Stream thumbnail" class="stream-thumbnail__image" loading="lazy" />
       <% else %>
         <div class="stream-thumbnail__placeholder">
-          <.icon name="hero-video-camera" class="stream-thumbnail__icon" />
+          <svg
+            class="stream-thumbnail__icon"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <path d="m22 8-6 4 6 4V8Z" /><rect x="2" y="6" width="14" height="12" rx="2" />
+          </svg>
         </div>
       <% end %>
     </div>
@@ -280,7 +290,17 @@ defmodule PavoiWeb.TiktokLiveComponents do
                 <% else %>
                   <div class="stream-thumbnail">
                     <div class="stream-thumbnail__placeholder">
-                      <.icon name="hero-video-camera" class="stream-thumbnail__icon" />
+                      <svg
+                        class="stream-thumbnail__icon"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="2"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                      >
+                        <path d="m22 8-6 4 6 4V8Z" /><rect x="2" y="6" width="14" height="12" rx="2" />
+                      </svg>
                     </div>
                   </div>
                 <% end %>
@@ -410,7 +430,22 @@ defmodule PavoiWeb.TiktokLiveComponents do
                     class="stream-modal-stat__info"
                     title="Gross Merchandise Value: Total order revenue during stream hours. This is correlation, not direct attribution—orders may or may not be stream-driven."
                   >
-                    <.icon name="hero-information-circle" class="size-3.5" />
+                    <svg
+                      class="size-3.5"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    >
+                      <circle cx="12" cy="12" r="10" /><line x1="12" y1="16" x2="12" y2="12" /><line
+                        x1="12"
+                        y1="8"
+                        x2="12.01"
+                        y2="8"
+                      />
+                    </svg>
                   </span>
                 </span>
                 <span class="stream-modal-stat__value">
@@ -545,7 +580,17 @@ defmodule PavoiWeb.TiktokLiveComponents do
 
       <%= unless @has_comments do %>
         <div class="empty-state">
-          <.icon name="hero-chat-bubble-left-right" class="empty-state__icon size-8" />
+          <svg
+            class="empty-state__icon size-8"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+          </svg>
           <p class="empty-state__title">No comments yet</p>
           <p class="empty-state__description">
             Comments will appear here as they're captured
@@ -674,7 +719,22 @@ defmodule PavoiWeb.TiktokLiveComponents do
     <div class="stats-tab">
       <%= if Enum.empty?(@stream_stats) do %>
         <div class="empty-state">
-          <.icon name="hero-chart-bar" class="empty-state__icon size-8" />
+          <svg
+            class="empty-state__icon size-8"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <line x1="12" y1="20" x2="12" y2="10" /><line x1="18" y1="20" x2="18" y2="4" /><line
+              x1="6"
+              y1="20"
+              x2="6"
+              y2="16"
+            />
+          </svg>
           <p class="empty-state__title">No stats available</p>
           <p class="empty-state__description">
             Stats are recorded every 30 seconds during live streams

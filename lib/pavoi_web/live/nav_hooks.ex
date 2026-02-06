@@ -12,10 +12,18 @@ defmodule PavoiWeb.NavHooks do
     {:cont, socket}
   end
 
+  # Brand pages
   defp get_current_page(PavoiWeb.ProductSetsLive.Index), do: :product_sets
   defp get_current_page(PavoiWeb.CreatorsLive.Index), do: :creators
   defp get_current_page(PavoiWeb.TiktokLive.Index), do: :streams
   defp get_current_page(PavoiWeb.ReadmeLive.Index), do: :readme
+
+  # Admin pages - return :admin so nav shows but no tab is highlighted
+  defp get_current_page(PavoiWeb.AdminLive.Dashboard), do: :admin
+  defp get_current_page(PavoiWeb.AdminLive.Brands), do: :admin
+  defp get_current_page(PavoiWeb.AdminLive.Users), do: :admin
+  defp get_current_page(PavoiWeb.AdminLive.Invites), do: :admin
+
   # Full-page views return nil so navbar doesn't show
   defp get_current_page(PavoiWeb.ProductSetHostLive.Index), do: nil
   defp get_current_page(PavoiWeb.ProductSetControllerLive.Index), do: nil

@@ -16,8 +16,9 @@ defmodule PavoiWeb.ProductSetControllerLive.Index do
 
   @impl true
   def mount(%{"id" => product_set_id}, _session, socket) do
-    product_set = ProductSets.get_product_set!(product_set_id)
-    message_presets = ProductSets.list_message_presets()
+    brand_id = socket.assigns.current_brand.id
+    product_set = ProductSets.get_product_set!(brand_id, product_set_id)
+    message_presets = ProductSets.list_message_presets(brand_id)
     voice_control_enabled = Application.get_env(:pavoi, :features)[:voice_control_enabled]
 
     voice_assets = %{
@@ -29,6 +30,7 @@ defmodule PavoiWeb.ProductSetControllerLive.Index do
 
     socket =
       assign(socket,
+        brand_id: brand_id,
         product_set: product_set,
         product_set_id: String.to_integer(product_set_id),
         page_title: "#{product_set.name} - Controller",
@@ -213,9 +215,12 @@ defmodule PavoiWeb.ProductSetControllerLive.Index do
 
   @impl true
   def handle_event("create_preset", %{"message_text" => message_text, "color" => color}, socket) do
-    case ProductSets.create_message_preset(%{message_text: message_text, color: color}) do
+    case ProductSets.create_message_preset(socket.assigns.brand_id, %{
+           message_text: message_text,
+           color: color
+         }) do
       {:ok, _preset} ->
-        message_presets = ProductSets.list_message_presets()
+        message_presets = ProductSets.list_message_presets(socket.assigns.brand_id)
 
         socket =
           socket
@@ -244,7 +249,7 @@ defmodule PavoiWeb.ProductSetControllerLive.Index do
       preset ->
         case ProductSets.delete_message_preset(preset) do
           {:ok, _} ->
-            message_presets = ProductSets.list_message_presets()
+            message_presets = ProductSets.list_message_presets(socket.assigns.brand_id)
 
             socket =
               socket

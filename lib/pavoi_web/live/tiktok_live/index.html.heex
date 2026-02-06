@@ -1,122 +1,131 @@
-<.nav_tabs
+<Layouts.app
+  flash={@flash}
+  current_scope={@current_scope}
+  current_brand={@current_brand}
   current_page={@current_page}
-  stream_scan_syncing={@scanning}
-  stream_last_scan_at={@last_scan_at}
-  stream_scan_enabled={not @dev_mode}
-  capture_input={@capture_input}
-  capture_loading={@capture_loading}
-  capture_error={@capture_error}
-/>
+>
+  <div class="container container--xl region tiktok-live-index">
+    <.page_tabs active_tab={@page_tab}>
+      <:actions>
+        <%= case @page_tab do %>
+          <% "streams" -> %>
+          <% "analytics" -> %>
+            <div class="analytics-stream-selector">
+              <span class="analytics-stream-selector__label">Showing analytics for:</span>
+              <form phx-change="analytics_select_stream">
+                <select name="stream_id" class="filter-select">
+                  <option value="" selected={is_nil(@analytics_stream_id)}>All Streams</option>
+                  <%= for stream <- @all_streams_for_select do %>
+                    <option value={stream.id} selected={@analytics_stream_id == stream.id}>
+                      @{stream.unique_id} - {Calendar.strftime(stream.started_at, "%b %d")}
+                    </option>
+                  <% end %>
+                </select>
+              </form>
+            </div>
+        <% end %>
+      </:actions>
+    </.page_tabs>
 
-<div class="container container--xl region tiktok-live-index">
-  <.page_tabs active_tab={@page_tab}>
-    <:actions>
-      <%= case @page_tab do %>
-        <% "streams" -> %>
-        <% "analytics" -> %>
-          <div class="analytics-stream-selector">
-            <span class="analytics-stream-selector__label">Showing analytics for:</span>
-            <form phx-change="analytics_select_stream">
-              <select name="stream_id" class="filter-select">
-                <option value="" selected={is_nil(@analytics_stream_id)}>All Streams</option>
-                <%= for stream <- @all_streams_for_select do %>
-                  <option value={stream.id} selected={@analytics_stream_id == stream.id}>
-                    @{stream.unique_id} - {Calendar.strftime(stream.started_at, "%b %d")}
-                  </option>
-                <% end %>
+    <%= case @page_tab do %>
+      <% "streams" -> %>
+        <div class="page-header">
+          <div class="page-header__search page-header__search--with-count">
+            <.search_input
+              value={@search_query}
+              on_change="search_streams"
+              placeholder="Search by username or title..."
+            />
+            <span class="search-count">{format_number(@total)} streams</span>
+          </div>
+
+          <div class="page-header__filters">
+            <form phx-change="filter_status">
+              <select name="status" class="filter-select" value={@status_filter}>
+                <option value="all" selected={@status_filter == "all"}>All Status</option>
+                <option value="capturing" selected={@status_filter == "capturing"}>
+                  Live Now
+                </option>
+                <option value="ended" selected={@status_filter == "ended"}>Ended</option>
+                <option value="failed" selected={@status_filter == "failed"}>Failed</option>
+              </select>
+            </form>
+
+            <form phx-change="filter_date">
+              <select name="date" class="filter-select" value={@date_filter}>
+                <option value="all" selected={@date_filter == "all"}>All Time</option>
+                <option value="today" selected={@date_filter == "today"}>Today</option>
+                <option value="week" selected={@date_filter == "week"}>Last 7 Days</option>
+                <option value="month" selected={@date_filter == "month"}>Last 30 Days</option>
               </select>
             </form>
           </div>
-      <% end %>
-    </:actions>
-  </.page_tabs>
-
-  <%= case @page_tab do %>
-    <% "streams" -> %>
-      <div class="page-header">
-        <div class="page-header__search page-header__search--with-count">
-          <.search_input
-            value={@search_query}
-            on_change="search_streams"
-            placeholder="Search by username or title..."
-          />
-          <span class="search-count">{format_number(@total)} streams</span>
         </div>
 
-        <div class="page-header__filters">
-          <form phx-change="filter_status">
-            <select name="status" class="filter-select" value={@status_filter}>
-              <option value="all" selected={@status_filter == "all"}>All Status</option>
-              <option value="capturing" selected={@status_filter == "capturing"}>Live Now</option>
-              <option value="ended" selected={@status_filter == "ended"}>Ended</option>
-              <option value="failed" selected={@status_filter == "failed"}>Failed</option>
-            </select>
-          </form>
+        <%= if Enum.empty?(@live_streams) do %>
+          <div class="empty-state">
+            <svg
+              class="empty-state__icon size-12"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <path d="m22 8-6 4 6 4V8Z" /><rect x="2" y="6" width="14" height="12" rx="2" />
+            </svg>
+            <p class="empty-state__title">No streams found</p>
+            <p class="empty-state__description">
+              <%= if @status_filter != "all" or @date_filter != "all" do %>
+                Try adjusting your filters
+              <% else %>
+                Live streams will appear here when captured
+              <% end %>
+            </p>
+          </div>
+        <% else %>
+          <div
+            id="streams-list"
+            class="streams-scroll-container"
+            phx-viewport-bottom={@has_more && !@loading_streams && "load_more"}
+          >
+            <.streams_table
+              streams={@live_streams}
+              on_row_click="navigate_to_stream"
+              sort_by={@sort_by}
+              sort_dir={@sort_dir}
+              on_sort="sort_column"
+              streams_sentiment={@streams_sentiment}
+            />
 
-          <form phx-change="filter_date">
-            <select name="date" class="filter-select" value={@date_filter}>
-              <option value="all" selected={@date_filter == "all"}>All Time</option>
-              <option value="today" selected={@date_filter == "today"}>Today</option>
-              <option value="week" selected={@date_filter == "week"}>Last 7 Days</option>
-              <option value="month" selected={@date_filter == "month"}>Last 30 Days</option>
-            </select>
-          </form>
-        </div>
-      </div>
-
-      <%= if Enum.empty?(@live_streams) do %>
-        <div class="empty-state">
-          <.icon name="hero-video-camera" class="empty-state__icon size-12" />
-          <p class="empty-state__title">No streams found</p>
-          <p class="empty-state__description">
-            <%= if @status_filter != "all" or @date_filter != "all" do %>
-              Try adjusting your filters
-            <% else %>
-              Live streams will appear here when captured
+            <%= if @loading_streams do %>
+              <div class="streams-loading">
+                <div class="spinner"></div>
+                <span>Loading more streams...</span>
+              </div>
             <% end %>
-          </p>
-        </div>
-      <% else %>
-        <div
-          id="streams-list"
-          class="streams-scroll-container"
-          phx-viewport-bottom={@has_more && !@loading_streams && "load_more"}
-        >
-          <.streams_table
-            streams={@live_streams}
-            on_row_click="navigate_to_stream"
-            sort_by={@sort_by}
-            sort_dir={@sort_dir}
-            on_sort="sort_column"
-            streams_sentiment={@streams_sentiment}
-          />
-
-          <%= if @loading_streams do %>
-            <div class="streams-loading">
-              <div class="spinner"></div>
-              <span>Loading more streams...</span>
-            </div>
-          <% end %>
-        </div>
-      <% end %>
-    <% "analytics" -> %>
-      <.analytics_tab
-        stream_id={@analytics_stream_id}
-        streams={@all_streams_for_select}
-        sentiment_breakdown={@sentiment_breakdown}
-        category_breakdown={@category_breakdown}
-        sentiment_chart_json={@sentiment_chart_json}
-        category_chart_json={@category_chart_json}
-        comments={@analytics_comments}
-        comments_total={@analytics_comments_total}
-        has_more={@analytics_has_more}
-        search_query={@analytics_search}
-        sentiment_filter={@analytics_sentiment}
-        category_filter={@analytics_category}
-        loading={@analytics_loading}
-      />
-  <% end %>
-</div>
+          </div>
+        <% end %>
+      <% "analytics" -> %>
+        <.analytics_tab
+          stream_id={@analytics_stream_id}
+          streams={@all_streams_for_select}
+          sentiment_breakdown={@sentiment_breakdown}
+          category_breakdown={@category_breakdown}
+          sentiment_chart_json={@sentiment_chart_json}
+          category_chart_json={@category_chart_json}
+          comments={@analytics_comments}
+          comments_total={@analytics_comments_total}
+          has_more={@analytics_has_more}
+          search_query={@analytics_search}
+          sentiment_filter={@analytics_sentiment}
+          category_filter={@analytics_category}
+          loading={@analytics_loading}
+        />
+    <% end %>
+  </div>
+</Layouts.app>
 
 <.stream_detail_modal
   stream={@selected_stream}

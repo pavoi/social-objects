@@ -15,6 +15,11 @@ defmodule PavoiWeb.PublicProductSetLive do
 
   @impl true
   def mount(%{"token" => token}, _session, socket) do
+    socket =
+      socket
+      |> assign(:current_scope, nil)
+      |> assign(:current_page, nil)
+
     case ProductSets.verify_share_token(token) do
       {:ok, product_set_id} ->
         try do
@@ -36,6 +41,7 @@ defmodule PavoiWeb.PublicProductSetLive do
           {:ok,
            socket
            |> assign(:page_title, product_set.name)
+           |> assign(:current_brand, product_set.brand)
            |> assign(:product_set, product_set)
            |> assign(:error, nil)
            |> assign(:editing_product, nil)
@@ -47,6 +53,7 @@ defmodule PavoiWeb.PublicProductSetLive do
             {:ok,
              socket
              |> assign(:page_title, "Product Set Not Found")
+             |> assign(:current_brand, nil)
              |> assign(:error, "This product set could not be found.")
              |> assign(:product_set, nil)}
         end
@@ -55,6 +62,7 @@ defmodule PavoiWeb.PublicProductSetLive do
         {:ok,
          socket
          |> assign(:page_title, "Link Expired")
+         |> assign(:current_brand, nil)
          |> assign(:error, "This share link has expired. Please request a new link.")
          |> assign(:product_set, nil)}
 
@@ -62,6 +70,7 @@ defmodule PavoiWeb.PublicProductSetLive do
         {:ok,
          socket
          |> assign(:page_title, "Invalid Link")
+         |> assign(:current_brand, nil)
          |> assign(:error, "This share link is invalid.")
          |> assign(:product_set, nil)}
     end
@@ -142,48 +151,62 @@ defmodule PavoiWeb.PublicProductSetLive do
 
   defp render_error(assigns) do
     ~H"""
-    <div class="public-product-set public-product-set--error">
-      <div class="public-product-set__error-container">
-        <h1>Oops!</h1>
-        <p>{@error}</p>
+    <Layouts.app
+      flash={@flash}
+      current_scope={@current_scope}
+      current_brand={@current_brand}
+      current_page={@current_page}
+    >
+      <div class="public-product-set public-product-set--error">
+        <div class="public-product-set__error-container">
+          <h1>Oops!</h1>
+          <p>{@error}</p>
+        </div>
       </div>
-    </div>
+    </Layouts.app>
     """
   end
 
   defp render_product_set(assigns) do
     ~H"""
-    <div class="public-product-set">
-      <header class="public-product-set__header">
-        <h1 class="public-product-set__title">{@product_set.name}</h1>
-        <%= if @product_set.brand do %>
-          <p class="public-product-set__brand">{@product_set.brand.name}</p>
-        <% end %>
-      </header>
+    <Layouts.app
+      flash={@flash}
+      current_scope={@current_scope}
+      current_brand={@current_brand}
+      current_page={@current_page}
+    >
+      <div class="public-product-set">
+        <header class="public-product-set__header">
+          <h1 class="public-product-set__title">{@product_set.name}</h1>
+          <%= if @product_set.brand do %>
+            <p class="public-product-set__brand">{@product_set.brand.name}</p>
+          <% end %>
+        </header>
 
-      <main class="public-product-set__content">
-        <.product_grid
-          products={@streams.products}
-          mode={:browse}
-          search_query=""
-          has_more={false}
-          on_product_click="show_product"
-          show_prices={true}
-          show_search={false}
-          loading={false}
-          is_empty={Enum.empty?(@product_set.product_set_products)}
+        <main class="public-product-set__content">
+          <.product_grid
+            products={@streams.products}
+            mode={:browse}
+            search_query=""
+            has_more={false}
+            on_product_click="show_product"
+            show_prices={true}
+            show_search={false}
+            loading={false}
+            is_empty={Enum.empty?(@product_set.product_set_products)}
+          />
+        </main>
+
+        <.product_edit_modal
+          editing_product={@editing_product}
+          product_edit_form={@product_edit_form}
+          brands={[]}
+          current_image_index={@current_image_index}
+          generating={false}
+          public_view={true}
         />
-      </main>
-
-      <.product_edit_modal
-        editing_product={@editing_product}
-        product_edit_form={@product_edit_form}
-        brands={[]}
-        current_image_index={@current_image_index}
-        generating={false}
-        public_view={true}
-      />
-    </div>
+      </div>
+    </Layouts.app>
     """
   end
 end

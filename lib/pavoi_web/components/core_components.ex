@@ -22,6 +22,7 @@ defmodule PavoiWeb.CoreComponents do
   use Phoenix.Component
   use Gettext, backend: PavoiWeb.Gettext
 
+  alias PavoiWeb.BrandRoutes
   alias Phoenix.HTML.{Form, FormField}
   alias Phoenix.LiveView.JS
 
@@ -67,15 +68,50 @@ defmodule PavoiWeb.CoreComponents do
         @kind == :error && "alert--error"
       ]}>
         <div class="alert__icon">
-          <.icon :if={@kind == :info} name="hero-information-circle" class="size-5" />
-          <.icon :if={@kind == :error} name="hero-exclamation-circle" class="size-5" />
+          <svg
+            :if={@kind == :info}
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 24 24"
+            fill="currentColor"
+            class="size-5"
+          >
+            <path
+              fill-rule="evenodd"
+              d="M2.25 12c0-5.385 4.365-9.75 9.75-9.75s9.75 4.365 9.75 9.75-4.365 9.75-9.75 9.75S2.25 17.385 2.25 12zm8.706-1.442c1.146-.573 2.437.463 2.126 1.706l-.709 2.836.042-.02a.75.75 0 01.67 1.34l-.04.022c-1.147.573-2.438-.463-2.127-1.706l.71-2.836-.042.02a.75.75 0 11-.671-1.34l.041-.022zM12 9a.75.75 0 100-1.5.75.75 0 000 1.5z"
+              clip-rule="evenodd"
+            />
+          </svg>
+          <svg
+            :if={@kind == :error}
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 24 24"
+            fill="currentColor"
+            class="size-5"
+          >
+            <path
+              fill-rule="evenodd"
+              d="M2.25 12c0-5.385 4.365-9.75 9.75-9.75s9.75 4.365 9.75 9.75-4.365 9.75-9.75 9.75S2.25 17.385 2.25 12zM12 8.25a.75.75 0 01.75.75v3.75a.75.75 0 01-1.5 0V9a.75.75 0 01.75-.75zm0 8.25a.75.75 0 100-1.5.75.75 0 000 1.5z"
+              clip-rule="evenodd"
+            />
+          </svg>
         </div>
         <div class="alert__content">
           <p :if={@title} class="alert__title">{@title}</p>
           <p class="alert__message">{msg}</p>
         </div>
         <button type="button" class="alert__close" aria-label={gettext("close")}>
-          <.icon name="hero-x-mark" class="size-5" />
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 24 24"
+            fill="currentColor"
+            class="size-5"
+          >
+            <path
+              fill-rule="evenodd"
+              d="M5.47 5.47a.75.75 0 011.06 0L12 10.94l5.47-5.47a.75.75 0 111.06 1.06L13.06 12l5.47 5.47a.75.75 0 11-1.06 1.06L12 13.06l-5.47 5.47a.75.75 0 01-1.06-1.06L10.94 12 5.47 6.53a.75.75 0 010-1.06z"
+              clip-rule="evenodd"
+            />
+          </svg>
         </button>
       </div>
     </div>
@@ -283,9 +319,95 @@ defmodule PavoiWeb.CoreComponents do
   defp error(assigns) do
     ~H"""
     <p class="error-message">
-      <.icon name="hero-exclamation-circle" class="size-5" />
+      <svg
+        class="size-5"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+      >
+        <circle cx="12" cy="12" r="10" />
+        <line x1="12" y1="8" x2="12" y2="12" />
+        <line x1="12" y1="16" x2="12.01" y2="16" />
+      </svg>
       {render_slot(@inner_block)}
     </p>
+    """
+  end
+
+  @doc """
+  Renders a secret/password input with visibility toggle and configured indicator.
+
+  Shows a "Configured" badge when the field has a value set.
+  Allows toggling between masked and visible modes.
+
+  ## Examples
+
+      <.secret_input
+        field={@form[:api_key]}
+        key="api_key"
+        label="API Key"
+        placeholder="sk-..."
+        configured={true}
+        visible={false}
+      />
+  """
+  attr :field, FormField, required: true
+  attr :key, :string, required: true, doc: "Unique key for this secret field"
+  attr :label, :string, required: true
+  attr :placeholder, :string, default: nil
+  attr :configured, :boolean, default: false
+  attr :visible, :boolean, default: false
+  attr :multiline, :boolean, default: false
+  attr :rest, :global
+
+  def secret_input(assigns) do
+    assigns =
+      assigns
+      |> assign(:name, assigns.field.name)
+      |> assign(:id, assigns.field.id)
+      |> assign(:value, assigns.field.value)
+
+    ~H"""
+    <div class="fieldset">
+      <div class="secret-field__header">
+        <span class="label">{@label}</span>
+        <span :if={@configured} class="secret-field__badge">Configured</span>
+      </div>
+      <div class="secret-field__input-wrapper">
+        <%= if @multiline do %>
+          <textarea
+            id={@id}
+            name={@name}
+            placeholder={@placeholder}
+            class="textarea secret-field__textarea"
+            {@rest}
+          >{Phoenix.HTML.Form.normalize_value("textarea", @value)}</textarea>
+        <% else %>
+          <input
+            type={if @visible, do: "text", else: "password"}
+            id={@id}
+            name={@name}
+            value={@value}
+            placeholder={@placeholder}
+            class="input secret-field__input"
+            {@rest}
+          />
+        <% end %>
+        <button
+          type="button"
+          class="secret-field__toggle"
+          phx-click="toggle_secret_visibility"
+          phx-value-key={@key}
+          title={if @visible, do: "Hide", else: "Show"}
+        >
+          <.icon :if={!@visible} name="hero-eye" class="size-4" />
+          <.icon :if={@visible} name="hero-eye-slash" class="size-4" />
+        </button>
+      </div>
+    </div>
     """
   end
 
@@ -404,6 +526,10 @@ defmodule PavoiWeb.CoreComponents do
       <.nav_tabs current_page={:product_sets} />
   """
   attr :current_page, :atom, required: true
+  attr :current_scope, :map, required: true
+  attr :current_brand, :map, default: nil
+  attr :user_brands, :list, default: []
+  attr :current_host, :string, default: nil
   attr :syncing, :boolean, default: false
   attr :last_sync_at, :any, default: nil
   attr :tiktok_syncing, :boolean, default: false
@@ -418,37 +544,114 @@ defmodule PavoiWeb.CoreComponents do
   attr :capture_input, :string, default: ""
   attr :capture_loading, :boolean, default: false
   attr :capture_error, :string, default: nil
+  attr :is_admin, :boolean, default: false
 
   def nav_tabs(assigns) do
     ~H"""
     <nav id="global-nav" class="navbar">
       <div class="navbar__start">
-        <.link href={~p"/"} class="navbar__brand">
-          <img src={~p"/images/logo-light.svg"} class="navbar__logo navbar__logo--light" alt="Pavoi" />
-          <img src={~p"/images/logo-dark.svg"} class="navbar__logo navbar__logo--dark" alt="Pavoi" />
+        <.link
+          navigate={BrandRoutes.brand_home_path(@current_brand, @current_host)}
+          class="navbar__brand"
+        >
+          <img
+            src={~p"/images/logo-light.svg"}
+            class="navbar__logo navbar__logo--light"
+            alt={@current_brand.name}
+          />
+          <img
+            src={~p"/images/logo-dark.svg"}
+            class="navbar__logo navbar__logo--dark"
+            alt={@current_brand.name}
+          />
         </.link>
+        <div class="navbar__brand-switcher">
+          <%= if length(@user_brands) > 1 do %>
+            <button
+              type="button"
+              class="brand-switcher__toggle"
+              aria-haspopup="true"
+              aria-label="Switch brand"
+              phx-click={
+                JS.toggle(to: "#brand-switcher-menu", in: "fade-in", out: "fade-out", display: "flex")
+              }
+            >
+              <span class="brand-switcher__label">{@current_brand.name}</span>
+              <svg
+                class="size-4"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <path d="m19.5 8.25-7.5 7.5-7.5-7.5" />
+              </svg>
+            </button>
+            <div
+              id="brand-switcher-menu"
+              class="brand-switcher__menu"
+              phx-click-away={JS.hide(to: "#brand-switcher-menu", transition: "fade-out")}
+            >
+              <.link
+                :for={user_brand <- @user_brands}
+                navigate={nav_path(:product_sets, user_brand.brand, @current_host)}
+                class={[
+                  "brand-switcher__item",
+                  user_brand.brand.id == @current_brand.id && "brand-switcher__item--active"
+                ]}
+              >
+                <span class="brand-switcher__item-name">{user_brand.brand.name}</span>
+                <.icon
+                  :if={user_brand.brand.id == @current_brand.id}
+                  name="hero-check"
+                  class="size-4"
+                />
+              </.link>
+            </div>
+          <% else %>
+            <span class="brand-switcher__label">{@current_brand.name}</span>
+          <% end %>
+        </div>
       </div>
+
       <div class="navbar__nav">
         <.link
-          href={~p"/product-sets"}
+          navigate={nav_path(:product_sets, @current_brand, @current_host)}
           class={["navbar__link", @current_page == :product_sets && "navbar__link--active"]}
         >
           Product Sets
         </.link>
         <.link
-          href={~p"/streams"}
+          navigate={nav_path(:streams, @current_brand, @current_host)}
           class={["navbar__link", @current_page == :streams && "navbar__link--active"]}
         >
           Streams
         </.link>
         <.link
-          href={~p"/creators"}
+          navigate={nav_path(:creators, @current_brand, @current_host)}
           class={["navbar__link", @current_page == :creators && "navbar__link--active"]}
         >
           Creators
         </.link>
       </div>
+
       <div class="navbar__end">
+        <.link navigate={~p"/users/settings"} class="navbar__profile-link" aria-label="Account settings">
+          <svg
+            class="size-5"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" />
+            <circle cx="12" cy="7" r="4" />
+          </svg>
+        </.link>
         <button
           class="navbar__menu-trigger"
           aria-label="Open menu"
@@ -571,12 +774,29 @@ defmodule PavoiWeb.CoreComponents do
               </div>
             </div>
           <% end %>
-          <.theme_toggle />
+          <div :if={@is_admin} class="navbar__menu-section">
+            <div class="navbar__sync-group">
+              <.button navigate={~p"/admin"} variant="outline" size="sm">
+                Admin
+              </.button>
+            </div>
+          </div>
+          <div class="navbar__menu-section">
+            <.theme_toggle />
+          </div>
         </div>
       </div>
     </nav>
     """
   end
+
+  defp nav_path(page, brand, current_host) do
+    BrandRoutes.brand_path(brand, nav_page_path(page), current_host)
+  end
+
+  defp nav_page_path(:product_sets), do: "/product-sets"
+  defp nav_page_path(:streams), do: "/streams"
+  defp nav_page_path(:creators), do: "/creators"
 
   @doc """
   Renders a table with generic styling.
@@ -669,22 +889,15 @@ defmodule PavoiWeb.CoreComponents do
   end
 
   @doc """
-  Renders a [Heroicon](https://heroicons.com).
+  DEPRECATED: This function does not work as heroicons are not installed.
 
-  Heroicons come in three styles – outline, solid, and mini.
-  By default, the outline style is used, but solid and mini may
-  be applied by using the `-solid` and `-mini` suffix.
+  Use inline SVGs instead:
 
-  You can customize the size and colors of the icons by setting
-  width, height, and background color classes.
+      <svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="..." />
+      </svg>
 
-  Icons are extracted from the `deps/heroicons` directory and bundled within
-  your compiled app.css by the plugin in `assets/vendor/heroicons.js`.
-
-  ## Examples
-
-      <.icon name="hero-x-mark" />
-      <.icon name="hero-arrow-path" class="ml-1 size-3 motion-safe:animate-spin" />
+  For icon paths, see https://feathericons.com or similar SVG icon libraries.
   """
   attr :name, :string, required: true
   attr :class, :string, default: "size-4"

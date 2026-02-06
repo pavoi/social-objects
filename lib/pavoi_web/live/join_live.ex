@@ -11,6 +11,7 @@ defmodule PavoiWeb.JoinLive do
   """
   use PavoiWeb, :live_view
 
+  alias Pavoi.Catalog
   alias Pavoi.Communications
   alias Pavoi.Creators
   alias Pavoi.Outreach
@@ -29,16 +30,23 @@ defmodule PavoiWeb.JoinLive do
     {client_ip, user_agent} = get_client_info(socket)
 
     case Outreach.verify_join_token(token) do
-      {:ok, %{creator_id: creator_id, lark_preset: lark_preset}} ->
-        creator = Creators.get_creator!(creator_id)
-        lark_url = get_lark_url(lark_preset)
+      {:ok, %{brand_id: brand_id, creator_id: creator_id, lark_preset: lark_preset}} ->
+        brand = Catalog.get_brand!(brand_id)
+        creator = Creators.get_creator!(brand_id, creator_id)
+        lark_url = get_lark_url(brand_id, lark_preset)
 
         # Load page template if configured
-        {template_html, form_config} = load_page_template(lark_preset)
+        {template_html, form_config} = load_page_template(brand_id, lark_preset)
+
+        brand_name = brand.name || Settings.app_name()
 
         {:ok,
          socket
-         |> assign(:page_title, "Join the Pavoi Creator Program")
+         |> assign(:page_title, "Join the #{brand_name} Creator Program")
+         |> assign(:current_brand, brand)
+         |> assign(:current_scope, nil)
+         |> assign(:current_page, nil)
+         |> assign(:brand_name, brand_name)
          |> assign(:creator, creator)
          |> assign(:lark_preset, lark_preset)
          |> assign(:lark_url, lark_url)
@@ -54,18 +62,26 @@ defmodule PavoiWeb.JoinLive do
         {:ok,
          socket
          |> assign(:page_title, "Link Expired")
+         |> assign(:current_brand, nil)
+         |> assign(:current_scope, nil)
+         |> assign(:current_page, nil)
+         |> assign(:brand_name, Settings.app_name())
          |> assign(:error, "This link has expired. Please contact us for a new invitation.")}
 
       {:error, _} ->
         {:ok,
          socket
          |> assign(:page_title, "Invalid Link")
+         |> assign(:current_brand, nil)
+         |> assign(:current_scope, nil)
+         |> assign(:current_page, nil)
+         |> assign(:brand_name, Settings.app_name())
          |> assign(:error, "This link is invalid. Please check your email for the correct link.")}
     end
   end
 
-  defp load_page_template(lark_preset) do
-    case Communications.get_default_page_template(lark_preset) do
+  defp load_page_template(brand_id, lark_preset) do
+    case Communications.get_default_page_template(brand_id, lark_preset) do
       nil ->
         # No template configured - use fallback
         {nil, @default_form_config}
@@ -152,9 +168,9 @@ defmodule PavoiWeb.JoinLive do
       "https://applink.larksuite.com/client/chat/chatter/add_by_link?link_token=3c9q707a-24bf-449a-9ee9-aef46e73e7es"
   }
 
-  defp get_lark_url(lark_preset) do
+  defp get_lark_url(brand_id, lark_preset) do
     setting_key = "lark_preset_#{lark_preset}"
-    Settings.get_setting(setting_key) || Map.get(@lark_defaults, lark_preset, "")
+    Settings.get_setting(brand_id, setting_key) || Map.get(@lark_defaults, lark_preset, "")
   end
 
   defp get_client_info(socket) do
@@ -194,17 +210,25 @@ defmodule PavoiWeb.JoinLive do
     assigns = Map.merge(assigns, %{before_form: before_form, after_form: after_form})
 
     ~H"""
-    <div class="join-page join-page--templated">
-      {raw(@before_form)}
-      <.consent_form
-        creator={@creator}
-        phone={@phone}
-        phone_error={@phone_error}
-        submitting={@submitting}
-        form_config={@form_config}
-      />
-      {raw(@after_form)}
-    </div>
+    <Layouts.app
+      flash={@flash}
+      current_scope={@current_scope}
+      current_brand={@current_brand}
+      current_page={@current_page}
+    >
+      <div class="join-page join-page--templated">
+        {raw(@before_form)}
+        <.consent_form
+          creator={@creator}
+          phone={@phone}
+          phone_error={@phone_error}
+          submitting={@submitting}
+          form_config={@form_config}
+          brand_name={@brand_name}
+        />
+        {raw(@after_form)}
+      </div>
+    </Layouts.app>
     """
   end
 
@@ -258,8 +282,7 @@ defmodule PavoiWeb.JoinLive do
       </div>
 
       <p class="join-consent-text">
-        By clicking "{@form_config["button_text"]}", you consent to receive SMS messages from Pavoi
-        at the phone number provided. Message frequency varies. Msg &amp; data rates may apply.
+        By clicking "{@form_config["button_text"]}", you consent to receive SMS messages from {@brand_name} at the phone number provided. Message frequency varies. Msg &amp; data rates may apply.
         Reply STOP to unsubscribe.
       </p>
 
@@ -272,89 +295,102 @@ defmodule PavoiWeb.JoinLive do
 
   defp render_error(assigns) do
     ~H"""
-    <div class="join-page join-page--error">
-      <div class="join-container">
-        <div class="join-header">
-          <span class="join-logo">PAVOI</span>
-        </div>
-        <div class="join-content">
-          <h1>Oops!</h1>
-          <p class="join-error-message">{@error}</p>
+    <Layouts.app
+      flash={@flash}
+      current_scope={@current_scope}
+      current_brand={@current_brand}
+      current_page={@current_page}
+    >
+      <div class="join-page join-page--error">
+        <div class="join-container">
+          <div class="join-header">
+            <span class="join-logo">{String.upcase(@brand_name)}</span>
+          </div>
+          <div class="join-content">
+            <h1>Oops!</h1>
+            <p class="join-error-message">{@error}</p>
+          </div>
         </div>
       </div>
-    </div>
+    </Layouts.app>
     """
   end
 
   defp render_form(assigns) do
     ~H"""
-    <div class="join-page">
-      <div class="join-container">
-        <div class="join-header">
-          <span class="join-logo">PAVOI</span>
-        </div>
-
-        <div class="join-content">
-          <h1>Join the Pavoi Creator Program</h1>
-
-          <div class="join-benefits">
-            <p>Get access to:</p>
-            <ul>
-              <li><strong>Free product samples</strong> shipped directly to you</li>
-              <li><strong>Competitive commissions</strong> on every sale from your content</li>
-              <li><strong>Early access</strong> to new drops before anyone else</li>
-              <li><strong>Direct support</strong> from our team for collabs and questions</li>
-            </ul>
+    <Layouts.app
+      flash={@flash}
+      current_scope={@current_scope}
+      current_brand={@current_brand}
+      current_page={@current_page}
+    >
+      <div class="join-page">
+        <div class="join-container">
+          <div class="join-header">
+            <span class="join-logo">{String.upcase(@brand_name)}</span>
           </div>
 
-          <div class="join-lark-info">
-            <p>
-              We use <strong>Lark</strong>
-              (a free messaging app by ByteDance, TikTok's parent company)
-              for our creator community. After submitting this form, you'll be redirected to join our Lark group.
-            </p>
+          <div class="join-content">
+            <h1>Join the {@brand_name} Creator Program</h1>
+
+            <div class="join-benefits">
+              <p>Get access to:</p>
+              <ul>
+                <li><strong>Free product samples</strong> shipped directly to you</li>
+                <li><strong>Competitive commissions</strong> on every sale from your content</li>
+                <li><strong>Early access</strong> to new drops before anyone else</li>
+                <li><strong>Direct support</strong> from our team for collabs and questions</li>
+              </ul>
+            </div>
+
+            <div class="join-lark-info">
+              <p>
+                We use <strong>Lark</strong>
+                (a free messaging app by ByteDance, TikTok's parent company)
+                for our creator community. After submitting this form, you'll be redirected to join our Lark group.
+              </p>
+            </div>
+
+            <form phx-submit="submit" phx-change="validate" class="join-form">
+              <div class="join-field">
+                <label for="email">Email</label>
+                <input
+                  type="email"
+                  id="email"
+                  value={@creator.email}
+                  readonly
+                  class="join-input join-input--readonly"
+                />
+              </div>
+
+              <div class="join-field">
+                <label for="phone">Phone Number</label>
+                <input
+                  type="tel"
+                  id="phone"
+                  name="phone"
+                  value={@phone}
+                  placeholder="(555) 123-4567"
+                  class={"join-input #{if @phone_error, do: "join-input--error"}"}
+                  required
+                  autofocus
+                />
+                <span :if={@phone_error} class="join-field-error">{@phone_error}</span>
+              </div>
+
+              <p class="join-consent-text">
+                By clicking "Join the Program", you consent to receive SMS messages from {@brand_name} at the phone number provided. Message frequency varies. Msg &amp; data rates may apply.
+                Reply STOP to unsubscribe.
+              </p>
+
+              <button type="submit" class="join-button" disabled={@submitting}>
+                {if @submitting, do: "Joining...", else: "JOIN THE PROGRAM"}
+              </button>
+            </form>
           </div>
-
-          <form phx-submit="submit" phx-change="validate" class="join-form">
-            <div class="join-field">
-              <label for="email">Email</label>
-              <input
-                type="email"
-                id="email"
-                value={@creator.email}
-                readonly
-                class="join-input join-input--readonly"
-              />
-            </div>
-
-            <div class="join-field">
-              <label for="phone">Phone Number</label>
-              <input
-                type="tel"
-                id="phone"
-                name="phone"
-                value={@phone}
-                placeholder="(555) 123-4567"
-                class={"join-input #{if @phone_error, do: "join-input--error"}"}
-                required
-                autofocus
-              />
-              <span :if={@phone_error} class="join-field-error">{@phone_error}</span>
-            </div>
-
-            <p class="join-consent-text">
-              By clicking "Join the Program", you consent to receive SMS messages from Pavoi
-              at the phone number provided. Message frequency varies. Msg &amp; data rates may apply.
-              Reply STOP to unsubscribe.
-            </p>
-
-            <button type="submit" class="join-button" disabled={@submitting}>
-              {if @submitting, do: "Joining...", else: "JOIN THE PROGRAM"}
-            </button>
-          </form>
         </div>
       </div>
-    </div>
+    </Layouts.app>
     """
   end
 end
