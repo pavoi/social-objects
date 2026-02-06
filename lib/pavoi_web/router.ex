@@ -1,6 +1,8 @@
 defmodule PavoiWeb.Router do
   use PavoiWeb, :router
 
+  import PavoiWeb.UserAuth
+
   # Custom CSP that allows GrapesJS template editor to function
   # The editor needs 'unsafe-inline' and 'unsafe-eval' for its canvas iframe
   # Also allows cdnjs.cloudflare.com for Font Awesome (used by newsletter plugin)
@@ -26,6 +28,7 @@ defmodule PavoiWeb.Router do
     plug :put_root_layout, html: {PavoiWeb.Layouts, :root}
     plug :protect_from_forgery
     plug :put_secure_browser_headers, @csp_header
+    plug :fetch_current_scope_for_user
   end
 
   pipeline :api do
@@ -35,20 +38,6 @@ defmodule PavoiWeb.Router do
   # Health check endpoint (no auth, no database)
   scope "/", PavoiWeb do
     get "/health", HealthController, :check
-  end
-
-  # Protected pipeline - requires password in production if SITE_PASSWORD env var is set
-  pipeline :protected do
-    plug PavoiWeb.Plugs.RequirePassword
-  end
-
-  # Authentication routes (not protected to avoid infinite redirect)
-  scope "/auth", PavoiWeb do
-    pipe_through :browser
-
-    get "/login", AuthController, :login
-    post "/authenticate", AuthController, :authenticate
-    get "/logout", AuthController, :logout
   end
 
   # TikTok Shop OAuth routes (not protected to allow callbacks)
@@ -76,53 +65,93 @@ defmodule PavoiWeb.Router do
   scope "/", PavoiWeb do
     pipe_through :browser
 
+    get "/invite/:token", UserInviteController, :accept
     get "/unsubscribe/:token", UnsubscribeController, :unsubscribe
     live "/join/:token", JoinLive, :index
     live "/share/:token", PublicProductSetLive, :index
   end
 
-  # Main application routes (protected in production)
+  # Root redirect (login or default brand)
   scope "/", PavoiWeb do
-    pipe_through [:browser, :protected]
+    pipe_through :browser
 
-    # Redirect root to readme/documentation page
-    get "/", Redirector, :redirect_to_readme
-
-    # Product Sets (merged sessions + products with tabs)
-    live "/product-sets", ProductSetsLive.Index
-    live "/product-sets/:id/host", ProductSetHostLive.Index
-    live "/product-sets/:id/controller", ProductSetControllerLive.Index
-
-    # Legacy redirects (for bookmarks)
-    get "/sessions", Redirector, :redirect_to_product_sets
-    get "/products", Redirector, :redirect_to_product_sets_products
-
-    # Creator CRM (includes outreach mode via ?view=outreach)
-    live "/creators", CreatorsLive.Index
-
-    # Email template editor (full-page GrapesJS)
-    live "/templates/new", TemplateEditorLive, :new
-    live "/templates/:id/edit", TemplateEditorLive, :edit
-
-    # TikTok Live stream data browser
-    live "/streams", TiktokLive.Index
-
-    # Documentation/directory page
-    live "/readme", ReadmeLive.Index
+    get "/", HomeController, :index
   end
 
-  # Other scopes may use custom stacks.
-  # scope "/api", PavoiWeb do
-  #   pipe_through :api
-  # end
+  # Brand-scoped application routes (authenticated)
+  scope "/", PavoiWeb do
+    pipe_through [:browser]
+
+    live_session :require_authenticated_user,
+      on_mount: [
+        {PavoiWeb.UserAuth, :require_authenticated},
+        {PavoiWeb.BrandAuth, :set_brand},
+        {PavoiWeb.BrandAuth, :require_brand_access}
+      ] do
+      # Default host (path-based)
+      scope "/b/:brand_slug" do
+        live "/product-sets", ProductSetsLive.Index
+        live "/product-sets/:id/host", ProductSetHostLive.Index
+        live "/product-sets/:id/controller", ProductSetControllerLive.Index
+        live "/creators", CreatorsLive.Index
+        live "/templates/new", TemplateEditorLive, :new
+        live "/templates/:id/edit", TemplateEditorLive, :edit
+        live "/streams", TiktokLive.Index
+        live "/readme", ReadmeLive.Index
+      end
+
+      # Custom domains (host-based)
+      scope "/" do
+        live "/product-sets", ProductSetsLive.Index
+        live "/product-sets/:id/host", ProductSetHostLive.Index
+        live "/product-sets/:id/controller", ProductSetControllerLive.Index
+        live "/creators", CreatorsLive.Index
+        live "/templates/new", TemplateEditorLive, :new
+        live "/templates/:id/edit", TemplateEditorLive, :edit
+        live "/streams", TiktokLive.Index
+        live "/readme", ReadmeLive.Index
+      end
+
+      live "/users/settings", UserLive.Settings, :edit
+      live "/users/settings/confirm-email/:token", UserLive.Settings, :confirm_email
+    end
+  end
+
+  # Platform admin routes (admin users only)
+  scope "/admin", PavoiWeb do
+    pipe_through [:browser]
+
+    live_session :require_admin,
+      layout: {PavoiWeb.Layouts, :app},
+      on_mount: [
+        {PavoiWeb.UserAuth, :require_authenticated},
+        {PavoiWeb.AdminAuth, :require_admin},
+        {PavoiWeb.NavHooks, :set_current_page}
+      ] do
+      live "/", AdminLive.Dashboard, :index
+      live "/brands", AdminLive.Brands, :index
+      live "/users", AdminLive.Users, :index
+      live "/invites", AdminLive.Invites, :index
+    end
+  end
+
+  # Legacy redirects for bookmarks
+  scope "/b/:brand_slug", PavoiWeb do
+    pipe_through [:browser, :require_authenticated_user]
+
+    get "/sessions", Redirector, :redirect_to_product_sets
+    get "/products", Redirector, :redirect_to_product_sets_products
+  end
+
+  scope "/", PavoiWeb do
+    pipe_through [:browser, :require_authenticated_user]
+
+    get "/sessions", Redirector, :redirect_to_product_sets
+    get "/products", Redirector, :redirect_to_product_sets_products
+  end
 
   # Enable LiveDashboard and Swoosh mailbox preview in development
   if Application.compile_env(:pavoi, :dev_routes) do
-    # If you want to use the LiveDashboard in production, you should put
-    # it behind authentication and allow only admins to access it.
-    # If your application does not have an admins-only section yet,
-    # you can use Plug.BasicAuth to set up some basic authentication
-    # as long as you are also using SSL (which you should anyway).
     import Phoenix.LiveDashboard.Router
 
     scope "/dev" do
@@ -131,5 +160,20 @@ defmodule PavoiWeb.Router do
       live_dashboard "/dashboard", metrics: PavoiWeb.Telemetry
       forward "/mailbox", Plug.Swoosh.MailboxPreview
     end
+  end
+
+  ## Authentication routes
+
+  scope "/", PavoiWeb do
+    pipe_through [:browser]
+
+    live_session :current_user,
+      on_mount: [{PavoiWeb.UserAuth, :mount_current_scope}] do
+      live "/users/log-in", UserLive.Login, :new
+      live "/users/log-in/:token", UserLive.Confirmation, :new
+    end
+
+    post "/users/log-in", UserSessionController, :create
+    delete "/users/log-out", UserSessionController, :delete
   end
 end
