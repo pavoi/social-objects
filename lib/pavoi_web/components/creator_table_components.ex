@@ -1053,7 +1053,12 @@ defmodule PavoiWeb.CreatorTableComponents do
     ~H"""
     <div class="contact-tab">
       <%= if @editing && @form do %>
-        <.form for={@form} phx-submit="save_contact" phx-change="validate_contact" class="flex flex-col gap-4">
+        <.form
+          for={@form}
+          phx-submit="save_contact"
+          phx-change="validate_contact"
+          class="flex flex-col gap-4"
+        >
           <div class="contact-form-grid">
             <.input field={@form[:email]} type="email" label="Email" />
             <.input field={@form[:phone]} type="tel" label="Phone" />
