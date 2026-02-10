@@ -26,6 +26,7 @@ defmodule SocialObjectsWeb.CoreComponents do
   alias Phoenix.HTML.{Form, FormField}
   alias Phoenix.LiveView.JS
 
+  import SocialObjectsWeb.BrandPermissions
   import SocialObjectsWeb.ThemeComponents
 
   # Verified routes for navigation
@@ -611,7 +612,7 @@ defmodule SocialObjectsWeb.CoreComponents do
                 <% end %>
               </form>
             <% end %>
-            <%= if @current_page == :products do %>
+            <%= if @current_page == :products and can_edit?(assigns) do %>
               <div class="navbar__sync-group">
                 <.button
                   variant="primary"
@@ -645,7 +646,7 @@ defmodule SocialObjectsWeb.CoreComponents do
                 </div>
               </div>
             <% end %>
-            <%= if @current_page == :creators do %>
+            <%= if @current_page == :creators and can_edit?(assigns) do %>
               <div class="navbar__sync-group">
                 <.button
                   variant="primary"
@@ -695,7 +696,7 @@ defmodule SocialObjectsWeb.CoreComponents do
                 </div>
               </div>
             <% end %>
-            <%= if @current_page == :videos do %>
+            <%= if @current_page == :videos and can_edit?(assigns) do %>
               <div class="navbar__sync-group">
                 <.button
                   variant="primary"
@@ -713,7 +714,7 @@ defmodule SocialObjectsWeb.CoreComponents do
                 </div>
               </div>
             <% end %>
-            <%= if @current_page == :shop_analytics do %>
+            <%= if @current_page == :shop_analytics and can_edit?(assigns) do %>
               <div class="navbar__sync-group">
                 <.button
                   variant="primary"
