@@ -28,6 +28,7 @@ defmodule Pavoi.Workers.VideoSyncWorker do
   alias Pavoi.Creators
   alias Pavoi.Settings
   alias Pavoi.TiktokShop.Analytics
+  alias Pavoi.TiktokShop.OEmbed
   alias Pavoi.TiktokShop.Parsers
 
   @doc """
@@ -79,6 +80,8 @@ defmodule Pavoi.Workers.VideoSyncWorker do
     case fetch_all_videos(brand_id, start_date, end_date) do
       {:ok, videos} ->
         stats = process_videos(brand_id, videos)
+        # Fetch thumbnails for videos missing them (non-blocking, errors are logged)
+        fetch_missing_thumbnails(brand_id)
         {:ok, stats}
 
       {:error, :rate_limited} ->
@@ -255,6 +258,35 @@ defmodule Pavoi.Workers.VideoSyncWorker do
       local_product = Catalog.get_product_by_tiktok_product_id(brand_id, tiktok_product_id)
       product_id = if local_product, do: local_product.id, else: nil
       Creators.add_product_to_video(video_id, product_id, tiktok_product_id)
+    end
+  end
+
+  # Fetches thumbnails for videos that don't have them yet via oEmbed API
+  defp fetch_missing_thumbnails(brand_id) do
+    videos = Creators.list_videos_without_thumbnails(brand_id)
+
+    thumbnails_fetched =
+      Enum.reduce(videos, 0, fn video, count ->
+        case OEmbed.fetch(video.video_url) do
+          {:ok, %{thumbnail_url: url}} when is_binary(url) and url != "" ->
+            Creators.update_video_thumbnail(video, url)
+            count + 1
+
+          {:error, reason} ->
+            Logger.debug("Failed to fetch thumbnail for video #{video.id}: #{inspect(reason)}")
+            count
+
+          _ ->
+            count
+        end
+        |> tap(fn _ ->
+          # Rate limit: 100ms between requests to avoid hitting TikTok limits
+          Process.sleep(100)
+        end)
+      end)
+
+    if thumbnails_fetched > 0 do
+      Logger.info("Fetched #{thumbnails_fetched} video thumbnails for brand #{brand_id}")
     end
   end
 end

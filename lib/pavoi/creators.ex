@@ -964,6 +964,29 @@ defmodule Pavoi.Creators do
   end
 
   @doc """
+  Updates a video's thumbnail URL.
+  """
+  def update_video_thumbnail(%CreatorVideo{} = video, thumbnail_url) do
+    video
+    |> Ecto.Changeset.change(%{thumbnail_url: thumbnail_url})
+    |> Repo.update()
+  end
+
+  @doc """
+  Lists videos that don't have thumbnails yet.
+  Used by VideoSyncWorker to fetch missing thumbnails.
+  """
+  def list_videos_without_thumbnails(brand_id, limit \\ 50) do
+    from(v in CreatorVideo,
+      where: v.brand_id == ^brand_id,
+      where: is_nil(v.thumbnail_url),
+      where: not is_nil(v.video_url),
+      limit: ^limit
+    )
+    |> Repo.all()
+  end
+
+  @doc """
   Batch gets last video posted_at for multiple creators.
   Returns a map of creator_id => last_video_at (DateTime or nil).
   """
@@ -1011,7 +1034,28 @@ defmodule Pavoi.Creators do
       from(v in CreatorVideo,
         where: v.brand_id == ^brand_id,
         join: c in assoc(v, :creator),
-        preload: [creator: c]
+        # Only select fields needed for video card display to reduce payload size
+        select: %{
+          id: v.id,
+          thumbnail_url: v.thumbnail_url,
+          duration: v.duration,
+          title: v.title,
+          gmv_cents: v.gmv_cents,
+          gpm_cents: v.gpm_cents,
+          impressions: v.impressions,
+          ctr: v.ctr,
+          posted_at: v.posted_at,
+          items_sold: v.items_sold,
+          tiktok_video_id: v.tiktok_video_id,
+          video_url: v.video_url,
+          creator: %{
+            id: c.id,
+            tiktok_username: c.tiktok_username,
+            tiktok_avatar_url: c.tiktok_avatar_url,
+            tiktok_avatar_storage_key: c.tiktok_avatar_storage_key,
+            tiktok_nickname: c.tiktok_nickname
+          }
+        }
       )
       |> apply_video_search_filter(Keyword.get(opts, :search_query, ""))
       |> apply_video_min_gmv_filter(Keyword.get(opts, :min_gmv))
@@ -1022,21 +1066,57 @@ defmodule Pavoi.Creators do
       )
       |> apply_video_hashtag_filter(Keyword.get(opts, :hashtags))
 
-    total = Repo.aggregate(query, :count)
+    # Only compute expensive count for non-search queries (initial load)
+    # For search, use LIMIT+1 trick to determine has_more without counting all rows
+    search_query = Keyword.get(opts, :search_query, "")
+    skip_count = search_query != "" and search_query != nil
 
+    # Fetch one extra row to determine if there are more results
     videos =
       query
       |> apply_video_sort(sort_by, sort_dir)
-      |> limit(^per_page)
+      |> limit(^(per_page + 1))
       |> offset(^((page - 1) * per_page))
       |> Repo.all()
+
+    has_more = length(videos) > per_page
+    videos = Enum.take(videos, per_page)
+
+    total =
+      if skip_count do
+        # For search queries, estimate based on current page
+        # This avoids the expensive COUNT query during typing
+        if has_more do
+          # We know there are at least this many
+          page * per_page + 1
+        else
+          (page - 1) * per_page + length(videos)
+        end
+      else
+        # Build count query without select clause
+        count_query =
+          from(v in CreatorVideo,
+            where: v.brand_id == ^brand_id,
+            join: c in assoc(v, :creator)
+          )
+          |> apply_video_search_filter(Keyword.get(opts, :search_query, ""))
+          |> apply_video_min_gmv_filter(Keyword.get(opts, :min_gmv))
+          |> apply_video_creator_filter(Keyword.get(opts, :creator_id))
+          |> apply_video_date_filter(
+            Keyword.get(opts, :posted_after),
+            Keyword.get(opts, :posted_before)
+          )
+          |> apply_video_hashtag_filter(Keyword.get(opts, :hashtags))
+
+        Repo.aggregate(count_query, :count)
+      end
 
     %{
       videos: videos,
       total: total,
       page: page,
       per_page: per_page,
-      has_more: total > page * per_page
+      has_more: has_more
     }
   end
 

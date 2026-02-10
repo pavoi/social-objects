@@ -38,6 +38,9 @@ defmodule Pavoi.Creators.CreatorVideo do
     field :duration, :integer
     field :hash_tags, {:array, :string}, default: []
 
+    # Thumbnail for embed display
+    field :thumbnail_url, :string
+
     # Sample fulfillment - which sample this video fulfilled
     belongs_to :attributed_sample, Pavoi.Creators.CreatorSample
 
@@ -68,7 +71,8 @@ defmodule Pavoi.Creators.CreatorVideo do
       :attributed_sample_id,
       :gpm_cents,
       :duration,
-      :hash_tags
+      :hash_tags,
+      :thumbnail_url
     ])
     |> validate_required([:brand_id, :creator_id, :tiktok_video_id])
     |> unique_constraint(:tiktok_video_id)
