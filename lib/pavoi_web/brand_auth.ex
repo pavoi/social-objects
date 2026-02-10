@@ -11,9 +11,9 @@ defmodule PavoiWeb.BrandAuth do
   alias Pavoi.Catalog.Brand
 
   @brand_scoped_views MapSet.new([
-                        PavoiWeb.ProductSetsLive.Index,
-                        PavoiWeb.ProductSetHostLive.Index,
-                        PavoiWeb.ProductSetControllerLive.Index,
+                        PavoiWeb.ProductsLive.Index,
+                        PavoiWeb.ProductHostLive.Index,
+                        PavoiWeb.ProductControllerLive.Index,
                         PavoiWeb.CreatorsLive.Index,
                         PavoiWeb.VideosLive.Index,
                         PavoiWeb.TemplateEditorLive,

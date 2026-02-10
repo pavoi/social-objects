@@ -1,4 +1,4 @@
-defmodule PavoiWeb.ProductSetHostLive.Index do
+defmodule PavoiWeb.ProductHostLive.Index do
   @moduledoc """
   Host view for displaying product information during live streaming.
   This view supports the same keyboard shortcuts as the controller view and displays:
@@ -90,7 +90,7 @@ defmodule PavoiWeb.ProductSetHostLive.Index do
             to:
               BrandRoutes.brand_path(
                 socket.assigns.current_brand,
-                "/product-sets/#{socket.assigns.product_set_id}/host?sp=#{new_state.current_product_set_product_id}&img=0",
+                "/products/#{socket.assigns.product_set_id}/host?sp=#{new_state.current_product_set_product_id}&img=0",
                 socket.assigns.current_host
               )
           )
@@ -112,7 +112,7 @@ defmodule PavoiWeb.ProductSetHostLive.Index do
             to:
               BrandRoutes.brand_path(
                 socket.assigns.current_brand,
-                "/product-sets/#{socket.assigns.product_set_id}/host?sp=#{new_state.current_product_set_product_id}&img=#{new_state.current_image_index}",
+                "/products/#{socket.assigns.product_set_id}/host?sp=#{new_state.current_product_set_product_id}&img=#{new_state.current_image_index}",
                 socket.assigns.current_host
               )
           )
@@ -133,7 +133,7 @@ defmodule PavoiWeb.ProductSetHostLive.Index do
             to:
               BrandRoutes.brand_path(
                 socket.assigns.current_brand,
-                "/product-sets/#{socket.assigns.product_set_id}/host?sp=#{new_state.current_product_set_product_id}&img=#{new_state.current_image_index}",
+                "/products/#{socket.assigns.product_set_id}/host?sp=#{new_state.current_product_set_product_id}&img=#{new_state.current_image_index}",
                 socket.assigns.current_host
               )
           )
@@ -203,7 +203,7 @@ defmodule PavoiWeb.ProductSetHostLive.Index do
             to:
               BrandRoutes.brand_path(
                 socket.assigns.current_brand,
-                "/product-sets/#{socket.assigns.product_set_id}/host?sp=#{new_state.current_product_set_product_id}&img=0",
+                "/products/#{socket.assigns.product_set_id}/host?sp=#{new_state.current_product_set_product_id}&img=0",
                 socket.assigns.current_host
               )
           )
@@ -225,7 +225,7 @@ defmodule PavoiWeb.ProductSetHostLive.Index do
             to:
               BrandRoutes.brand_path(
                 socket.assigns.current_brand,
-                "/product-sets/#{socket.assigns.product_set_id}/host?sp=#{new_state.current_product_set_product_id}&img=0",
+                "/products/#{socket.assigns.product_set_id}/host?sp=#{new_state.current_product_set_product_id}&img=0",
                 socket.assigns.current_host
               )
           )
@@ -249,7 +249,7 @@ defmodule PavoiWeb.ProductSetHostLive.Index do
             to:
               BrandRoutes.brand_path(
                 socket.assigns.current_brand,
-                "/product-sets/#{socket.assigns.product_set_id}/host?sp=#{new_state.current_product_set_product_id}&img=0",
+                "/products/#{socket.assigns.product_set_id}/host?sp=#{new_state.current_product_set_product_id}&img=0",
                 socket.assigns.current_host
               )
           )

@@ -1,4 +1,4 @@
-defmodule PavoiWeb.ProductSetControllerLive.Index do
+defmodule PavoiWeb.ProductControllerLive.Index do
   @moduledoc """
   Compact controller view for mobile/tablet product set management.
   Optimized for touch-based product navigation with:

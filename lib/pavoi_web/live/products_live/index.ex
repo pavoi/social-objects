@@ -1,4 +1,4 @@
-defmodule PavoiWeb.ProductSetsLive.Index do
+defmodule PavoiWeb.ProductsLive.Index do
   @moduledoc """
   Live view for managing sessions and their products.
 
@@ -416,7 +416,7 @@ defmodule PavoiWeb.ProductSetsLive.Index do
       {:noreply, socket}
     else
       # Close expanded product set on Escape by removing query param
-      {:noreply, push_patch(socket, to: product_sets_path(socket))}
+      {:noreply, push_patch(socket, to: products_path(socket))}
     end
   end
 
@@ -445,7 +445,7 @@ defmodule PavoiWeb.ProductSetsLive.Index do
         end
       end
 
-    {:noreply, push_patch(socket, to: product_sets_path(socket, query_params))}
+    {:noreply, push_patch(socket, to: products_path(socket, query_params))}
   end
 
   @impl true
@@ -488,7 +488,7 @@ defmodule PavoiWeb.ProductSetsLive.Index do
         query_params
       end
 
-    {:noreply, push_patch(socket, to: product_sets_path(socket, query_params))}
+    {:noreply, push_patch(socket, to: products_path(socket, query_params))}
   end
 
   @impl true
@@ -574,7 +574,7 @@ defmodule PavoiWeb.ProductSetsLive.Index do
         params
       end
 
-    {:noreply, push_patch(socket, to: product_sets_path(socket, params))}
+    {:noreply, push_patch(socket, to: products_path(socket, params))}
   end
 
   @impl true
@@ -582,8 +582,8 @@ defmodule PavoiWeb.ProductSetsLive.Index do
     # Preserve expanded session in URL when closing new session modal
     path =
       case socket.assigns.expanded_product_set_id do
-        nil -> product_sets_path(socket)
-        session_id -> product_sets_path(socket, %{s: session_id})
+        nil -> products_path(socket)
+        session_id -> products_path(socket, %{s: session_id})
       end
 
     socket =
@@ -656,8 +656,8 @@ defmodule PavoiWeb.ProductSetsLive.Index do
         # Remove "new" param from URL, preserve expanded session if any
         path =
           case expanded_id do
-            nil -> product_sets_path(socket)
-            session_id -> product_sets_path(socket, %{s: session_id})
+            nil -> products_path(socket)
+            session_id -> products_path(socket, %{s: session_id})
           end
 
         socket =
@@ -980,8 +980,8 @@ defmodule PavoiWeb.ProductSetsLive.Index do
         # Update URL based on whether we cleared the expanded session
         path =
           case expanded_id do
-            nil -> product_sets_path(socket)
-            id -> product_sets_path(socket, %{s: id})
+            nil -> products_path(socket)
+            id -> products_path(socket, %{s: id})
           end
 
         socket =
@@ -1009,7 +1009,7 @@ defmodule PavoiWeb.ProductSetsLive.Index do
     case ProductSets.duplicate_product_set(socket.assigns.brand_id, session_id) do
       {:ok, new_product_set} ->
         # Build URL to expand the newly created session
-        path = product_sets_path(socket, %{s: new_product_set.id})
+        path = products_path(socket, %{s: new_product_set.id})
 
         # Prepare edit modal for the duplicated session
         changeset = ProductSet.changeset(new_product_set, %{})
@@ -1109,7 +1109,7 @@ defmodule PavoiWeb.ProductSetsLive.Index do
           |> maybe_add_param(:sort, socket.assigns.browse_product_sort_by)
           |> maybe_add_param(:platform, socket.assigns.platform_filter)
 
-        push_patch(socket, to: product_sets_path(socket, query_params))
+        push_patch(socket, to: products_path(socket, query_params))
       else
         socket
       end
@@ -1166,8 +1166,8 @@ defmodule PavoiWeb.ProductSetsLive.Index do
     # Preserve expanded session in URL when closing edit modal
     path =
       case socket.assigns.expanded_product_set_id do
-        nil -> product_sets_path(socket)
-        session_id -> product_sets_path(socket, %{s: session_id})
+        nil -> products_path(socket)
+        session_id -> products_path(socket, %{s: session_id})
       end
 
     socket =
@@ -1506,7 +1506,7 @@ defmodule PavoiWeb.ProductSetsLive.Index do
   @impl true
   def handle_event("change_page_tab", %{"tab" => tab}, socket) do
     params = build_tab_query_params(socket, page_tab: tab)
-    {:noreply, push_patch(socket, to: product_sets_path(socket, params))}
+    {:noreply, push_patch(socket, to: products_path(socket, params))}
   end
 
   # =============================================================================
@@ -1523,7 +1523,7 @@ defmodule PavoiWeb.ProductSetsLive.Index do
       |> maybe_add_param(:sort, socket.assigns.browse_product_sort_by)
       |> maybe_add_param(:platform, socket.assigns.platform_filter)
 
-    {:noreply, push_patch(socket, to: product_sets_path(socket, query_params))}
+    {:noreply, push_patch(socket, to: products_path(socket, query_params))}
   end
 
   @impl true
@@ -1534,7 +1534,7 @@ defmodule PavoiWeb.ProductSetsLive.Index do
       |> maybe_add_param(:sort, sort_by)
       |> maybe_add_param(:platform, socket.assigns.platform_filter)
 
-    {:noreply, push_patch(socket, to: product_sets_path(socket, query_params))}
+    {:noreply, push_patch(socket, to: products_path(socket, query_params))}
   end
 
   @impl true
@@ -1545,7 +1545,7 @@ defmodule PavoiWeb.ProductSetsLive.Index do
       |> maybe_add_param(:sort, socket.assigns.browse_product_sort_by)
       |> maybe_add_param(:platform, platform)
 
-    {:noreply, push_patch(socket, to: product_sets_path(socket, query_params))}
+    {:noreply, push_patch(socket, to: products_path(socket, query_params))}
   end
 
   @impl true
@@ -1566,7 +1566,7 @@ defmodule PavoiWeb.ProductSetsLive.Index do
       |> maybe_add_param(:sort, socket.assigns.browse_product_sort_by)
       |> maybe_add_param(:platform, socket.assigns.platform_filter)
 
-    {:noreply, push_patch(socket, to: product_sets_path(socket, query_params))}
+    {:noreply, push_patch(socket, to: products_path(socket, query_params))}
   end
 
   @impl true
@@ -1582,7 +1582,7 @@ defmodule PavoiWeb.ProductSetsLive.Index do
       |> assign(:editing_product, nil)
       |> assign(:product_edit_form, to_form(Product.changeset(%Product{}, %{})))
       |> assign(:current_image_index, 0)
-      |> push_patch(to: product_sets_path(socket, query_params))
+      |> push_patch(to: products_path(socket, query_params))
 
     {:noreply, socket}
   end
@@ -2293,20 +2293,20 @@ defmodule PavoiWeb.ProductSetsLive.Index do
     )
   end
 
-  defp product_sets_path(socket, params \\ "")
+  defp products_path(socket, params \\ "")
 
-  defp product_sets_path(socket, params) when is_map(params) do
-    build_product_sets_path(socket, query_suffix(params))
+  defp products_path(socket, params) when is_map(params) do
+    build_products_path(socket, query_suffix(params))
   end
 
-  defp product_sets_path(socket, params) when is_binary(params) do
-    build_product_sets_path(socket, params)
+  defp products_path(socket, params) when is_binary(params) do
+    build_products_path(socket, params)
   end
 
-  defp build_product_sets_path(socket, suffix) do
+  defp build_products_path(socket, suffix) do
     BrandRoutes.brand_path(
       socket.assigns.current_brand,
-      "/product-sets#{suffix}",
+      "/products#{suffix}",
       socket.assigns.current_host
     )
   end
