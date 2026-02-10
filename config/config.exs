@@ -68,7 +68,16 @@ config :pavoi, Oban,
     # Rescue jobs stuck in "executing" state after deploy/crash (check every 30s, rescue after 60s)
     {Oban.Plugins.Lifeline, rescue_after: :timer.seconds(60)}
   ],
-  queues: [default: 10, shopify: 5, tiktok: 5, creators: 5, bigquery: 3, enrichment: 2, slack: 3]
+  queues: [
+    default: 10,
+    shopify: 5,
+    tiktok: 5,
+    creators: 5,
+    bigquery: 3,
+    enrichment: 2,
+    slack: 3,
+    analytics: 3
+  ]
 
 # TikTok Live stream capture configuration
 config :pavoi, :tiktok_live_monitor, accounts: []

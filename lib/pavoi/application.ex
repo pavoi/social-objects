@@ -19,6 +19,8 @@ defmodule Pavoi.Application do
       {Finch, name: Pavoi.Finch},
       # Registry for TikTok Live stream connections and event handlers
       {Registry, keys: :unique, name: Pavoi.TiktokLive.Registry},
+      # Cache for TikTok Shop Analytics API responses
+      Pavoi.TiktokShop.AnalyticsCache,
       # Start Oban for background job processing
       {Oban, Application.fetch_env!(:pavoi, Oban)},
       # Start to serve requests - in dev, this also starts the TikTok Bridge watcher

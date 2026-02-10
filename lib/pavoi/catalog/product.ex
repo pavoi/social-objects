@@ -53,6 +53,12 @@ defmodule Pavoi.Catalog.Product do
     field :archived_at, :utc_datetime
     field :archive_reason, :string
 
+    # TikTok performance metrics (from Analytics API)
+    field :gmv_cents, :integer, default: 0
+    field :items_sold, :integer, default: 0
+    field :orders, :integer, default: 0
+    field :performance_synced_at, :utc_datetime
+
     belongs_to :brand, Pavoi.Catalog.Brand
     has_many :product_images, Pavoi.Catalog.ProductImage, preload_order: [asc: :position]
     has_many :product_variants, Pavoi.Catalog.ProductVariant, preload_order: [asc: :position]
@@ -164,4 +170,14 @@ defmodule Pavoi.Catalog.Product do
   """
   def archived?(%__MODULE__{archived_at: nil}), do: false
   def archived?(%__MODULE__{archived_at: _}), do: true
+
+  @doc """
+  Changeset for updating TikTok performance metrics.
+
+  Used by ProductPerformanceSyncWorker to update GMV, items sold, and orders.
+  """
+  def performance_changeset(product, attrs) do
+    product
+    |> cast(attrs, [:gmv_cents, :items_sold, :orders, :performance_synced_at])
+  end
 end

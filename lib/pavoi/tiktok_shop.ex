@@ -315,8 +315,12 @@ defmodule Pavoi.TiktokShop do
     sign = generate_signature(path, all_params, body_string)
     all_params = Map.put(all_params, :sign, sign)
 
-    # Build headers with access token
-    headers = [{"x-tts-access-token", auth.access_token}]
+    # Build headers with access token and content-type
+    # Note: Content-Type is required even for GET requests on some analytics endpoints
+    headers = [
+      {"Content-Type", "application/json"},
+      {"x-tts-access-token", auth.access_token}
+    ]
 
     {all_params, body_string, headers}
   end
@@ -336,15 +340,12 @@ defmodule Pavoi.TiktokShop do
   end
 
   defp execute_post_request(url, all_params, body_string, headers) do
-    # Add Content-Type header and send pre-encoded JSON body
-    post_headers = [{"Content-Type", "application/json"} | headers]
-
     # Build URL with query parameters manually
     query_string = URI.encode_query(all_params)
     full_url = "#{url}?#{query_string}"
 
     full_url
-    |> Req.post(body: body_string, headers: post_headers)
+    |> Req.post(body: body_string, headers: headers)
     |> handle_response()
   end
 

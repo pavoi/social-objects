@@ -32,6 +32,23 @@ defmodule Pavoi.TiktokLive.Stream do
     field :report_sent_at, :utc_datetime
     field :sentiment_analysis, :string
 
+    # TikTok Shop Analytics API fields
+    field :tiktok_live_id, :string
+    field :official_gmv_cents, :integer
+    field :gmv_24h_cents, :integer
+    field :avg_view_duration_seconds, :integer
+    field :product_impressions, :integer
+    field :product_clicks, :integer
+    field :unique_customers, :integer
+    field :conversion_rate, :decimal
+    field :analytics_synced_at, :utc_datetime
+
+    # Per-minute time-series data and additional metrics
+    field :analytics_per_minute, :map
+    field :total_views, :integer
+    field :items_sold, :integer
+    field :click_through_rate, :decimal
+
     belongs_to :brand, Pavoi.Catalog.Brand
     belongs_to :product_set, Pavoi.ProductSets.ProductSet
 
@@ -67,7 +84,20 @@ defmodule Pavoi.TiktokLive.Stream do
       :gmv_order_count,
       :gmv_hourly,
       :product_set_id,
-      :sentiment_analysis
+      :sentiment_analysis,
+      :tiktok_live_id,
+      :official_gmv_cents,
+      :gmv_24h_cents,
+      :avg_view_duration_seconds,
+      :product_impressions,
+      :product_clicks,
+      :unique_customers,
+      :conversion_rate,
+      :analytics_synced_at,
+      :analytics_per_minute,
+      :total_views,
+      :items_sold,
+      :click_through_rate
     ])
     |> validate_required([:brand_id, :room_id, :unique_id, :started_at])
     |> foreign_key_constraint(:product_set_id)

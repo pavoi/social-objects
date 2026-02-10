@@ -39,7 +39,15 @@ config :pavoi, Oban,
        # Enrich creator profiles from TikTok Marketplace API every 30 minutes
        # Small batches (75) complete quickly, avoiding rate limits
        # 48 runs/day × 75 = 3600 creators/day (with margin for rate limit pauses)
-       {"*/30 * * * *", Pavoi.Workers.BrandCronWorker, args: %{task: "creator_enrichment"}}
+       {"*/30 * * * *", Pavoi.Workers.BrandCronWorker, args: %{task: "creator_enrichment"}},
+       # Sync TikTok Shop Analytics data to streams every 6 hours
+       {"0 */6 * * *", Pavoi.Workers.BrandCronWorker, args: %{task: "stream_analytics_sync"}},
+       # Sync video performance data daily at 4am UTC
+       {"0 4 * * *", Pavoi.Workers.BrandCronWorker, args: %{task: "video_sync"}},
+       # Sync product performance data daily at 5am UTC (after video sync)
+       {"0 5 * * *", Pavoi.Workers.BrandCronWorker, args: %{task: "product_performance_sync"}},
+       # Weekly stream recap every Friday at 3 PM PST (11 PM UTC)
+       {"0 23 * * 5", Pavoi.Workers.BrandCronWorker, args: %{task: "weekly_stream_recap"}}
      ]}
   ]
 

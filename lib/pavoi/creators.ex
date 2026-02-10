@@ -298,6 +298,7 @@ defmodule Pavoi.Creators do
     do: order_by(query, [c], asc_nulls_last: c.total_videos)
 
   # Note: videos_posted and commission are computed from creator_videos table via subquery
+  # Uses named bindings (as:) to avoid conflicts with other joins in the query
   defp apply_creator_sort(query, "videos_posted", dir, brand_id) do
     video_counts =
       CreatorVideo
@@ -306,8 +307,11 @@ defmodule Pavoi.Creators do
       |> select([cv], %{creator_id: cv.creator_id, count: count(cv.id)})
 
     query
-    |> join(:left, [c], vc in subquery(video_counts), on: vc.creator_id == c.id)
-    |> order_by([c, vc], [{^sort_dir_atom(dir), coalesce(vc.count, 0)}])
+    |> join(:left, [c], vc in subquery(video_counts),
+      on: vc.creator_id == c.id,
+      as: :video_counts
+    )
+    |> order_by([video_counts: vc], [{^sort_dir_atom(dir), coalesce(vc.count, 0)}])
   end
 
   defp apply_creator_sort(query, "commission", dir, brand_id) do
@@ -321,8 +325,11 @@ defmodule Pavoi.Creators do
       })
 
     query
-    |> join(:left, [c], cs in subquery(commission_sums), on: cs.creator_id == c.id)
-    |> order_by([c, cs], [{^sort_dir_atom(dir), coalesce(cs.total, 0)}])
+    |> join(:left, [c], cs in subquery(commission_sums),
+      on: cs.creator_id == c.id,
+      as: :commission_sums
+    )
+    |> order_by([commission_sums: cs], [{^sort_dir_atom(dir), coalesce(cs.total, 0)}])
   end
 
   defp apply_creator_sort(query, "name", "asc", _brand_id),
@@ -351,8 +358,11 @@ defmodule Pavoi.Creators do
       |> select([cs], %{creator_id: cs.creator_id, count: count(cs.id)})
 
     query
-    |> join(:left, [c], sc in subquery(sample_counts), on: sc.creator_id == c.id)
-    |> order_by([c, sc], [{^sort_dir_atom(dir), coalesce(sc.count, 0)}])
+    |> join(:left, [c], sc in subquery(sample_counts),
+      on: sc.creator_id == c.id,
+      as: :sample_counts
+    )
+    |> order_by([sample_counts: sc], [{^sort_dir_atom(dir), coalesce(sc.count, 0)}])
   end
 
   defp apply_creator_sort(query, "last_sample", dir, brand_id) do
@@ -363,8 +373,11 @@ defmodule Pavoi.Creators do
       |> select([cs], %{creator_id: cs.creator_id, last_at: max(cs.ordered_at)})
 
     query
-    |> join(:left, [c], ls in subquery(last_sample_dates), on: ls.creator_id == c.id)
-    |> order_by([c, ls], [{^sort_dir_nulls_last(dir), ls.last_at}])
+    |> join(:left, [c], ls in subquery(last_sample_dates),
+      on: ls.creator_id == c.id,
+      as: :last_sample
+    )
+    |> order_by([last_sample: ls], [{^sort_dir_nulls_last(dir), ls.last_at}])
   end
 
   defp apply_creator_sort(query, _, _, _brand_id),
@@ -922,6 +935,216 @@ defmodule Pavoi.Creators do
       |> Map.new()
     end
   end
+
+  @doc """
+  Updates an existing creator video record.
+  """
+  def update_creator_video(%CreatorVideo{} = video, attrs) do
+    video
+    |> CreatorVideo.changeset(attrs)
+    |> Repo.update()
+  end
+
+  @doc """
+  Upserts a video by TikTok video ID.
+
+  If a video with the given tiktok_video_id exists for the brand, updates it.
+  Otherwise, creates a new video record.
+
+  Returns `{:ok, video}` or `{:error, changeset}`.
+  """
+  def upsert_video_by_tiktok_id(brand_id, tiktok_video_id, attrs) do
+    case get_video_by_tiktok_id(tiktok_video_id) do
+      nil ->
+        create_creator_video(brand_id, Map.put(attrs, :tiktok_video_id, tiktok_video_id))
+
+      existing ->
+        update_creator_video(existing, attrs)
+    end
+  end
+
+  @doc """
+  Batch gets last video posted_at for multiple creators.
+  Returns a map of creator_id => last_video_at (DateTime or nil).
+  """
+  def batch_get_last_video_at(brand_id, creator_ids) when is_list(creator_ids) do
+    if creator_ids == [] do
+      %{}
+    else
+      from(cv in CreatorVideo,
+        where: cv.brand_id == ^brand_id and cv.creator_id in ^creator_ids,
+        group_by: cv.creator_id,
+        select: {cv.creator_id, max(cv.posted_at)}
+      )
+      |> Repo.all()
+      |> Map.new()
+    end
+  end
+
+  @doc """
+  Searches and paginates videos with optional filters.
+
+  ## Options
+    - brand_id: Filter by brand (required)
+    - search_query: Search by title, creator username, or hashtags
+    - creator_id: Filter by specific creator
+    - min_gmv: Minimum GMV in cents
+    - posted_after: Filter videos posted after date
+    - posted_before: Filter videos posted before date
+    - hashtags: List of hashtags to filter by
+    - sort_by: Column to sort (gmv, gpm, views, ctr, items_sold, posted_at)
+    - sort_dir: "asc" or "desc" (default: "desc")
+    - page: Page number (default: 1)
+    - per_page: Items per page (default: 24)
+
+  ## Returns
+    A map with videos, total, page, per_page, has_more
+  """
+  def search_videos_paginated(opts \\ []) do
+    page = Keyword.get(opts, :page, 1)
+    per_page = Keyword.get(opts, :per_page, 24)
+    sort_by = Keyword.get(opts, :sort_by, "gmv")
+    sort_dir = Keyword.get(opts, :sort_dir, "desc")
+    brand_id = Keyword.get(opts, :brand_id)
+
+    query =
+      from(v in CreatorVideo,
+        where: v.brand_id == ^brand_id,
+        join: c in assoc(v, :creator),
+        preload: [creator: c]
+      )
+      |> apply_video_search_filter(Keyword.get(opts, :search_query, ""))
+      |> apply_video_min_gmv_filter(Keyword.get(opts, :min_gmv))
+      |> apply_video_creator_filter(Keyword.get(opts, :creator_id))
+      |> apply_video_date_filter(
+        Keyword.get(opts, :posted_after),
+        Keyword.get(opts, :posted_before)
+      )
+      |> apply_video_hashtag_filter(Keyword.get(opts, :hashtags))
+
+    total = Repo.aggregate(query, :count)
+
+    videos =
+      query
+      |> apply_video_sort(sort_by, sort_dir)
+      |> limit(^per_page)
+      |> offset(^((page - 1) * per_page))
+      |> Repo.all()
+
+    %{
+      videos: videos,
+      total: total,
+      page: page,
+      per_page: per_page,
+      has_more: total > page * per_page
+    }
+  end
+
+  @doc """
+  Lists creators who have at least one video for a brand.
+  Returns list of maps with id and tiktok_username.
+  """
+  def list_creators_with_videos(brand_id) do
+    from(c in Creator,
+      join: v in CreatorVideo,
+      on: v.creator_id == c.id and v.brand_id == ^brand_id,
+      distinct: true,
+      select: %{id: c.id, tiktok_username: c.tiktok_username},
+      order_by: [asc: c.tiktok_username]
+    )
+    |> Repo.all()
+  end
+
+  # Video search filter helpers
+  defp apply_video_search_filter(query, ""), do: query
+  defp apply_video_search_filter(query, nil), do: query
+
+  defp apply_video_search_filter(query, search_query) do
+    pattern = "%#{search_query}%"
+
+    from([v, c] in query,
+      where:
+        ilike(v.title, ^pattern) or
+          ilike(c.tiktok_username, ^pattern) or
+          fragment(
+            "EXISTS (SELECT 1 FROM unnest(?) AS tag WHERE tag ILIKE ?)",
+            v.hash_tags,
+            ^pattern
+          )
+    )
+  end
+
+  defp apply_video_min_gmv_filter(query, nil), do: query
+  defp apply_video_min_gmv_filter(query, 0), do: query
+
+  defp apply_video_min_gmv_filter(query, min_gmv) when is_integer(min_gmv) do
+    where(query, [v], v.gmv_cents >= ^min_gmv)
+  end
+
+  defp apply_video_creator_filter(query, nil), do: query
+
+  defp apply_video_creator_filter(query, creator_id) do
+    where(query, [v], v.creator_id == ^creator_id)
+  end
+
+  defp apply_video_date_filter(query, nil, nil), do: query
+
+  defp apply_video_date_filter(query, posted_after, posted_before) do
+    query
+    |> maybe_apply_posted_after(posted_after)
+    |> maybe_apply_posted_before(posted_before)
+  end
+
+  defp maybe_apply_posted_after(query, nil), do: query
+  defp maybe_apply_posted_after(query, date), do: where(query, [v], v.posted_at >= ^date)
+
+  defp maybe_apply_posted_before(query, nil), do: query
+  defp maybe_apply_posted_before(query, date), do: where(query, [v], v.posted_at <= ^date)
+
+  defp apply_video_hashtag_filter(query, nil), do: query
+  defp apply_video_hashtag_filter(query, []), do: query
+
+  defp apply_video_hashtag_filter(query, hashtags) when is_list(hashtags) do
+    where(query, [v], fragment("? && ?", v.hash_tags, ^hashtags))
+  end
+
+  defp apply_video_sort(query, "gmv", "desc"),
+    do: order_by(query, [v], desc_nulls_last: v.gmv_cents)
+
+  defp apply_video_sort(query, "gmv", "asc"),
+    do: order_by(query, [v], asc_nulls_last: v.gmv_cents)
+
+  defp apply_video_sort(query, "gpm", "desc"),
+    do: order_by(query, [v], desc_nulls_last: v.gpm_cents)
+
+  defp apply_video_sort(query, "gpm", "asc"),
+    do: order_by(query, [v], asc_nulls_last: v.gpm_cents)
+
+  defp apply_video_sort(query, "views", "desc"),
+    do: order_by(query, [v], desc_nulls_last: v.impressions)
+
+  defp apply_video_sort(query, "views", "asc"),
+    do: order_by(query, [v], asc_nulls_last: v.impressions)
+
+  defp apply_video_sort(query, "ctr", "desc"),
+    do: order_by(query, [v], desc_nulls_last: v.ctr)
+
+  defp apply_video_sort(query, "ctr", "asc"),
+    do: order_by(query, [v], asc_nulls_last: v.ctr)
+
+  defp apply_video_sort(query, "items_sold", "desc"),
+    do: order_by(query, [v], desc_nulls_last: v.items_sold)
+
+  defp apply_video_sort(query, "items_sold", "asc"),
+    do: order_by(query, [v], asc_nulls_last: v.items_sold)
+
+  defp apply_video_sort(query, "posted_at", "desc"),
+    do: order_by(query, [v], desc_nulls_last: v.posted_at)
+
+  defp apply_video_sort(query, "posted_at", "asc"),
+    do: order_by(query, [v], asc_nulls_last: v.posted_at)
+
+  defp apply_video_sort(query, _, _), do: order_by(query, [v], desc_nulls_last: v.gmv_cents)
 
   @doc """
   Batch loads snapshot deltas for multiple creators over a date range.

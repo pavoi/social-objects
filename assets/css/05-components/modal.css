@@ -186,3 +186,113 @@
     @apply pt-3 mt-3 flex-wrap;
   }
 }
+
+/* ============================================================================
+   PRODUCT MODAL SECTIONS
+   ============================================================================ */
+
+.product-modal {
+  @apply flex flex-col;
+}
+
+.product-modal__section {
+  @apply py-4;
+}
+
+.product-modal__section:first-child {
+  @apply pt-0;
+}
+
+.product-modal__section--bordered {
+  @apply border-t;
+  border-color: var(--color-border-secondary);
+}
+
+.product-modal__carousel {
+  @apply max-w-[500px] rounded-lg overflow-hidden;
+  border: 1px solid var(--color-border-secondary);
+}
+
+.product-modal__section-title {
+  @apply text-sm font-semibold mb-3;
+  color: var(--color-text-primary);
+}
+
+.product-modal__section-header {
+  @apply flex items-center justify-between gap-3 mb-3;
+}
+
+.product-modal__section-header .product-modal__section-title {
+  @apply mb-0;
+}
+
+/* Info rows for pricing/IDs */
+.product-modal__info-row {
+  @apply flex items-baseline gap-3 py-1;
+}
+
+.product-modal__label {
+  @apply text-sm shrink-0;
+  color: var(--color-text-secondary);
+  min-width: 100px;
+}
+
+.product-modal__value {
+  @apply text-sm;
+  color: var(--color-text-primary);
+}
+
+.product-modal__value--mono {
+  font-family: var(--font-mono);
+}
+
+.product-modal__value--sale {
+  color: var(--color-success);
+}
+
+/* Description */
+.product-modal__description {
+  @apply text-sm leading-relaxed;
+  color: var(--color-text-secondary);
+}
+
+/* Talking points readonly */
+.product-modal__talking-points-readonly {
+  @apply text-sm leading-relaxed whitespace-pre-wrap p-3 rounded-md;
+  color: var(--color-text-secondary);
+  background: var(--color-bg-secondary);
+  min-height: 80px;
+}
+
+/* ============================================================================
+   PRODUCT PERFORMANCE STATS
+   ============================================================================ */
+
+.product-performance__grid {
+  @apply grid gap-4;
+  grid-template-columns: repeat(2, 1fr);
+}
+
+.product-performance__stat {
+  @apply flex flex-col gap-0.5;
+}
+
+.product-performance__label {
+  @apply text-xs;
+  color: var(--color-text-secondary);
+}
+
+.product-performance__value {
+  @apply text-base font-semibold;
+  color: var(--color-text-primary);
+}
+
+.product-performance__sync-time {
+  @apply mt-3 text-xs;
+  color: var(--color-text-muted);
+}
+
+.product-performance__empty {
+  @apply text-sm italic;
+  color: var(--color-text-muted);
+}

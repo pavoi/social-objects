@@ -1,0 +1,273 @@
+/* ============================================================================
+   VIDEO GRID COMPONENT
+   ============================================================================
+   Responsive grid for displaying video performance cards.
+   ============================================================================ */
+
+/* Grid Container */
+.video-grid {
+  @apply flex flex-col gap-4;
+}
+
+.video-grid__grid {
+  @apply grid gap-4;
+  /* 4 cols desktop, 3 tablet, 2 mobile */
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+}
+
+@media (max-width: 1200px) {
+  .video-grid__grid {
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  }
+}
+
+@media (max-width: 768px) {
+  .video-grid__grid {
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  }
+}
+
+@media (max-width: 480px) {
+  .video-grid__grid {
+    grid-template-columns: repeat(2, 1fr);
+    @apply gap-2;
+  }
+}
+
+/* Video Card */
+.video-card {
+  @apply flex flex-col rounded-md cursor-pointer overflow-hidden;
+  background: var(--color-surface-primary);
+  border: 1px solid var(--color-border-secondary);
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast), transform var(--transition-fast);
+}
+
+.video-card:hover {
+  border-color: var(--color-primary);
+  box-shadow: var(--shadow-md);
+  transform: translateY(-2px);
+}
+
+.video-card:focus {
+  @apply outline-none;
+  box-shadow: 0 0 0 2px var(--color-primary-50);
+}
+
+/* Thumbnail Container */
+.video-card__thumbnail-container {
+  @apply relative w-full;
+  aspect-ratio: 9 / 16;
+  max-height: 280px;
+}
+
+/* Video Thumbnail */
+.video-thumbnail {
+  @apply w-full h-full;
+}
+
+.video-thumbnail__placeholder {
+  @apply w-full h-full flex items-center justify-center;
+  background: var(--color-bg-secondary);
+}
+
+.video-thumbnail__icon {
+  @apply w-12 h-12;
+  color: var(--color-text-tertiary);
+}
+
+/* Duration Badge */
+.video-card__duration {
+  @apply absolute bottom-2 right-2 px-1.5 py-0.5 text-xs font-medium text-white rounded;
+  background-color: rgba(0, 0, 0, 0.75);
+}
+
+/* Play Overlay */
+.video-card__play-overlay {
+  @apply absolute inset-0 flex items-center justify-center opacity-0;
+  background-color: rgba(0, 0, 0, 0.3);
+  transition: opacity var(--transition-fast);
+}
+
+.video-card:hover .video-card__play-overlay {
+  @apply opacity-100;
+}
+
+.video-card__play-icon {
+  @apply w-12 h-12 text-white;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3));
+}
+
+/* Card Content */
+.video-card__content {
+  @apply flex flex-col gap-2 p-3;
+}
+
+/* Creator Info */
+.video-card__creator {
+  @apply flex items-center gap-2;
+}
+
+.creator-avatar-mini {
+  @apply w-5 h-5 rounded-full object-cover;
+}
+
+.creator-avatar-mini--placeholder {
+  @apply flex items-center justify-center;
+  background: var(--color-bg-tertiary);
+  color: var(--color-text-tertiary);
+}
+
+.creator-avatar-mini--placeholder svg {
+  @apply w-3 h-3;
+}
+
+.video-card__username {
+  @apply text-xs truncate;
+  color: var(--color-text-secondary);
+}
+
+/* Title */
+.video-card__title {
+  @apply text-sm font-medium m-0 line-clamp-2;
+  color: var(--color-text-primary);
+  min-height: 2.5em;
+}
+
+/* Metrics Grid */
+.video-card__metrics {
+  @apply grid grid-cols-4 gap-1;
+}
+
+.video-card__metric {
+  @apply flex flex-col items-center text-center;
+}
+
+.video-card__metric--gmv .video-card__metric-value {
+  @apply font-semibold;
+  color: var(--color-accent-green);
+}
+
+.video-card__metric-value {
+  @apply text-sm font-medium;
+  color: var(--color-text-primary);
+}
+
+.video-card__metric-label {
+  @apply text-xs;
+  color: var(--color-text-tertiary);
+}
+
+/* Footer */
+.video-card__footer {
+  @apply flex items-center justify-between text-xs pt-2 mt-auto;
+  color: var(--color-text-secondary);
+  border-top: 1px solid var(--color-border-secondary);
+}
+
+.video-card__items-sold {
+  @apply font-medium;
+  color: var(--color-accent-green);
+}
+
+/* Empty State */
+.video-grid__empty {
+  @apply flex flex-col items-center justify-center py-16 text-center;
+}
+
+.video-grid__empty-icon {
+  @apply w-16 h-16 mb-4;
+  color: var(--color-text-tertiary);
+}
+
+.video-grid__empty-title {
+  @apply text-lg font-medium mb-1;
+  color: var(--color-text-primary);
+}
+
+.video-grid__empty-description {
+  @apply text-sm;
+  color: var(--color-text-secondary);
+}
+
+/* Loader */
+.video-grid__loader {
+  @apply flex items-center justify-center gap-2 py-8;
+  color: var(--color-text-secondary);
+}
+
+/* ============================================================================
+   VIDEO FILTERS
+   ============================================================================ */
+
+.video-filters {
+  @apply flex flex-wrap items-center justify-between gap-4 mb-6;
+}
+
+.video-filters__left {
+  @apply flex items-center gap-3 flex-1;
+}
+
+.video-filters__right {
+  @apply flex items-center gap-2;
+}
+
+.video-filters__search {
+  @apply flex-1 min-w-[200px] max-w-[400px];
+}
+
+.video-filters__creator,
+.video-filters__sort {
+  @apply shrink-0;
+}
+
+.video-filters__sort-toggle {
+  @apply flex items-center justify-center w-9 h-9 rounded-md;
+  background: var(--color-bg-secondary);
+  border: 1px solid var(--color-border-secondary);
+  transition: all var(--transition-fast);
+}
+
+.video-filters__sort-toggle:hover {
+  border-color: var(--color-primary);
+}
+
+.video-filters__sort-toggle svg {
+  transition: transform var(--transition-fast);
+}
+
+/* Mobile Responsive */
+@media (max-width: 640px) {
+  .video-filters {
+    @apply flex-col items-stretch gap-3;
+  }
+
+  .video-filters__left,
+  .video-filters__right {
+    @apply w-full;
+  }
+
+  .video-filters__search {
+    @apply max-w-none;
+  }
+
+  .video-card__metrics {
+    @apply grid-cols-2 gap-2;
+  }
+
+  .video-card__content {
+    @apply p-2;
+  }
+}
+
+/* ============================================================================
+   VIDEOS PAGE
+   ============================================================================ */
+
+.videos-index {
+  @apply min-h-screen;
+}
+
+.videos-count {
+  @apply font-normal ml-2;
+  color: var(--color-text-secondary);
+}

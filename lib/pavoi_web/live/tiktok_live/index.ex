@@ -149,10 +149,10 @@ defmodule PavoiWeb.TiktokLive.Index do
         {:ok, _job} ->
           assign(socket, :scanning, true)
 
-        {:error, changeset} ->
+        {:error, _changeset} ->
           socket
           |> assign(:scanning, false)
-          |> put_flash(:error, "Failed to scan streams: #{inspect(changeset.errors)}")
+          |> put_flash(:error, "Couldn't scan streams. Please try again.")
       end
 
     {:noreply, socket}
@@ -862,8 +862,8 @@ defmodule PavoiWeb.TiktokLive.Index do
     stats = TiktokLiveContext.list_stream_stats(socket.assigns.brand_id, stream_id)
     stream = socket.assigns.selected_stream
 
-    # Build GMV data from stored hourly data (if available)
-    gmv_data = build_gmv_from_stored(stream)
+    # Prefer official per-minute data, fall back to order-based
+    gmv_data = build_gmv_data(stream)
 
     socket
     |> assign(:stream_stats, stats)
@@ -1054,7 +1054,7 @@ defmodule PavoiWeb.TiktokLive.Index do
         socket
         |> assign(:sending_stream_report, false)
         |> assign(:stream_report_last_error, format_stream_report_error(changeset.errors))
-        |> put_flash(:error, "Failed to enqueue Slack report: #{inspect(changeset.errors)}")
+        |> put_flash(:error, "Couldn't send Slack report. Please try again.")
     end
   end
 
@@ -1200,6 +1200,44 @@ defmodule PavoiWeb.TiktokLive.Index do
     end
   end
 
+  # Prefer official per-minute data, fall back to order-based
+  defp build_gmv_data(%{analytics_per_minute: %{"data" => data}} = stream)
+       when is_list(data) and data != [] do
+    build_gmv_from_per_minute(stream)
+  end
+
+  defp build_gmv_data(stream) do
+    build_gmv_from_stored(stream)
+  end
+
+  # Build GMV data from official per-minute analytics
+  defp build_gmv_from_per_minute(%{analytics_per_minute: %{"data" => data}} = stream) do
+    # Group by hour, sum GMV
+    hourly =
+      data
+      |> Enum.group_by(fn m ->
+        m["timestamp"]
+        |> DateTime.from_unix!()
+        |> Map.put(:minute, 0)
+        |> Map.put(:second, 0)
+      end)
+      |> Enum.map(fn {hour, minutes} ->
+        %{
+          hour: hour,
+          gmv_cents: Enum.sum(Enum.map(minutes, fn m -> m["gmv_cents"] || 0 end)),
+          order_count: Enum.sum(Enum.map(minutes, fn m -> m["orders"] || 0 end))
+        }
+      end)
+      |> Enum.sort_by(& &1.hour, DateTime)
+
+    %{
+      hourly: hourly,
+      total_gmv_cents: stream.official_gmv_cents,
+      total_orders: stream.items_sold,
+      source: :official
+    }
+  end
+
   defp build_gmv_from_stored(nil), do: nil
   defp build_gmv_from_stored(%{gmv_hourly: nil}), do: nil
   defp build_gmv_from_stored(%{gmv_hourly: %{"data" => []}}), do: nil
@@ -1219,7 +1257,8 @@ defmodule PavoiWeb.TiktokLive.Index do
     %{
       hourly: hourly,
       total_gmv_cents: stream.gmv_cents,
-      total_orders: stream.gmv_order_count
+      total_orders: stream.gmv_order_count,
+      source: :orders
     }
   end
 

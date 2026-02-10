@@ -10,10 +10,14 @@ defmodule Pavoi.Workers.BrandCronWorker do
   alias Pavoi.Workers.{
     BigQueryOrderSyncWorker,
     CreatorEnrichmentWorker,
+    ProductPerformanceSyncWorker,
     ShopifySyncWorker,
+    StreamAnalyticsSyncWorker,
     TiktokLiveMonitorWorker,
     TiktokSyncWorker,
-    TiktokTokenRefreshWorker
+    TiktokTokenRefreshWorker,
+    VideoSyncWorker,
+    WeeklyStreamRecapWorker
   }
 
   @impl Oban.Worker
@@ -57,6 +61,30 @@ defmodule Pavoi.Workers.BrandCronWorker do
   defp enqueue_for_brand("creator_enrichment", brand_id) do
     %{"brand_id" => brand_id, "source" => "cron"}
     |> CreatorEnrichmentWorker.new()
+    |> Oban.insert()
+  end
+
+  defp enqueue_for_brand("stream_analytics_sync", brand_id) do
+    %{"brand_id" => brand_id}
+    |> StreamAnalyticsSyncWorker.new()
+    |> Oban.insert()
+  end
+
+  defp enqueue_for_brand("weekly_stream_recap", brand_id) do
+    %{"brand_id" => brand_id}
+    |> WeeklyStreamRecapWorker.new()
+    |> Oban.insert()
+  end
+
+  defp enqueue_for_brand("video_sync", brand_id) do
+    %{"brand_id" => brand_id}
+    |> VideoSyncWorker.new()
+    |> Oban.insert()
+  end
+
+  defp enqueue_for_brand("product_performance_sync", brand_id) do
+    %{"brand_id" => brand_id}
+    |> ProductPerformanceSyncWorker.new()
     |> Oban.insert()
   end
 

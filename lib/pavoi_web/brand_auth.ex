@@ -15,8 +15,10 @@ defmodule PavoiWeb.BrandAuth do
                         PavoiWeb.ProductSetHostLive.Index,
                         PavoiWeb.ProductSetControllerLive.Index,
                         PavoiWeb.CreatorsLive.Index,
+                        PavoiWeb.VideosLive.Index,
                         PavoiWeb.TemplateEditorLive,
                         PavoiWeb.TiktokLive.Index,
+                        PavoiWeb.ShopAnalyticsLive.Index,
                         PavoiWeb.ReadmeLive.Index
                       ])
 
@@ -80,7 +82,7 @@ defmodule PavoiWeb.BrandAuth do
       else
         socket =
           socket
-          |> Phoenix.LiveView.put_flash(:error, "You do not have access to that brand.")
+          |> Phoenix.LiveView.put_flash(:error, "You don't have access to this brand.")
           |> Phoenix.LiveView.redirect(to: ~p"/")
 
         {:halt, socket}

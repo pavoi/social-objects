@@ -15,7 +15,9 @@ defmodule PavoiWeb.NavHooks do
   # Brand pages
   defp get_current_page(PavoiWeb.ProductSetsLive.Index), do: :product_sets
   defp get_current_page(PavoiWeb.CreatorsLive.Index), do: :creators
+  defp get_current_page(PavoiWeb.VideosLive.Index), do: :videos
   defp get_current_page(PavoiWeb.TiktokLive.Index), do: :streams
+  defp get_current_page(PavoiWeb.ShopAnalyticsLive.Index), do: :shop_analytics
   defp get_current_page(PavoiWeb.ReadmeLive.Index), do: :readme
 
   # Admin pages - return :admin so nav shows but no tab is highlighted

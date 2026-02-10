@@ -33,6 +33,11 @@ defmodule Pavoi.Creators.CreatorVideo do
     # Commission
     field :est_commission_cents, :integer
 
+    # Additional performance metrics from Analytics API
+    field :gpm_cents, :integer
+    field :duration, :integer
+    field :hash_tags, {:array, :string}, default: []
+
     # Sample fulfillment - which sample this video fulfilled
     belongs_to :attributed_sample, Pavoi.Creators.CreatorSample
 
@@ -60,7 +65,10 @@ defmodule Pavoi.Creators.CreatorVideo do
       :shares,
       :ctr,
       :est_commission_cents,
-      :attributed_sample_id
+      :attributed_sample_id,
+      :gpm_cents,
+      :duration,
+      :hash_tags
     ])
     |> validate_required([:brand_id, :creator_id, :tiktok_video_id])
     |> unique_constraint(:tiktok_video_id)

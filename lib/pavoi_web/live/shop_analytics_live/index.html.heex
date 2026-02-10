@@ -1,0 +1,90 @@
+<Layouts.app
+  flash={@flash}
+  current_scope={@current_scope}
+  current_brand={@current_brand}
+  current_page={@current_page}
+>
+  <div class="container container--xl py-8 max-sm:pt-3 max-sm:pb-6 shop-analytics">
+    <div class="page-header page-header--simple">
+      <h1 class="page-header__title">Shop Analytics</h1>
+      <.date_range_filter preset={@date_preset} />
+    </div>
+
+    <%= if @loading do %>
+      <.loading_spinner />
+    <% else %>
+      <%= if @error do %>
+        <.error_state message={@error} error_type={@error_type} />
+      <% else %>
+        <%= if @current_metrics do %>
+          <!-- Stat Cards - Primary Row -->
+          <div class="analytics-stat-cards">
+            <.stat_card_with_delta
+              label="Gross Merchandise Value"
+              value={format_currency(@current_metrics.gmv)}
+              delta={@deltas && @deltas.gmv}
+            />
+            <.stat_card_with_delta
+              label="Orders"
+              value={format_number(@current_metrics.orders)}
+              delta={@deltas && @deltas.orders}
+            />
+            <.stat_card_with_delta
+              label="Items Sold"
+              value={format_number(@current_metrics.items_sold)}
+              delta={@deltas && @deltas.items_sold}
+            />
+            <.stat_card_with_delta
+              label="Conversion Rate"
+              value={format_percentage(@current_metrics.conversion_rate)}
+              delta={@deltas && @deltas.conversion_rate}
+            />
+          </div>
+          
+<!-- Stat Cards - Secondary Row -->
+          <div class="analytics-stat-cards analytics-stat-cards--secondary">
+            <.stat_card_with_delta
+              label="Gross Revenue"
+              value={format_currency(@current_metrics.gross_revenue)}
+              delta={@deltas && @deltas.gross_revenue}
+            />
+            <.stat_card_with_delta
+              label="Refunds"
+              value={format_currency(@current_metrics.refunds)}
+              delta={@deltas && @deltas.refunds}
+            />
+          </div>
+          
+<!-- Charts Row -->
+          <div class="analytics-charts-row">
+            <.chart_card title="GMV by Channel" class="analytics-charts-row__doughnut">
+              <%= if has_channel_data?(@current_metrics) do %>
+                <canvas
+                  id="channel-breakdown-chart"
+                  phx-hook="ChannelBreakdownChart"
+                  data-chart-data={@channel_chart_json}
+                />
+              <% else %>
+                <.empty_state message="No channel data available" />
+              <% end %>
+            </.chart_card>
+
+            <.chart_card title="Hourly Performance (Yesterday)" class="analytics-charts-row__line">
+              <%= if @hourly_chart_json && @hourly_chart_json != Jason.encode!(%{labels: [], datasets: []}) do %>
+                <canvas
+                  id="hourly-performance-chart"
+                  phx-hook="HourlyPerformanceChart"
+                  data-chart-data={@hourly_chart_json}
+                />
+              <% else %>
+                <.empty_state message="No hourly data available" />
+              <% end %>
+            </.chart_card>
+          </div>
+        <% else %>
+          <.empty_state />
+        <% end %>
+      <% end %>
+    <% end %>
+  </div>
+</Layouts.app>

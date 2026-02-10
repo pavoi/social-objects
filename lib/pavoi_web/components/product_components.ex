@@ -63,6 +63,7 @@ defmodule PavoiWeb.ProductComponents do
   use Phoenix.Component
 
   import PavoiWeb.CoreComponents
+  import PavoiWeb.ViewHelpers, only: [format_number: 1]
 
   use Phoenix.VerifiedRoutes,
     endpoint: PavoiWeb.Endpoint,
@@ -247,95 +248,139 @@ defmodule PavoiWeb.ProductComponents do
           <h2 class="modal__title">{@editing_product.name}</h2>
         </div>
 
-        <div class="modal__body">
+        <div class="modal__body product-modal">
+          <%!-- Image Carousel --%>
           <%= if @editing_product.product_images && length(@editing_product.product_images) > 0 do %>
-            <div
-              class="box box--bordered"
-              style="max-width: 500px; margin-bottom: var(--space-6);"
-            >
-              <PavoiWeb.ImageComponents.image_carousel
-                id_prefix={"edit-product-#{@editing_product.id}"}
-                images={@editing_product.product_images}
-                current_index={@current_image_index}
-                mode={:full}
-              />
+            <div class="product-modal__section">
+              <div class="product-modal__carousel">
+                <PavoiWeb.ImageComponents.image_carousel
+                  id_prefix={"edit-product-#{@editing_product.id}"}
+                  images={@editing_product.product_images}
+                  current_index={@current_image_index}
+                  mode={:full}
+                />
+              </div>
             </div>
           <% end %>
-          
-    <!-- Product details -->
-          <div class="stack" style="gap: var(--space-3);">
-            <div style="color: var(--color-text-secondary);">
-              <strong style="font-weight: var(--font-semibold); color: var(--color-text-primary);">
-                Original Price:
-              </strong>
-              ${format_price_cents(@editing_product.original_price_cents)}
-              <%= if @editing_product.sale_price_cents do %>
-                <span style="margin-left: var(--space-4);">
-                  <strong style="font-weight: var(--font-semibold); color: var(--color-text-primary);">
-                    Sale Price:
-                  </strong>
+
+          <%!-- TikTok Shop Performance (non-public only) --%>
+          <%= if not @public_view and @editing_product.tiktok_product_id do %>
+            <div class="product-modal__section product-modal__section--bordered">
+              <h3 class="product-modal__section-title">TikTok Shop Performance</h3>
+
+              <%= if @editing_product.performance_synced_at do %>
+                <div class="product-performance__grid">
+                  <div class="product-performance__stat">
+                    <span class="product-performance__label">Total GMV</span>
+                    <span class="product-performance__value">
+                      ${format_price_cents(@editing_product.gmv_cents)}
+                    </span>
+                  </div>
+
+                  <div class="product-performance__stat">
+                    <span class="product-performance__label">Items Sold</span>
+                    <span class="product-performance__value">
+                      {format_number(@editing_product.items_sold)}
+                    </span>
+                  </div>
+
+                  <div class="product-performance__stat">
+                    <span class="product-performance__label">Orders</span>
+                    <span class="product-performance__value">
+                      {format_number(@editing_product.orders)}
+                    </span>
+                  </div>
+
+                  <div class="product-performance__stat">
+                    <span class="product-performance__label">Avg Order Value</span>
+                    <span class="product-performance__value">
+                      <%= if @editing_product.orders > 0 do %>
+                        ${format_price_cents(div(@editing_product.gmv_cents, @editing_product.orders))}
+                      <% else %>
+                        --
+                      <% end %>
+                    </span>
+                  </div>
+                </div>
+
+                <div class="product-performance__sync-time">
+                  Last synced {format_relative_time(@editing_product.performance_synced_at)}
+                </div>
+              <% else %>
+                <div class="product-performance__empty">
+                  Performance data not yet synced.
+                </div>
+              <% end %>
+            </div>
+          <% end %>
+
+          <%!-- Pricing & Product Info --%>
+          <div class="product-modal__section product-modal__section--bordered">
+            <div class="product-modal__info-row">
+              <span class="product-modal__label">Original Price</span>
+              <span class="product-modal__value">
+                ${format_price_cents(@editing_product.original_price_cents)}
+              </span>
+            </div>
+
+            <%= if @editing_product.sale_price_cents do %>
+              <div class="product-modal__info-row">
+                <span class="product-modal__label">Sale Price</span>
+                <span class="product-modal__value product-modal__value--sale">
                   ${format_price_cents(@editing_product.sale_price_cents)}
                 </span>
-              <% end %>
-            </div>
+              </div>
+            <% end %>
 
-            <div style="color: var(--color-text-secondary); font-size: var(--text-sm);">
-              <%= if @editing_product.pid do %>
-                <div style="margin-bottom: var(--space-2);">
-                  <strong style="font-weight: var(--font-semibold); color: var(--color-text-primary);">
-                    Shopify Product ID:
-                  </strong>
-                  <span style="font-family: monospace;">
-                    {Pavoi.Shopify.GID.display_id(@editing_product.pid)}
-                  </span>
-                </div>
-              <% end %>
-              <%= if @editing_product.tiktok_product_id do %>
-                <div style="margin-bottom: var(--space-2);">
-                  <strong style="font-weight: var(--font-semibold); color: var(--color-text-primary);">
-                    TikTok Product ID:
-                  </strong>
-                  <span style="font-family: monospace;">{@editing_product.tiktok_product_id}</span>
-                </div>
-              <% end %>
-            </div>
+            <%= if @editing_product.pid do %>
+              <div class="product-modal__info-row">
+                <span class="product-modal__label">Shopify ID</span>
+                <span class="product-modal__value product-modal__value--mono">
+                  {Pavoi.Shopify.GID.display_id(@editing_product.pid)}
+                </span>
+              </div>
+            <% end %>
+
+            <%= if @editing_product.tiktok_product_id do %>
+              <div class="product-modal__info-row">
+                <span class="product-modal__label">TikTok ID</span>
+                <span class="product-modal__value product-modal__value--mono">
+                  {@editing_product.tiktok_product_id}
+                </span>
+              </div>
+            <% end %>
 
             <%= if @editing_product.sku do %>
-              <div style="color: var(--color-text-secondary); font-size: var(--text-sm); margin-top: var(--space-2);">
-                <strong style="font-weight: var(--font-semibold); color: var(--color-text-primary);">
-                  SKU:
-                </strong>
-                <span style="font-family: monospace;">{@editing_product.sku}</span>
+              <div class="product-modal__info-row">
+                <span class="product-modal__label">SKU</span>
+                <span class="product-modal__value product-modal__value--mono">
+                  {@editing_product.sku}
+                </span>
               </div>
             <% end %>
 
             <%= if @editing_product.size_range do %>
-              <div style="color: var(--color-text-secondary); font-size: var(--text-sm); margin-top: var(--space-2);">
-                <strong style="font-weight: var(--font-semibold); color: var(--color-text-primary);">
-                  Sizes:
-                </strong>
-                <span>{@editing_product.size_range}</span>
-              </div>
-            <% end %>
-
-            <%= if @editing_product.description do %>
-              <div>
-                <strong style="font-weight: var(--font-semibold); color: var(--color-text-primary); display: block; margin-bottom: var(--space-2);">
-                  Description
-                </strong>
-                <div style="color: var(--color-text-secondary); line-height: 1.6;">
-                  {Phoenix.HTML.raw(@editing_product.description)}
-                </div>
+              <div class="product-modal__info-row">
+                <span class="product-modal__label">Sizes</span>
+                <span class="product-modal__value">{@editing_product.size_range}</span>
               </div>
             <% end %>
           </div>
-          
-    <!-- Talking Points - Editable field -->
-          <div style="margin-top: var(--space-6);">
-            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: var(--space-2);">
-              <strong style="font-weight: var(--font-semibold); color: var(--color-text-primary);">
-                Talking Points
-              </strong>
+
+          <%!-- Description --%>
+          <%= if @editing_product.description do %>
+            <div class="product-modal__section product-modal__section--bordered">
+              <h3 class="product-modal__section-title">Description</h3>
+              <div class="product-modal__description">
+                {Phoenix.HTML.raw(@editing_product.description)}
+              </div>
+            </div>
+          <% end %>
+
+          <%!-- Talking Points --%>
+          <div class="product-modal__section product-modal__section--bordered">
+            <div class="product-modal__section-header">
+              <h3 class="product-modal__section-title">Talking Points</h3>
               <%= unless @public_view do %>
                 <button
                   type="button"
@@ -343,7 +388,6 @@ defmodule PavoiWeb.ProductComponents do
                   phx-click="generate_product_talking_points"
                   phx-value-product-id={@editing_product.id}
                   disabled={@generating}
-                  style="display: flex; align-items: center; gap: var(--space-1);"
                 >
                   <%= if @generating do %>
                     <svg
@@ -359,13 +403,24 @@ defmodule PavoiWeb.ProductComponents do
                     </svg>
                     Generating...
                   <% else %>
-                    ✨ Generate
+                    <svg
+                      class="size-4"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    >
+                      <path d="M12 2L9 9l-7 3 7 3 3 7 3-7 7-3-7-3-3-7z" />
+                    </svg>
+                    Generate
                   <% end %>
                 </button>
               <% end %>
             </div>
             <%= if @public_view do %>
-              <div style="white-space: pre-wrap; color: var(--color-text-secondary); line-height: 1.6; padding: var(--space-3); background: var(--color-bg-secondary); border-radius: var(--radius-md); min-height: 80px;">
+              <div class="product-modal__talking-points-readonly">
                 {@editing_product.talking_points_md || "No talking points available."}
               </div>
             <% else %>
@@ -384,8 +439,11 @@ defmodule PavoiWeb.ProductComponents do
             <% end %>
           </div>
 
+          <%!-- Product Variants --%>
           <%= if @editing_product.product_variants && length(@editing_product.product_variants) > 0 do %>
-            <.product_variants variants={@editing_product.product_variants} />
+            <div class="product-modal__section product-modal__section--bordered">
+              <.product_variants variants={@editing_product.product_variants} />
+            </div>
           <% end %>
         </div>
 

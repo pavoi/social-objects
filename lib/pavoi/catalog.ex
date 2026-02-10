@@ -492,6 +492,29 @@ defmodule Pavoi.Catalog do
   end
 
   @doc """
+  Updates a product's TikTok performance metrics.
+
+  Used by ProductPerformanceSyncWorker to sync GMV, items sold, and orders.
+  """
+  def update_product_performance(%Product{} = product, attrs) do
+    product
+    |> Product.performance_changeset(attrs)
+    |> Repo.update()
+  end
+
+  @doc """
+  Returns a map of tiktok_product_id -> product for all products with a TikTok ID.
+
+  Used by ProductPerformanceSyncWorker to efficiently match API data to products.
+  """
+  def get_products_by_tiktok_ids(brand_id) do
+    Product
+    |> where([p], p.brand_id == ^brand_id and not is_nil(p.tiktok_product_id))
+    |> Repo.all()
+    |> Enum.reduce(%{}, fn p, acc -> Map.put(acc, p.tiktok_product_id, p) end)
+  end
+
+  @doc """
   Returns all archived products for a brand.
   """
   def list_archived_products(brand_id) do

@@ -69,6 +69,7 @@ defmodule PavoiWeb.ProductSetsLive.Index do
   alias Pavoi.ProductSets.{ProductSet, ProductSetProduct}
   alias Pavoi.Settings
   alias Pavoi.Storage
+  alias Pavoi.Workers.ProductPerformanceSyncWorker
   alias Pavoi.Workers.ShopifySyncWorker
   alias Pavoi.Workers.TiktokSyncWorker
   alias PavoiWeb.BrandRoutes
@@ -255,7 +256,7 @@ defmodule PavoiWeb.ProductSetsLive.Index do
     message =
       case reason do
         :rate_limited -> "Shopify sync paused due to rate limiting, will retry soon"
-        _ -> "Shopify sync failed: #{inspect(reason)}"
+        _ -> "Shopify sync failed. Please try again."
       end
 
     socket =
@@ -295,8 +296,8 @@ defmodule PavoiWeb.ProductSetsLive.Index do
   end
 
   @impl true
-  def handle_info({:tiktok_sync_failed, reason}, socket) do
-    message = "TikTok sync failed: #{inspect(reason)}"
+  def handle_info({:tiktok_sync_failed, _reason}, socket) do
+    message = "TikTok sync failed. Please try again."
 
     socket =
       socket
@@ -903,9 +904,9 @@ defmodule PavoiWeb.ProductSetsLive.Index do
         |> put_flash(:error, "Product not found in product set")
         |> then(&{:noreply, &1})
 
-      {:error, reason} ->
+      {:error, _reason} ->
         socket
-        |> put_flash(:error, "Failed to remove product: #{inspect(reason)}")
+        |> put_flash(:error, "Couldn't remove product. Please try again.")
         |> then(&{:noreply, &1})
     end
   end
@@ -936,9 +937,9 @@ defmodule PavoiWeb.ProductSetsLive.Index do
 
         {:noreply, socket}
 
-      {:error, reason} ->
+      {:error, _reason} ->
         socket
-        |> put_flash(:error, "Failed to reorder products: #{inspect(reason)}")
+        |> put_flash(:error, "Couldn't reorder products. Please try again.")
         |> then(&{:noreply, &1})
     end
   end
@@ -1602,9 +1603,11 @@ defmodule PavoiWeb.ProductSetsLive.Index do
 
   @impl true
   def handle_event("trigger_tiktok_sync", _params, socket) do
-    %{"brand_id" => socket.assigns.brand_id}
-    |> TiktokSyncWorker.new()
-    |> Oban.insert()
+    brand_args = %{"brand_id" => socket.assigns.brand_id}
+
+    # Sync both TikTok product catalog and product performance
+    brand_args |> TiktokSyncWorker.new() |> Oban.insert()
+    brand_args |> ProductPerformanceSyncWorker.new() |> Oban.insert()
 
     socket =
       socket

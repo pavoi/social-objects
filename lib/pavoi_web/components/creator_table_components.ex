@@ -79,7 +79,7 @@ defmodule PavoiWeb.CreatorTableComponents do
           <span class={"data-freshness__dot data-freshness__dot--#{@videos_status.level}"} />
           <div class="data-freshness__label">
             <strong>Video Performance</strong>
-            <span class="data-freshness__source">Manual CSV</span>
+            <span class="data-freshness__source">Auto-synced</span>
           </div>
           <span class="data-freshness__time">{@videos_status.text}</span>
         </div>
@@ -277,8 +277,7 @@ defmodule PavoiWeb.CreatorTableComponents do
               current={@sort_by}
               dir={@sort_dir}
               on_sort={@on_sort}
-              tooltip="Affiliate videos posted · Manual CSV (may be stale)"
-              manual_import={true}
+              tooltip="Affiliate videos posted · Video Performance sync"
             />
             <%!-- 11. Commission --%>
             <.sort_header
@@ -287,8 +286,7 @@ defmodule PavoiWeb.CreatorTableComponents do
               current={@sort_by}
               dir={@sort_dir}
               on_sort={@on_sort}
-              tooltip="Total commission earned · Manual CSV (may be stale)"
-              manual_import={true}
+              tooltip="Total commission earned · Video Performance sync"
             />
             <%!-- 12. Last Sample --%>
             <.sort_header
@@ -736,8 +734,11 @@ defmodule PavoiWeb.CreatorTableComponents do
           <tr>
             <th>Video</th>
             <th class="text-right">GMV</th>
+            <th class="text-right">GPM</th>
             <th class="text-right">Items Sold</th>
-            <th class="text-right">Impressions</th>
+            <th class="text-right">Views</th>
+            <th class="text-right">CTR</th>
+            <th class="text-right">Duration</th>
             <th>Posted</th>
           </tr>
         </thead>
@@ -751,16 +752,22 @@ defmodule PavoiWeb.CreatorTableComponents do
                     target="_blank"
                     rel="noopener"
                     class="link"
+                    title={video.title}
                   >
-                    {String.slice(video.tiktok_video_id || "Video", 0, 16)}...
+                    {truncate_title(video.title, video.tiktok_video_id)}
                   </a>
                 <% else %>
-                  {String.slice(video.tiktok_video_id || "Video", 0, 16)}...
+                  <span title={video.title}>
+                    {truncate_title(video.title, video.tiktok_video_id)}
+                  </span>
                 <% end %>
               </td>
               <td class="text-right">{format_gmv(video.gmv_cents)}</td>
+              <td class="text-right">{format_gmv(video.gpm_cents)}</td>
               <td class="text-right">{video.items_sold || 0}</td>
               <td class="text-right">{format_number(video.impressions)}</td>
+              <td class="text-right">{format_ctr(video.ctr)}</td>
+              <td class="text-right text-text-secondary">{format_duration(video.duration)}</td>
               <td class="text-text-secondary">
                 {if video.posted_at, do: Calendar.strftime(video.posted_at, "%b %d, %Y"), else: "-"}
               </td>
@@ -771,6 +778,33 @@ defmodule PavoiWeb.CreatorTableComponents do
     <% end %>
     """
   end
+
+  defp truncate_title(nil, video_id), do: String.slice(video_id || "Video", 0, 16) <> "..."
+  defp truncate_title("", video_id), do: String.slice(video_id || "Video", 0, 16) <> "..."
+
+  defp truncate_title(title, _video_id) do
+    if String.length(title) > 30 do
+      String.slice(title, 0, 30) <> "..."
+    else
+      title
+    end
+  end
+
+  defp format_ctr(nil), do: "-"
+
+  defp format_ctr(ctr) do
+    "#{Decimal.round(ctr, 2)}%"
+  end
+
+  defp format_duration(nil), do: "-"
+
+  defp format_duration(seconds) when is_integer(seconds) do
+    minutes = div(seconds, 60)
+    secs = rem(seconds, 60)
+    "#{minutes}:#{String.pad_leading(Integer.to_string(secs), 2, "0")}"
+  end
+
+  defp format_duration(_), do: "-"
 
   defp video_tiktok_url(video, username) do
     cond do

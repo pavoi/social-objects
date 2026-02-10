@@ -538,6 +538,10 @@ defmodule PavoiWeb.CoreComponents do
   attr :bigquery_last_sync_at, :any, default: nil
   attr :enrichment_syncing, :boolean, default: false
   attr :enrichment_last_sync_at, :any, default: nil
+  attr :video_syncing, :boolean, default: false
+  attr :videos_last_import_at, :any, default: nil
+  attr :analytics_refreshing, :boolean, default: false
+  attr :analytics_last_fetch_at, :any, default: nil
   attr :stream_scan_syncing, :boolean, default: false
   attr :stream_last_scan_at, :any, default: nil
   attr :stream_scan_enabled, :boolean, default: true
@@ -619,6 +623,18 @@ defmodule PavoiWeb.CoreComponents do
           class={["navbar__link", @current_page == :creators && "navbar__link--active"]}
         >
           Creators
+        </.link>
+        <.link
+          navigate={nav_path(:videos, @current_brand, @current_host)}
+          class={["navbar__link", @current_page == :videos && "navbar__link--active"]}
+        >
+          Videos
+        </.link>
+        <.link
+          navigate={nav_path(:shop_analytics, @current_brand, @current_host)}
+          class={["navbar__link", @current_page == :shop_analytics && "navbar__link--active"]}
+        >
+          Analytics
         </.link>
       </div>
 
@@ -763,6 +779,40 @@ defmodule PavoiWeb.CoreComponents do
                     else: "Never synced"}
                 </div>
               </div>
+              <div class="navbar__sync-group">
+                <.button
+                  variant="primary"
+                  size="sm"
+                  phx-click="trigger_video_sync"
+                  class={@video_syncing && "button--disabled"}
+                  disabled={@video_syncing}
+                >
+                  {if @video_syncing, do: "Syncing...", else: "Sync Video Performance"}
+                </.button>
+                <div class="navbar__sync-meta">
+                  {if @videos_last_import_at,
+                    do: format_relative_time(@videos_last_import_at),
+                    else: "Never synced"}
+                </div>
+              </div>
+            <% end %>
+            <%= if @current_page == :shop_analytics do %>
+              <div class="navbar__sync-group">
+                <.button
+                  variant="primary"
+                  size="sm"
+                  phx-click="refresh_analytics"
+                  class={@analytics_refreshing && "button--disabled"}
+                  disabled={@analytics_refreshing}
+                >
+                  {if @analytics_refreshing, do: "Refreshing...", else: "Refresh Data"}
+                </.button>
+                <div class="navbar__sync-meta">
+                  {if @analytics_last_fetch_at,
+                    do: format_relative_time(@analytics_last_fetch_at),
+                    else: "Never loaded"}
+                </div>
+              </div>
             <% end %>
             <div :if={@is_admin && @current_page != :admin} class="navbar__menu-section">
               <div class="navbar__sync-group">
@@ -788,6 +838,8 @@ defmodule PavoiWeb.CoreComponents do
   defp nav_page_path(:product_sets), do: "/product-sets"
   defp nav_page_path(:streams), do: "/streams"
   defp nav_page_path(:creators), do: "/creators"
+  defp nav_page_path(:videos), do: "/videos"
+  defp nav_page_path(:shop_analytics), do: "/shop-analytics"
   defp nav_page_path(:readme), do: "/readme"
   # Non-brand-scoped pages default to product-sets when switching brands
   defp nav_page_path(_), do: "/product-sets"

@@ -21,6 +21,7 @@ defmodule PavoiWeb.CreatorsLive.Index do
   alias Pavoi.Workers.BigQueryOrderSyncWorker
   alias Pavoi.Workers.CreatorEnrichmentWorker
   alias Pavoi.Workers.CreatorOutreachWorker
+  alias Pavoi.Workers.VideoSyncWorker
   alias PavoiWeb.BrandRoutes
 
   import PavoiWeb.CreatorTagComponents
@@ -33,17 +34,19 @@ defmodule PavoiWeb.CreatorsLive.Index do
   def mount(_params, _session, socket) do
     brand_id = socket.assigns.current_brand.id
 
-    # Subscribe to BigQuery sync, enrichment, and outreach events
+    # Subscribe to BigQuery sync, enrichment, video sync, and outreach events
     if connected?(socket) do
       Phoenix.PubSub.subscribe(Pavoi.PubSub, "bigquery:sync:#{brand_id}")
       Phoenix.PubSub.subscribe(Pavoi.PubSub, "creator:enrichment:#{brand_id}")
       Phoenix.PubSub.subscribe(Pavoi.PubSub, "outreach:updates:#{brand_id}")
+      Phoenix.PubSub.subscribe(Pavoi.PubSub, "video:sync:#{brand_id}")
     end
 
     bigquery_last_sync_at = Settings.get_bigquery_last_sync_at(brand_id)
     bigquery_syncing = sync_job_blocked?(BigQueryOrderSyncWorker, brand_id)
     enrichment_last_sync_at = Settings.get_enrichment_last_sync_at(brand_id)
     enrichment_syncing = sync_job_blocked?(CreatorEnrichmentWorker, brand_id)
+    video_syncing = sync_job_blocked?(VideoSyncWorker, brand_id)
     features = Application.get_env(:pavoi, :features, [])
 
     available_tags = Creators.list_tags_for_brand(brand_id)
@@ -90,6 +93,7 @@ defmodule PavoiWeb.CreatorsLive.Index do
       |> assign(:bigquery_last_sync_at, bigquery_last_sync_at)
       |> assign(:enrichment_syncing, enrichment_syncing)
       |> assign(:enrichment_last_sync_at, enrichment_last_sync_at)
+      |> assign(:video_syncing, video_syncing)
       # Tag state
       |> assign(:brand_id, brand_id)
       |> assign(:available_tags, available_tags)
@@ -277,6 +281,18 @@ defmodule PavoiWeb.CreatorsLive.Index do
        %{"source" => "manual", "brand_id" => socket.assigns.brand_id},
        :enrichment_syncing,
        "Creator enrichment started..."
+     )}
+  end
+
+  @impl true
+  def handle_event("trigger_video_sync", _params, socket) do
+    {:noreply,
+     enqueue_sync_job(
+       socket,
+       VideoSyncWorker,
+       %{"brand_id" => socket.assigns.brand_id},
+       :video_syncing,
+       "Video performance sync started..."
      )}
   end
 
@@ -1114,11 +1130,11 @@ defmodule PavoiWeb.CreatorsLive.Index do
   end
 
   @impl true
-  def handle_info({:bigquery_sync_failed, reason}, socket) do
+  def handle_info({:bigquery_sync_failed, _reason}, socket) do
     socket =
       socket
       |> assign(:bigquery_syncing, false)
-      |> put_flash(:error, "BigQuery sync failed: #{inspect(reason)}")
+      |> put_flash(:error, "BigQuery sync failed. Please try again.")
 
     {:noreply, socket}
   end
@@ -1149,11 +1165,44 @@ defmodule PavoiWeb.CreatorsLive.Index do
   end
 
   @impl true
-  def handle_info({:enrichment_failed, reason}, socket) do
+  def handle_info({:enrichment_failed, _reason}, socket) do
     socket =
       socket
       |> assign(:enrichment_syncing, false)
-      |> put_flash(:error, "Creator enrichment failed: #{inspect(reason)}")
+      |> put_flash(:error, "Creator enrichment failed. Please try again.")
+
+    {:noreply, socket}
+  end
+
+  # Video sync PubSub handlers
+  @impl true
+  def handle_info({:video_sync_started}, socket) do
+    {:noreply, assign(socket, :video_syncing, true)}
+  end
+
+  @impl true
+  def handle_info({:video_sync_completed, stats}, socket) do
+    socket =
+      socket
+      |> assign(:video_syncing, false)
+      |> assign(
+        :videos_last_import_at,
+        Settings.get_videos_last_import_at(socket.assigns.brand_id)
+      )
+      |> put_flash(
+        :info,
+        "Synced #{stats.videos_synced} videos (#{stats.creators_created} new creators)"
+      )
+
+    {:noreply, socket}
+  end
+
+  @impl true
+  def handle_info({:video_sync_failed, _reason}, socket) do
+    socket =
+      socket
+      |> assign(:video_syncing, false)
+      |> put_flash(:error, "Video sync failed. Please try again.")
 
     {:noreply, socket}
   end
@@ -1218,11 +1267,11 @@ defmodule PavoiWeb.CreatorsLive.Index do
 
         {:noreply, socket}
 
-      {:error, reason} ->
+      {:error, _reason} ->
         socket =
           socket
           |> assign(:refreshing, false)
-          |> put_flash(:error, "Refresh failed: #{inspect(reason)}")
+          |> put_flash(:error, "Refresh failed. Please try again.")
 
         {:noreply, socket}
     end
@@ -1262,10 +1311,10 @@ defmodule PavoiWeb.CreatorsLive.Index do
         |> assign(assign_key, true)
         |> put_flash(:info, success_message)
 
-      {:error, changeset} ->
+      {:error, _changeset} ->
         socket
         |> assign(assign_key, false)
-        |> put_flash(:error, "Failed to enqueue sync: #{inspect(changeset.errors)}")
+        |> put_flash(:error, "Couldn't start sync. Please try again.")
     end
   end
 

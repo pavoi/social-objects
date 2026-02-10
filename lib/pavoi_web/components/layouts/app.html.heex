@@ -24,6 +24,8 @@
         bigquery_last_sync_at={assigns[:bigquery_last_sync_at]}
         enrichment_syncing={assigns[:enrichment_syncing] || false}
         enrichment_last_sync_at={assigns[:enrichment_last_sync_at]}
+        video_syncing={assigns[:video_syncing] || false}
+        videos_last_import_at={assigns[:videos_last_import_at]}
         stream_scan_syncing={assigns[:stream_scan_syncing] || assigns[:scanning] || false}
         stream_last_scan_at={assigns[:last_scan_at]}
         stream_scan_enabled={

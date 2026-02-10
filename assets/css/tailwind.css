@@ -283,6 +283,7 @@
 @import "./04-pages/settings.css";
 @import "./04-pages/readme.css";
 @import "./04-pages/admin.css";
+@import "./04-pages/shop-analytics.css";
 @import "./04-pages/_public-product-set.css";
 
 /* Components Layer - UI components */
@@ -306,3 +307,4 @@
 @import "./05-components/filter-dropdown.css";
 @import "./05-components/template-card.css";
 @import "./05-components/template-editor.css";
+@import "./05-components/video-grid.css";

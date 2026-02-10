@@ -1,0 +1,33 @@
+<Layouts.app
+  flash={@flash}
+  current_scope={@current_scope}
+  current_brand={@current_brand}
+  current_page={@current_page}
+>
+  <div id="videos-page" class="container container--xl py-8 max-sm:pt-3 max-sm:pb-6 videos-index">
+    <div class="page-header page-header--single-row">
+      <div class="page-header__left">
+        <h1 class="page-header__title">Videos</h1>
+        <span class="videos-count">
+          {format_number(@total)} videos
+        </span>
+      </div>
+    </div>
+
+    <.video_filters
+      search_query={@search_query}
+      sort_by={@sort_by}
+      sort_dir={@sort_dir}
+      creators={@available_creators}
+      selected_creator_id={@selected_creator_id}
+    />
+
+    <.video_grid
+      videos={@videos}
+      on_card_click="open_video"
+      has_more={@has_more}
+      loading={@loading_videos}
+      is_empty={Enum.empty?(@videos) && !@loading_videos}
+    />
+  </div>
+</Layouts.app>

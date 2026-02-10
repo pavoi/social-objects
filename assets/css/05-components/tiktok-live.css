@@ -702,6 +702,24 @@
   font-size: 10px;
 }
 
+/* Section header (for TikTok Shop Analytics) */
+.stream-modal-section-header {
+  @apply flex items-center justify-between gap-4 mb-2 mt-2;
+}
+
+.stream-modal-section-header__title {
+  @apply text-sm font-semibold text-text-secondary uppercase;
+  letter-spacing: 0.03em;
+}
+
+.stream-modal-section-header__status {
+  @apply inline-flex items-center gap-1.5 text-xs text-text-secondary;
+}
+
+.stream-modal-section-header--pending {
+  @apply mb-4;
+}
+
 /* ============================================================================
    STATS CHART LEGEND
    ============================================================================ */

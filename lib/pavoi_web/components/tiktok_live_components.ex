@@ -458,6 +458,104 @@ defmodule PavoiWeb.TiktokLiveComponents do
             <% end %>
           </div>
 
+          <%!-- TikTok Shop Analytics Section --%>
+          <%= if @stream.analytics_synced_at || @stream.official_gmv_cents do %>
+            <div class="stream-modal-section-header">
+              <span class="stream-modal-section-header__title">TikTok Shop Analytics</span>
+              <span class="stream-modal-section-header__status">
+                <svg
+                  class="size-3.5 text-green-500"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                >
+                  <polyline points="20 6 9 17 4 12" />
+                </svg>
+                Synced {format_relative_time(@stream.analytics_synced_at)}
+              </span>
+            </div>
+            <div class="stream-modal-stats">
+              <%= if @stream.official_gmv_cents do %>
+                <div class="stream-modal-stat stream-modal-stat--highlight">
+                  <span class="stream-modal-stat__label">Official GMV</span>
+                  <span class="stream-modal-stat__value">
+                    {format_gmv(@stream.official_gmv_cents)}
+                  </span>
+                </div>
+              <% end %>
+              <%= if @stream.gmv_24h_cents do %>
+                <div class="stream-modal-stat">
+                  <span class="stream-modal-stat__label">24h Attributed</span>
+                  <span class="stream-modal-stat__value">
+                    {format_gmv(@stream.gmv_24h_cents)}
+                  </span>
+                </div>
+              <% end %>
+              <%= if @stream.product_impressions do %>
+                <div class="stream-modal-stat">
+                  <span class="stream-modal-stat__label">Impressions</span>
+                  <span class="stream-modal-stat__value">
+                    {format_number(@stream.product_impressions)}
+                  </span>
+                </div>
+              <% end %>
+              <%= if @stream.product_clicks do %>
+                <div class="stream-modal-stat">
+                  <span class="stream-modal-stat__label">Clicks</span>
+                  <span class="stream-modal-stat__value">
+                    {format_number(@stream.product_clicks)}
+                  </span>
+                </div>
+              <% end %>
+              <%= if @stream.conversion_rate do %>
+                <div class="stream-modal-stat">
+                  <span class="stream-modal-stat__label">Conversion</span>
+                  <span class="stream-modal-stat__value">
+                    {Decimal.to_string(@stream.conversion_rate)}%
+                  </span>
+                </div>
+              <% end %>
+              <%= if @stream.avg_view_duration_seconds do %>
+                <div class="stream-modal-stat">
+                  <span class="stream-modal-stat__label">Avg View</span>
+                  <span class="stream-modal-stat__value">
+                    {format_view_duration(@stream.avg_view_duration_seconds)}
+                  </span>
+                </div>
+              <% end %>
+              <%= if @stream.unique_customers do %>
+                <div class="stream-modal-stat">
+                  <span class="stream-modal-stat__label">Customers</span>
+                  <span class="stream-modal-stat__value">
+                    {format_number(@stream.unique_customers)}
+                  </span>
+                </div>
+              <% end %>
+            </div>
+          <% else %>
+            <%= if @stream.status == :ended && is_nil(@stream.analytics_synced_at) do %>
+              <div class="stream-modal-section-header stream-modal-section-header--pending">
+                <span class="stream-modal-section-header__title text-text-secondary">
+                  TikTok Shop Analytics
+                </span>
+                <span class="stream-modal-section-header__status text-text-secondary">
+                  <svg
+                    class="size-3.5"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                  >
+                    <circle cx="12" cy="12" r="10" />
+                    <polyline points="12 6 12 12 16 14" />
+                  </svg>
+                  Pending (syncs 48h after stream)
+                </span>
+              </div>
+            <% end %>
+          <% end %>
+
           <div class="stream-modal-tabs">
             <button
               type="button"
@@ -713,7 +811,12 @@ defmodule PavoiWeb.TiktokLiveComponents do
 
   def stats_tab(assigns) do
     chart_data = build_chart_data(assigns.stream_stats, assigns.stream_gmv)
-    assigns = assign(assigns, :chart_data, chart_data)
+    gmv_source = if assigns.stream_gmv, do: Map.get(assigns.stream_gmv, :source), else: nil
+
+    assigns =
+      assigns
+      |> assign(:chart_data, chart_data)
+      |> assign(:gmv_source, gmv_source)
 
     ~H"""
     <div class="stats-tab">
@@ -758,7 +861,33 @@ defmodule PavoiWeb.TiktokLiveComponents do
             </span>
             <%= if @stream_gmv && length(@stream_gmv.hourly) > 0 do %>
               <span class="stats-legend__item stats-legend__item--gmv">
-                <span class="stats-legend__color"></span> GMV
+                <span class="stats-legend__color"></span>
+                <%= if @gmv_source == :official do %>
+                  GMV (Official)
+                <% else %>
+                  GMV (Orders)
+                  <span
+                    class="stats-legend__info"
+                    title="Order-based correlation, not direct attribution"
+                  >
+                    <svg
+                      class="size-3.5"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    >
+                      <circle cx="12" cy="12" r="10" /><line x1="12" y1="16" x2="12" y2="12" /><line
+                        x1="12"
+                        y1="8"
+                        x2="12.01"
+                        y2="8"
+                      />
+                    </svg>
+                  </span>
+                <% end %>
               </span>
             <% end %>
           </div>
@@ -1217,6 +1346,19 @@ defmodule PavoiWeb.TiktokLiveComponents do
       hours > 0 -> "#{hours}h #{minutes}m"
       minutes > 0 -> "#{minutes}m"
       true -> "< 1m"
+    end
+  end
+
+  defp format_view_duration(nil), do: "-"
+
+  defp format_view_duration(seconds) when is_integer(seconds) do
+    minutes = div(seconds, 60)
+    remaining_seconds = rem(seconds, 60)
+
+    if minutes > 0 do
+      "#{minutes}m #{remaining_seconds}s"
+    else
+      "#{remaining_seconds}s"
     end
   end
 

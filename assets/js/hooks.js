@@ -23,6 +23,8 @@ import CategoryChart from "./hooks/category_chart"
 import TemplateEditor from "./hooks/template_editor"
 import CsvDownload from "./hooks/csv_download"
 import CopyToClipboard from "./hooks/copy_to_clipboard"
+import ChannelBreakdownChart from "./hooks/channel_breakdown_chart"
+import HourlyPerformanceChart from "./hooks/hourly_performance_chart"
 
 // Lazy-loaded VoiceControl hook wrapper
 // Only loads the full voice_control.js when hook actually mounts (feature flag enabled)
@@ -69,6 +71,8 @@ const Hooks = {
   TemplateEditor,
   CsvDownload,
   CopyToClipboard,
+  ChannelBreakdownChart,
+  HourlyPerformanceChart,
 }
 
 export default Hooks

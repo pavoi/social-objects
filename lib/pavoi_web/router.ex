@@ -94,9 +94,11 @@ defmodule PavoiWeb.Router do
         live "/product-sets/:id/host", ProductSetHostLive.Index
         live "/product-sets/:id/controller", ProductSetControllerLive.Index
         live "/creators", CreatorsLive.Index
+        live "/videos", VideosLive.Index
         live "/templates/new", TemplateEditorLive, :new
         live "/templates/:id/edit", TemplateEditorLive, :edit
         live "/streams", TiktokLive.Index
+        live "/shop-analytics", ShopAnalyticsLive.Index
         live "/readme", ReadmeLive.Index
       end
 
@@ -106,9 +108,11 @@ defmodule PavoiWeb.Router do
         live "/product-sets/:id/host", ProductSetHostLive.Index
         live "/product-sets/:id/controller", ProductSetControllerLive.Index
         live "/creators", CreatorsLive.Index
+        live "/videos", VideosLive.Index
         live "/templates/new", TemplateEditorLive, :new
         live "/templates/:id/edit", TemplateEditorLive, :edit
         live "/streams", TiktokLive.Index
+        live "/shop-analytics", ShopAnalyticsLive.Index
         live "/readme", ReadmeLive.Index
       end
 
