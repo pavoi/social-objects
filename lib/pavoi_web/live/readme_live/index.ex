@@ -34,7 +34,8 @@ defmodule PavoiWeb.ReadmeLive.Index do
         from(p in Product, where: p.brand_id == ^brand_id)
         |> Repo.aggregate(:count),
       creators: Creators.count_creators_for_brand(brand_id),
-      streams: TiktokLive.count_streams(brand_id)
+      streams: TiktokLive.count_streams(brand_id),
+      videos: Creators.count_videos_for_brand(brand_id)
     }
 
     # Fetch integration statuses
@@ -168,6 +169,23 @@ defmodule PavoiWeb.ReadmeLive.Index do
               <li>Email template builder with variables</li>
               <li>Batch email outreach campaigns</li>
               <li>Delivery tracking via SendGrid webhooks</li>
+            </:features>
+          </.page_card>
+
+          <.page_card
+            emoji="🎥"
+            title="Videos"
+            description="Browse and analyze affiliate video performance across creators"
+            href={BrandRoutes.brand_path(@current_brand, "/videos", @current_host)}
+            stat={@stats.videos}
+            stat_label="videos"
+          >
+            <:features>
+              <li>Searchable grid with video thumbnails</li>
+              <li>GMV and performance metrics per video</li>
+              <li>Filter by creator</li>
+              <li>Sort by GMV, views, or date posted</li>
+              <li>Sync performance data from BigQuery</li>
             </:features>
           </.page_card>
         </div>

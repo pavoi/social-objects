@@ -893,6 +893,14 @@ defmodule Pavoi.Creators do
   end
 
   @doc """
+  Returns the count of videos associated with a brand.
+  """
+  def count_videos_for_brand(brand_id) do
+    from(cv in CreatorVideo, where: cv.brand_id == ^brand_id)
+    |> Repo.aggregate(:count)
+  end
+
+  @doc """
   Gets video count for a creator.
   """
   def count_videos_for_creator(brand_id, creator_id) do
