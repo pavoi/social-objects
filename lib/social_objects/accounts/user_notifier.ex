@@ -29,7 +29,7 @@ defmodule SocialObjects.Accounts.UserNotifier do
     end
   end
 
-  defp email_template(heading, body_content, button_text, button_url, footer_text, opts \\ []) do
+  defp email_template(heading, body_content, button_text, button_url, footer_text, opts) do
     sender_name = Keyword.get(opts, :sender_name, Settings.app_name())
 
     """
