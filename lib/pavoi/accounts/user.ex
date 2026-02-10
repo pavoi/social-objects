@@ -13,6 +13,7 @@ defmodule Pavoi.Accounts.User do
     field :confirmed_at, :utc_datetime
     field :authenticated_at, :utc_datetime, virtual: true
     field :is_admin, :boolean, default: false
+    field :must_change_password, :boolean, default: false
 
     has_many :user_brands, Pavoi.Accounts.UserBrand
     has_many :brands, through: [:user_brands, :brand]
