@@ -8,12 +8,26 @@ defmodule PavoiWeb.NavHooks do
     view_module = socket.private[:phoenix_live_view][:view] || socket.view
     current_page = get_current_page(view_module)
 
-    socket = Map.update!(socket, :assigns, &Map.put(&1, :current_page, current_page))
+    # Load user_brands once here instead of on every render in layout
+    user_brands =
+      case socket.assigns[:current_scope] do
+        %{user: user} when not is_nil(user) ->
+          Pavoi.Accounts.list_user_brands(user)
+
+        _ ->
+          []
+      end
+
+    socket =
+      socket
+      |> Phoenix.Component.assign(:current_page, current_page)
+      |> Phoenix.Component.assign(:user_brands, user_brands)
+
     {:cont, socket}
   end
 
   # Brand pages
-  defp get_current_page(PavoiWeb.ProductSetsLive.Index), do: :product_sets
+  defp get_current_page(PavoiWeb.ProductsLive.Index), do: :products
   defp get_current_page(PavoiWeb.CreatorsLive.Index), do: :creators
   defp get_current_page(PavoiWeb.VideosLive.Index), do: :videos
   defp get_current_page(PavoiWeb.TiktokLive.Index), do: :streams
@@ -27,8 +41,8 @@ defmodule PavoiWeb.NavHooks do
   defp get_current_page(PavoiWeb.AdminLive.Invites), do: :admin
 
   # Full-page views return nil so navbar doesn't show
-  defp get_current_page(PavoiWeb.ProductSetHostLive.Index), do: nil
-  defp get_current_page(PavoiWeb.ProductSetControllerLive.Index), do: nil
+  defp get_current_page(PavoiWeb.ProductHostLive.Index), do: nil
+  defp get_current_page(PavoiWeb.ProductControllerLive.Index), do: nil
   defp get_current_page(PavoiWeb.TemplateEditorLive), do: nil
   defp get_current_page(_), do: nil
 end

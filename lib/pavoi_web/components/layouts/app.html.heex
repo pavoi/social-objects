@@ -2,10 +2,7 @@
 <% current_brand = assigns[:current_brand] %>
 <% current_page = assigns[:current_page] %>
 <% show_nav = current_scope && current_page && current_brand %>
-<% # Load user_brands for brand switcher (on_mount assigns don't flow to layouts) %>
-<% user_brands =
-  (current_scope && current_scope.user && Pavoi.Accounts.list_user_brands(current_scope.user)) ||
-    [] %>
+<% user_brands = assigns[:user_brands] || [] %>
 
 <main class="app-shell">
   <%= if show_nav do %>

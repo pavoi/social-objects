@@ -237,6 +237,17 @@
   @apply self-center;
 }
 
+.navbar__menu-profile-link {
+  @apply flex items-center justify-center w-9 h-9 p-0;
+  @apply bg-transparent border border-border-secondary rounded-md;
+  @apply text-text-secondary cursor-pointer;
+  transition: all var(--transition-base);
+}
+
+.navbar__menu-profile-link:hover {
+  @apply bg-bg-hover border-border-primary text-text-primary;
+}
+
 /* ============================================================================
    MENU SECTIONS
    ============================================================================ */
@@ -251,6 +262,10 @@
 
 .navbar__menu-section:last-of-type {
   @apply pb-2;
+}
+
+.navbar__menu-section--row {
+  @apply flex-row items-center justify-center gap-4;
 }
 
 .navbar__menu-label {
@@ -294,6 +309,68 @@
 }
 
 /* ============================================================================
+   NAV DROPDOWN (collapsed state)
+   ============================================================================ */
+
+.navbar__nav-dropdown {
+  @apply hidden relative;
+}
+
+.navbar--collapsed .navbar__nav {
+  @apply hidden;
+}
+
+.navbar--collapsed .navbar__nav-dropdown {
+  @apply block;
+}
+
+.navbar__nav-dropdown-trigger {
+  @apply inline-flex items-center gap-2 py-2 px-3;
+  @apply border border-border-secondary rounded-md;
+  @apply bg-surface-primary text-text-primary text-sm font-medium cursor-pointer;
+  transition: all var(--transition-base);
+}
+
+.navbar__nav-dropdown-trigger:hover {
+  @apply bg-bg-hover border-border-primary;
+}
+
+.navbar__nav-dropdown-label {
+  @apply whitespace-nowrap;
+}
+
+.navbar__nav-dropdown-menu {
+  @apply hidden absolute flex-col items-stretch gap-1 p-2;
+  @apply min-w-[160px];
+  @apply bg-surface-primary border border-border-secondary rounded-md;
+  top: calc(100% + var(--spacing-2));
+  right: 0;
+  box-shadow: var(--shadow-lg);
+  z-index: var(--z-dropdown);
+}
+
+.navbar__nav-dropdown-menu::before {
+  content: "";
+  @apply absolute left-0 right-0;
+  top: calc(-1 * var(--spacing-2));
+  height: var(--spacing-2);
+}
+
+.navbar__nav-dropdown-item {
+  @apply flex items-center gap-2 py-2 px-3;
+  @apply rounded-md no-underline text-text-secondary text-sm font-medium;
+  transition: all var(--transition-fast);
+}
+
+.navbar__nav-dropdown-item:hover {
+  @apply bg-bg-hover text-text-primary;
+}
+
+.navbar__nav-dropdown-item--active {
+  @apply text-accent-blue bg-bg-hover;
+}
+
+/* ============================================================================
    MOBILE RESPONSIVE
    ============================================================================ */
 
@@ -328,5 +405,9 @@
 
   .navbar__end {
     @apply gap-2;
+  }
+
+  .navbar__nav-dropdown-trigger {
+    @apply py-1 px-2 text-xs;
   }
 }
