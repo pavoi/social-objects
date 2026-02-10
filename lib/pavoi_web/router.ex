@@ -87,6 +87,7 @@ defmodule PavoiWeb.Router do
       layout: {PavoiWeb.Layouts, :app},
       on_mount: [
         {PavoiWeb.UserAuth, :require_authenticated},
+        {PavoiWeb.UserAuth, :require_password_changed},
         {PavoiWeb.BrandAuth, :set_brand},
         {PavoiWeb.BrandAuth, :require_brand_access},
         {PavoiWeb.NavHooks, :set_current_page}
@@ -120,7 +121,6 @@ defmodule PavoiWeb.Router do
       end
 
       live "/users/settings", UserLive.Settings, :edit
-      live "/users/settings/confirm-email/:token", UserLive.Settings, :confirm_email
     end
   end
 
@@ -132,6 +132,7 @@ defmodule PavoiWeb.Router do
       layout: {PavoiWeb.Layouts, :app},
       on_mount: [
         {PavoiWeb.UserAuth, :require_authenticated},
+        {PavoiWeb.UserAuth, :require_password_changed},
         {PavoiWeb.AdminAuth, :require_admin},
         {PavoiWeb.NavHooks, :set_current_page}
       ] do
@@ -160,11 +161,18 @@ defmodule PavoiWeb.Router do
     pipe_through [:browser]
 
     live_session :current_user,
+      on_mount: [
+        {PavoiWeb.UserAuth, :mount_current_scope},
+        {PavoiWeb.UserAuth, :require_authenticated}
+      ] do
+      live "/users/change-password", UserLive.ChangePassword, :edit
+    end
+
+    live_session :unauthenticated,
       on_mount: [{PavoiWeb.UserAuth, :mount_current_scope}] do
       live "/users/log-in", UserLive.Login, :new
     end
 
-    get "/users/log-in/:token", UserSessionController, :create_from_token
     post "/users/log-in", UserSessionController, :create
     delete "/users/log-out", UserSessionController, :delete
   end

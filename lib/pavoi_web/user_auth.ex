@@ -254,6 +254,23 @@ defmodule PavoiWeb.UserAuth do
     end
   end
 
+  def on_mount(:require_password_changed, _params, session, socket) do
+    socket = mount_current_scope(socket, session)
+
+    case socket.assigns.current_scope do
+      %Scope{user: %Accounts.User{must_change_password: true}} ->
+        socket =
+          socket
+          |> Phoenix.LiveView.put_flash(:info, "Please change your password to continue.")
+          |> Phoenix.LiveView.redirect(to: ~p"/users/change-password")
+
+        {:halt, socket}
+
+      _ ->
+        {:cont, socket}
+    end
+  end
+
   defp mount_current_scope(socket, session) do
     Phoenix.Component.assign_new(socket, :current_scope, fn ->
       {user, _} =

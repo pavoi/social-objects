@@ -5,7 +5,6 @@ defmodule Pavoi.Accounts.UserNotifier do
 
   import Swoosh.Email
 
-  alias Pavoi.Accounts.User
   alias Pavoi.Catalog.Brand
   alias Pavoi.Mailer
   alias Pavoi.Settings
@@ -77,99 +76,6 @@ defmodule Pavoi.Accounts.UserNotifier do
     </body>
     </html>
     """
-  end
-
-  @doc """
-  Deliver instructions to update a user email.
-  """
-  def deliver_update_email_instructions(user, url) do
-    html =
-      email_template(
-        "Update your email",
-        "Click the button below to confirm your new email address.",
-        "Confirm Email",
-        url,
-        "If you didn't request this change, you can safely ignore this email."
-      )
-
-    deliver(
-      user.email,
-      "Confirm your new email address",
-      """
-      Hi,
-
-      You can confirm your new email address by visiting this link:
-
-      #{url}
-
-      If you didn't request this change, please ignore this email.
-      """,
-      html: html
-    )
-  end
-
-  @doc """
-  Deliver instructions to log in with a magic link.
-  """
-  def deliver_login_instructions(user, url) do
-    case user do
-      %User{confirmed_at: nil} -> deliver_confirmation_instructions(user, url)
-      _ -> deliver_magic_link_instructions(user, url)
-    end
-  end
-
-  defp deliver_magic_link_instructions(user, url) do
-    html =
-      email_template(
-        "Sign in to your account",
-        "Click the button below to securely sign in. This link will expire in 10 minutes.",
-        "Sign In",
-        url,
-        "If you didn't request this email, you can safely ignore it."
-      )
-
-    deliver(
-      user.email,
-      "Your sign-in link",
-      """
-      Hi,
-
-      You can sign in to your account by visiting this link:
-
-      #{url}
-
-      This link will expire in 10 minutes.
-
-      If you didn't request this email, please ignore it.
-      """,
-      html: html
-    )
-  end
-
-  defp deliver_confirmation_instructions(user, url) do
-    html =
-      email_template(
-        "Confirm your account",
-        "Thanks for signing up! Click the button below to confirm your email address and get started.",
-        "Confirm Account",
-        url,
-        "If you didn't create an account, you can safely ignore this email."
-      )
-
-    deliver(
-      user.email,
-      "Confirm your account",
-      """
-      Hi,
-
-      Thanks for signing up! Confirm your account by visiting this link:
-
-      #{url}
-
-      If you didn't create an account, please ignore this email.
-      """,
-      html: html
-    )
   end
 
   @doc """

@@ -1,9 +1,6 @@
 defmodule PavoiWeb.UserLive.Login do
   use PavoiWeb, :live_view
 
-  alias Pavoi.Accounts
-  alias Pavoi.Accounts.Scope
-
   @impl true
   def render(assigns) do
     ~H"""
@@ -14,48 +11,18 @@ defmodule PavoiWeb.UserLive.Login do
         <div class="auth-header">
           <h1 class="auth-title">Log in</h1>
           <p class="auth-subtitle">
-            <%= if @current_scope do %>
-              Please log in again to continue.
-            <% else %>
-              Enter your email address and we'll send you a magic link to sign in.
-            <% end %>
+            Enter your email and password to sign in.
           </p>
-        </div>
-
-        <div :if={local_mail_adapter?()} class="auth-info">
-          <svg
-            class="size-5"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-          >
-            <circle cx="12" cy="12" r="10" /><line x1="12" y1="16" x2="12" y2="12" /><line
-              x1="12"
-              y1="8"
-              x2="12.01"
-              y2="8"
-            />
-          </svg>
-          <div class="auth-info__content">
-            <p>You are running the local mail adapter.</p>
-            <p>
-              To see sent emails, visit <.link href="/dev/mailbox">the mailbox page</.link>.
-            </p>
-          </div>
         </div>
 
         <.form
           for={@form}
-          id="login_form_magic"
+          id="login_form"
           action={~p"/users/log-in"}
-          phx-submit="submit_magic"
+          phx-update="ignore"
           class="auth-form"
         >
           <.input
-            readonly={!!@current_scope}
             field={@form[:email]}
             type="email"
             label="Email"
@@ -63,12 +30,23 @@ defmodule PavoiWeb.UserLive.Login do
             required
             phx-mounted={JS.focus()}
           />
-          <.button variant="primary" phx-disable-with="Sending link...">
-            Send magic link <span aria-hidden="true">→</span>
+          <.input
+            field={@form[:password]}
+            type="password"
+            label="Password"
+            autocomplete="current-password"
+            required
+          />
+          <label class="form-checkbox">
+            <input type="checkbox" name="user[remember_me]" value="true" checked />
+            <span class="form-checkbox__label">Keep me logged in</span>
+          </label>
+          <.button variant="primary" phx-disable-with="Logging in...">
+            Log in <span aria-hidden="true">→</span>
           </.button>
         </.form>
 
-        <p :if={!@current_scope} class="auth-footer">
+        <p class="auth-footer">
           Need access? Contact your admin for an invite.
         </p>
       </div>
@@ -78,37 +56,9 @@ defmodule PavoiWeb.UserLive.Login do
 
   @impl true
   def mount(_params, _session, socket) do
-    email =
-      Phoenix.Flash.get(socket.assigns.flash, :email) ||
-        case socket.assigns.current_scope do
-          %Scope{user: %Accounts.User{email: email}} -> email
-          _ -> nil
-        end
-
+    email = Phoenix.Flash.get(socket.assigns.flash, :email)
     form = to_form(%{"email" => email}, as: "user")
 
-    {:ok, assign(socket, form: form)}
-  end
-
-  @impl true
-  def handle_event("submit_magic", %{"user" => %{"email" => email}}, socket) do
-    if user = Accounts.get_user_by_email(email) do
-      Accounts.deliver_login_instructions(
-        user,
-        &url(~p"/users/log-in/#{&1}")
-      )
-    end
-
-    info =
-      "If your email is in our system, you will receive instructions for logging in shortly."
-
-    {:noreply,
-     socket
-     |> put_flash(:info, info)
-     |> push_navigate(to: ~p"/users/log-in")}
-  end
-
-  defp local_mail_adapter? do
-    Application.get_env(:pavoi, Pavoi.Mailer)[:adapter] == Swoosh.Adapters.Local
+    {:ok, assign(socket, form: form), temporary_assigns: [form: form]}
   end
 end
