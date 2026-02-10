@@ -214,4 +214,37 @@ defmodule Pavoi.TiktokShop.Parsers do
   def parse_hash_tags(nil), do: []
   def parse_hash_tags(tags) when is_list(tags), do: tags
   def parse_hash_tags(_), do: []
+
+  @doc """
+  Parses a list of product performance data from TikTok API response.
+
+  Each product map should have "id", "name", "sales", and "traffic" keys.
+  Returns a list of maps sorted by GMV descending.
+
+  ## Examples
+
+      iex> parse_product_performance([%{"id" => "123", "name" => "Widget", "sales" => %{}, "traffic" => %{}}])
+      [%{"product_id" => "123", "product_name" => "Widget", "gmv_cents" => nil, ...}]
+  """
+  def parse_product_performance(products) when is_list(products) do
+    products
+    |> Enum.map(fn product ->
+      sales = product["sales"] || %{}
+      traffic = product["traffic"] || %{}
+
+      %{
+        "product_id" => product["id"],
+        "product_name" => product["name"],
+        "gmv_cents" => parse_gmv_cents(sales["direct_gmv"]),
+        "items_sold" => parse_integer(sales["items_sold"]),
+        "customers" => parse_integer(sales["customers"]),
+        "orders" => parse_integer(sales["sku_orders"]),
+        "impressions" => parse_integer(traffic["product_impressions"]),
+        "clicks" => parse_integer(traffic["add_to_cart_count"])
+      }
+    end)
+    |> Enum.sort_by(& &1["gmv_cents"], :desc)
+  end
+
+  def parse_product_performance(_), do: []
 end

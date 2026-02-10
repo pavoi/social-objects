@@ -18,6 +18,7 @@ defmodule Pavoi.StreamReport do
   alias Pavoi.TiktokLive
   alias Pavoi.TiktokLive.Comment
   alias Pavoi.TiktokShop
+  alias Pavoi.TiktokShop.Analytics
   alias PavoiWeb.BrandRoutes
 
   @flash_sale_threshold 50
@@ -45,6 +46,9 @@ defmodule Pavoi.StreamReport do
     # Get product interest (if linked to session)
     products = get_top_products(brand_id, stream_id)
 
+    # Try to fetch product sales data from TikTok Analytics API
+    top_selling_products = try_fetch_top_selling_products(brand_id, stream)
+
     # Detect flash sale comments
     flash_sales = detect_flash_sale_comments(brand_id, stream_id)
 
@@ -66,6 +70,7 @@ defmodule Pavoi.StreamReport do
        stream: stream,
        stats: stats,
        top_products: products,
+       top_selling_products: top_selling_products,
        flash_sales: flash_sales,
        sentiment_analysis: sentiment,
        gmv_data: gmv_data,
@@ -127,6 +132,36 @@ defmodule Pavoi.StreamReport do
 
       [] ->
         []
+    end
+  end
+
+  # Try to fetch product sales data from TikTok Analytics API
+  # This may not be available immediately after stream ends
+  defp try_fetch_top_selling_products(brand_id, stream) do
+    case Analytics.try_fetch_product_performance_for_stream(brand_id, stream) do
+      {:ok, %{"products" => products}} when is_list(products) and products != [] ->
+        # Return top 5 products by GMV
+        products
+        |> Enum.sort_by(& &1["gmv_cents"], :desc)
+        |> Enum.take(5)
+
+      {:ok, _} ->
+        Logger.debug("No product performance data available for stream #{stream.id}")
+        nil
+
+      {:error, :no_match} ->
+        Logger.debug(
+          "No matching TikTok session found for stream #{stream.id} - data may not be available yet"
+        )
+
+        nil
+
+      {:error, reason} ->
+        Logger.debug(
+          "Failed to fetch product performance for stream #{stream.id}: #{inspect(reason)}"
+        )
+
+        nil
     end
   end
 
@@ -303,7 +338,7 @@ defmodule Pavoi.StreamReport do
   Returns `{:ok, blocks}` where blocks is a list of Slack block structures.
   """
   def format_slack_blocks(report_data) do
-    blocks =
+    base_blocks =
       List.flatten([
         header_block(report_data.stream),
         cover_image_block(report_data.stream),
@@ -312,54 +347,67 @@ defmodule Pavoi.StreamReport do
         divider_block()
       ])
 
-    # Add GMV section if available
     blocks =
-      if report_data.gmv_data && report_data.gmv_data.total_orders > 0 do
-        blocks ++ [gmv_block(report_data.gmv_data), divider_block()]
-      else
-        blocks
-      end
-
-    blocks =
-      if Enum.any?(report_data.top_products) do
-        blocks ++ [products_block(report_data.stream, report_data.top_products), divider_block()]
-      else
-        blocks
-      end
-
-    blocks =
-      if Enum.any?(report_data.flash_sales) do
-        blocks ++ [flash_sales_block(report_data.flash_sales), divider_block()]
-      else
-        blocks
-      end
-
-    # Add sentiment stats if available (includes unique commenters)
-    blocks =
-      if report_data.sentiment_breakdown do
-        blocks ++ [sentiment_stats_block(report_data), divider_block()]
-      else
-        blocks
-      end
-
-    # Add category breakdown if available
-    blocks =
-      if Enum.any?(report_data.category_breakdown || []) do
-        blocks ++ [category_breakdown_block(report_data.category_breakdown), divider_block()]
-      else
-        blocks
-      end
-
-    # Add AI insights last
-    blocks =
-      if report_data.sentiment_analysis do
-        blocks ++ [sentiment_block(report_data.sentiment_analysis)]
-      else
-        blocks
-      end
+      base_blocks
+      |> maybe_add_gmv_section(report_data)
+      |> maybe_add_products_section(report_data)
+      |> maybe_add_top_selling_section(report_data)
+      |> maybe_add_flash_sales_section(report_data)
+      |> maybe_add_sentiment_stats_section(report_data)
+      |> maybe_add_category_section(report_data)
+      |> maybe_add_insights_section(report_data)
 
     {:ok, blocks}
   end
+
+  defp maybe_add_gmv_section(blocks, %{gmv_data: %{total_orders: orders} = gmv_data})
+       when orders > 0 do
+    blocks ++ [gmv_block(gmv_data), divider_block()]
+  end
+
+  defp maybe_add_gmv_section(blocks, _report_data), do: blocks
+
+  defp maybe_add_products_section(blocks, %{stream: stream, top_products: products})
+       when products != [] do
+    blocks ++ [products_block(stream, products), divider_block()]
+  end
+
+  defp maybe_add_products_section(blocks, _report_data), do: blocks
+
+  defp maybe_add_top_selling_section(blocks, %{top_selling_products: products})
+       when is_list(products) and products != [] do
+    blocks ++ [top_selling_products_block(products), divider_block()]
+  end
+
+  defp maybe_add_top_selling_section(blocks, _report_data), do: blocks
+
+  defp maybe_add_flash_sales_section(blocks, %{flash_sales: flash_sales})
+       when flash_sales != [] do
+    blocks ++ [flash_sales_block(flash_sales), divider_block()]
+  end
+
+  defp maybe_add_flash_sales_section(blocks, _report_data), do: blocks
+
+  defp maybe_add_sentiment_stats_section(blocks, %{sentiment_breakdown: breakdown} = report_data)
+       when not is_nil(breakdown) do
+    blocks ++ [sentiment_stats_block(report_data), divider_block()]
+  end
+
+  defp maybe_add_sentiment_stats_section(blocks, _report_data), do: blocks
+
+  defp maybe_add_category_section(blocks, %{category_breakdown: categories})
+       when is_list(categories) and categories != [] do
+    blocks ++ [category_breakdown_block(categories), divider_block()]
+  end
+
+  defp maybe_add_category_section(blocks, _report_data), do: blocks
+
+  defp maybe_add_insights_section(blocks, %{sentiment_analysis: analysis})
+       when not is_nil(analysis) do
+    blocks ++ [sentiment_block(analysis)]
+  end
+
+  defp maybe_add_insights_section(blocks, _report_data), do: blocks
 
   defp header_block(stream) do
     ended_at = format_ended_at(stream.ended_at)
@@ -512,7 +560,7 @@ defmodule Pavoi.StreamReport do
   defp product_more_info_link(_brand, nil), do: ""
 
   defp product_more_info_link(brand, product_id) do
-    url = BrandRoutes.brand_url(brand, "/product-sets?pt=products&p=#{product_id}")
+    url = BrandRoutes.brand_url(brand, "/products?pt=products&p=#{product_id}")
     " (<#{url}|more info>)"
   end
 
@@ -524,6 +572,21 @@ defmodule Pavoi.StreamReport do
     |> String.replace(~r/^PAVOI\s+/, "")
     |> String.replace(~r/^14K Gold Plated\s+/, "")
     |> truncate(40)
+  end
+
+  defp top_selling_products_block(products) do
+    lines =
+      products
+      |> Enum.with_index(1)
+      |> Enum.map(fn {product, rank} ->
+        name = shorten_product_name(product["product_name"] || "Unknown")
+        gmv = format_money(product["gmv_cents"] || 0)
+        items = product["items_sold"] || 0
+        "`##{rank}` #{name} — *#{gmv}* (#{items} sold)"
+      end)
+
+    text = ":chart_with_upwards_trend: *Top Selling Products*\n" <> Enum.join(lines, "\n")
+    %{type: "section", text: %{type: "mrkdwn", text: text}}
   end
 
   defp flash_sales_block(flash_sales) do

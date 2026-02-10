@@ -9,6 +9,7 @@ defmodule Pavoi.TiktokShop.Analytics do
   """
 
   alias Pavoi.TiktokShop
+  alias Pavoi.TiktokShop.Parsers
 
   # =============================================================================
   # Shop Performance
@@ -453,6 +454,121 @@ defmodule Pavoi.TiktokShop.Analytics do
       "/analytics/202509/shop_skus/#{sku_id}/performance",
       params
     )
+  end
+
+  # =============================================================================
+  # Stream Helpers
+  # =============================================================================
+
+  @time_tolerance_seconds 5 * 60
+
+  @doc """
+  Attempts to fetch product performance data for a stream.
+
+  This is used at report time to try getting product sales data immediately
+  after a stream ends. The function will:
+  1. Fetch live sessions from the API for the stream's date
+  2. Match by username and time overlap
+  3. If found, fetch and return product performance
+
+  Returns `{:ok, product_performance}` or `{:error, reason}`.
+  The product_performance map has a "products" key with a list of products.
+
+  ## Example
+
+      try_fetch_product_performance_for_stream(brand_id, stream)
+      # => {:ok, %{"products" => [%{"product_name" => "...", "gmv_cents" => 1500, ...}]}}
+      # => {:error, :no_match}
+      # => {:error, :api_error}
+  """
+  def try_fetch_product_performance_for_stream(brand_id, stream) do
+    # Calculate date range for the stream
+    start_date =
+      stream.started_at
+      |> DateTime.add(-1, :day)
+      |> DateTime.to_date()
+      |> Date.to_iso8601()
+
+    end_date =
+      (stream.ended_at || stream.started_at)
+      |> DateTime.add(2, :day)
+      |> DateTime.to_date()
+      |> Date.to_iso8601()
+
+    # Fetch live sessions for this date range
+    case get_shop_live_performance_list(brand_id,
+           start_date_ge: start_date,
+           end_date_lt: end_date,
+           page_size: 50,
+           account_type: "ALL"
+         ) do
+      {:ok, %{"data" => data}} ->
+        sessions = Map.get(data, "live_stream_sessions", [])
+        find_and_fetch_product_performance(brand_id, stream, sessions)
+
+      {:ok, %{"code" => code}} ->
+        {:error, {:api_error, code}}
+
+      {:error, reason} ->
+        {:error, reason}
+    end
+  end
+
+  defp find_and_fetch_product_performance(brand_id, stream, sessions) do
+    matching_session =
+      Enum.find(sessions, fn session ->
+        username_matches?(stream, session) && time_overlaps?(stream, session)
+      end)
+
+    case matching_session do
+      nil ->
+        {:error, :no_match}
+
+      session ->
+        live_id = session["id"]
+        fetch_parsed_product_performance(brand_id, live_id)
+    end
+  end
+
+  defp fetch_parsed_product_performance(brand_id, live_id) do
+    case get_shop_live_products_performance(brand_id,
+           live_id: live_id,
+           currency: "USD"
+         ) do
+      {:ok, %{"data" => data}} ->
+        products = Map.get(data, "products", [])
+        parsed = Parsers.parse_product_performance(products)
+        {:ok, %{"products" => parsed}}
+
+      {:ok, %{"code" => code}} ->
+        {:error, {:api_error, code}}
+
+      {:error, reason} ->
+        {:error, reason}
+    end
+  end
+
+  defp username_matches?(stream, session) do
+    stream_username = String.downcase(stream.unique_id || "")
+    api_username = String.downcase(session["username"] || "")
+    stream_username == api_username
+  end
+
+  defp time_overlaps?(stream, session) do
+    now = DateTime.utc_now()
+    api_start = Parsers.parse_unix_timestamp(session["start_time"]) || now
+    api_end = Parsers.parse_unix_timestamp(session["end_time"]) || now
+
+    stream_start =
+      (stream.started_at || now)
+      |> DateTime.add(-@time_tolerance_seconds, :second)
+
+    stream_end =
+      (stream.ended_at || now)
+      |> DateTime.add(@time_tolerance_seconds, :second)
+
+    DateTime.compare(stream_start, api_end) in [:lt, :eq] &&
+      DateTime.compare(stream_end, api_start) in [:gt, :eq]
   end
 
   # =============================================================================

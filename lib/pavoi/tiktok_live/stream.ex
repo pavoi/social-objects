@@ -49,6 +49,9 @@ defmodule Pavoi.TiktokLive.Stream do
     field :items_sold, :integer
     field :click_through_rate, :decimal
 
+    # Per-product performance data from Analytics API
+    field :product_performance, :map
+
     belongs_to :brand, Pavoi.Catalog.Brand
     belongs_to :product_set, Pavoi.ProductSets.ProductSet
 
@@ -97,7 +100,8 @@ defmodule Pavoi.TiktokLive.Stream do
       :analytics_per_minute,
       :total_views,
       :items_sold,
-      :click_through_rate
+      :click_through_rate,
+      :product_performance
     ])
     |> validate_required([:brand_id, :room_id, :unique_id, :started_at])
     |> foreign_key_constraint(:product_set_id)

@@ -209,7 +209,37 @@ defmodule Pavoi.Workers.StreamAnalyticsSyncWorker do
     # Fetch per-minute data if live_id is available
     per_minute_data = fetch_per_minute_data(brand_id, live_id)
 
-    attrs = %{
+    # Fetch per-product performance data
+    product_performance = fetch_product_performance(brand_id, live_id)
+
+    attrs =
+      build_analytics_attrs(
+        live_id,
+        interaction,
+        sales,
+        synced_at,
+        per_minute_data,
+        product_performance
+      )
+
+    # Log GMV discrepancy if >20%
+    log_gmv_discrepancy(stream, attrs.official_gmv_cents)
+
+    from(s in Stream, where: s.brand_id == ^brand_id and s.id == ^stream.id)
+    |> Repo.update_all(set: Enum.to_list(attrs))
+
+    log_sync_result(stream.id, attrs, per_minute_data, product_performance)
+  end
+
+  defp build_analytics_attrs(
+         live_id,
+         interaction,
+         sales,
+         synced_at,
+         per_minute_data,
+         product_performance
+       ) do
+    %{
       tiktok_live_id: live_id,
       official_gmv_cents: Parsers.parse_gmv_cents(sales["gmv"]),
       gmv_24h_cents: Parsers.parse_gmv_cents(sales["24h_live_gmv"]),
@@ -219,30 +249,32 @@ defmodule Pavoi.Workers.StreamAnalyticsSyncWorker do
       unique_customers: Parsers.parse_integer(sales["customers"]),
       conversion_rate: Parsers.parse_percentage(sales["click_to_order_rate"]),
       analytics_synced_at: synced_at,
-      # Additional session-level fields
       total_views: Parsers.parse_integer(interaction["views"]),
       items_sold: Parsers.parse_integer(sales["items_sold"]),
       click_through_rate: Parsers.parse_percentage(interaction["click_through_rate"]),
-      # Per-minute time-series data
-      analytics_per_minute: per_minute_data
+      analytics_per_minute: per_minute_data,
+      product_performance: product_performance
     }
+  end
 
-    # Log GMV discrepancy if >20%
-    log_gmv_discrepancy(stream, attrs.official_gmv_cents)
-
-    from(s in Stream, where: s.brand_id == ^brand_id and s.id == ^stream.id)
-    |> Repo.update_all(set: Enum.to_list(attrs))
+  defp log_sync_result(stream_id, attrs, per_minute_data, product_performance) do
+    product_count = count_products(product_performance)
+    per_minute_suffix = format_per_minute_suffix(per_minute_data)
 
     Logger.info(
-      "Synced analytics for stream #{stream.id}: " <>
+      "Synced analytics for stream #{stream_id}: " <>
         "official_gmv=$#{(attrs.official_gmv_cents || 0) / 100}, " <>
         "24h_gmv=$#{(attrs.gmv_24h_cents || 0) / 100}" <>
-        if(per_minute_data,
-          do: ", per_minute_points=#{length(per_minute_data["data"] || [])}",
-          else: ""
-        )
+        per_minute_suffix <>
+        ", products=#{product_count}"
     )
   end
+
+  defp count_products(nil), do: 0
+  defp count_products(product_performance), do: length(product_performance["products"] || [])
+
+  defp format_per_minute_suffix(nil), do: ""
+  defp format_per_minute_suffix(data), do: ", per_minute_points=#{length(data["data"] || [])}"
 
   defp fetch_per_minute_data(_brand_id, nil), do: nil
 
@@ -296,6 +328,34 @@ defmodule Pavoi.Workers.StreamAnalyticsSyncWorker do
         "orders" => Parsers.parse_integer(minute["orders"])
       }
     end)
+  end
+
+  defp fetch_product_performance(_brand_id, nil), do: nil
+
+  defp fetch_product_performance(brand_id, live_id) do
+    case Analytics.get_shop_live_products_performance(brand_id,
+           live_id: live_id,
+           currency: "USD"
+         ) do
+      {:ok, %{"data" => data}} ->
+        products = Map.get(data, "products", [])
+        parsed_products = Parsers.parse_product_performance(products)
+        %{"products" => parsed_products}
+
+      {:ok, %{"code" => code, "message" => message}} ->
+        Logger.debug(
+          "Product performance API returned code #{code} for live #{live_id}: #{message}"
+        )
+
+        nil
+
+      {:error, reason} ->
+        Logger.debug(
+          "Failed to fetch product performance for live #{live_id}: #{inspect(reason)}"
+        )
+
+        nil
+    end
   end
 
   defp mark_stream_synced(brand_id, stream_id, synced_at) do
