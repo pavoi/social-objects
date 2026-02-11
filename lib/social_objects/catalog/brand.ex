@@ -12,6 +12,7 @@ defmodule SocialObjects.Catalog.Brand do
     field :slug, :string
     field :notes, :string
     field :primary_domain, :string
+    field :logo_url, :string
 
     has_many :products, SocialObjects.Catalog.Product
     has_many :product_sets, SocialObjects.ProductSets.ProductSet
@@ -24,7 +25,7 @@ defmodule SocialObjects.Catalog.Brand do
   @doc false
   def changeset(brand, attrs) do
     brand
-    |> cast(attrs, [:name, :slug, :notes, :primary_domain])
+    |> cast(attrs, [:name, :slug, :notes, :primary_domain, :logo_url])
     |> validate_required([:name, :slug])
     |> unique_constraint(:name)
     |> unique_constraint(:slug)

@@ -28,19 +28,19 @@
 }
 
 .brand-switcher__toggle {
-  @apply inline-flex items-center gap-2 py-1 px-2;
-  @apply border border-border-secondary rounded-md;
-  @apply bg-surface-primary text-text-primary text-sm cursor-pointer;
+  @apply inline-flex items-center gap-1.5 p-1.5;
+  @apply rounded-md;
+  @apply bg-transparent text-text-primary text-sm cursor-pointer;
   transition: all var(--transition-base);
 }
 
 .brand-switcher__toggle:hover {
-  @apply bg-bg-hover border-border-primary;
+  @apply bg-bg-hover;
 }
 
 .brand-switcher__menu {
   @apply hidden absolute flex-col items-stretch gap-1 p-2;
-  @apply min-w-[200px];
+  @apply w-max;
   @apply bg-surface-primary border border-border-secondary rounded-md;
   top: calc(100% + var(--spacing-2));
   left: 0;
@@ -62,8 +62,12 @@
 }
 
 .brand-switcher__item {
-  @apply flex items-center justify-between gap-2 py-2 px-3;
+  @apply flex items-center gap-2 py-2 px-3;
   @apply rounded-md no-underline text-text-primary text-sm;
+}
+
+.brand-switcher__item-name {
+  @apply flex-1;
 }
 
 .brand-switcher__item:hover {
@@ -72,6 +76,35 @@
 
 .brand-switcher__item--active {
   @apply bg-bg-hover font-semibold;
+}
+
+.brand-switcher__single {
+  @apply flex items-center;
+}
+
+/* ============================================================================
+   BRAND LOGO
+   ============================================================================ */
+
+.brand-logo {
+  @apply relative flex items-center justify-center shrink-0 overflow-hidden rounded;
+}
+
+.brand-logo--sm {
+  @apply w-6 h-6;
+}
+
+.brand-logo--md {
+  @apply w-8 h-8;
+}
+
+.brand-logo__img {
+  @apply w-full h-full object-cover rounded;
+}
+
+.brand-logo__fallback {
+  @apply flex items-center justify-center w-full h-full;
+  @apply bg-surface-tertiary text-text-primary font-semibold text-xs rounded;
 }
 
 /* ============================================================================
@@ -142,190 +175,40 @@
 }
 
 /* ============================================================================
-   SYNC GROUP
+   SETTINGS LINK
    ============================================================================ */
 
-.navbar__sync-group {
-  @apply flex flex-col items-center gap-1;
-}
-
-.navbar__sync-meta {
-  @apply text-text-secondary font-normal whitespace-nowrap;
-  font-size: 11px;
-}
-
-/* ============================================================================
-   MENU CONTAINER
-   ============================================================================ */
-
-.navbar__menu-container {
-  @apply relative flex items-center gap-2;
-}
-
-.navbar__menu-trigger {
+.navbar__settings-link {
   @apply flex items-center justify-center w-9 h-9 p-0;
-  @apply bg-transparent border border-border-secondary rounded-md;
-  @apply text-text-secondary font-bold cursor-pointer;
-  font-size: 20px;
-  transition: all var(--transition-base);
-}
-
-.navbar__menu-trigger:hover {
-  @apply bg-bg-hover border-border-primary text-text-primary;
-}
-
-/* ============================================================================
-   PROFILE LINK
-   ============================================================================ */
-
-.navbar__profile-link {
-  @apply flex items-center justify-center w-9 h-9 p-0;
-  @apply bg-transparent border border-border-secondary rounded-md;
+  @apply bg-transparent rounded-md;
   @apply text-text-secondary cursor-pointer;
   transition: all var(--transition-base);
 }
 
-.navbar__profile-link:hover {
-  @apply bg-bg-hover border-border-primary text-text-primary;
-}
-
-/* ============================================================================
-   COLLAPSIBLE MENU
-   ============================================================================ */
-
-.navbar__menu {
-  @apply hidden absolute right-0 flex-col items-stretch gap-0;
-  @apply min-w-[200px] p-4 px-3;
-  @apply bg-surface-primary border border-border-secondary rounded-md;
-  top: calc(100% + var(--spacing-2));
-  box-shadow: var(--shadow-lg);
-  z-index: var(--z-dropdown);
-}
-
-.navbar__menu--left {
-  @apply right-auto left-0;
-}
-
-.navbar__menu::before {
-  content: "";
-  @apply absolute left-0 right-0;
-  top: calc(-1 * var(--spacing-2));
-  height: var(--spacing-2);
-}
-
-@media (hover: hover) {
-  .navbar__menu-container:hover .navbar__menu {
-    display: flex !important;
-  }
-}
-
-.navbar__menu .navbar__sync-group {
-  @apply items-center mb-2;
-}
-
-.navbar__menu .navbar__sync-group:last-of-type {
-  @apply mb-0;
-}
-
-.navbar__menu .button {
-  @apply justify-center;
-}
-
-.navbar__menu .navbar__sync-meta {
-  @apply p-0 mt-1 text-center;
-  font-size: 11px;
-  @apply opacity-70;
-}
-
-.navbar__menu .theme-toggle {
-  @apply self-center;
-}
-
-.navbar__menu-profile-link {
-  @apply flex items-center justify-center w-9 h-9 p-0;
-  @apply bg-transparent border border-border-secondary rounded-md;
-  @apply text-text-secondary cursor-pointer;
-  transition: all var(--transition-base);
-}
-
-.navbar__menu-profile-link:hover {
-  @apply bg-bg-hover border-border-primary text-text-primary;
-}
-
-/* ============================================================================
-   MENU SECTIONS
-   ============================================================================ */
-
-.navbar__menu-section {
-  @apply flex flex-col gap-2 py-4 border-t border-border-secondary;
-}
-
-.navbar__menu-section:first-child {
-  @apply border-t-0 pt-0;
-}
-
-.navbar__menu-section:last-of-type {
-  @apply pb-2;
-}
-
-.navbar__menu-section--row {
-  @apply flex-row items-center justify-center gap-4;
-}
-
-.navbar__menu-label {
-  @apply py-1 px-2 mb-1 text-text-tertiary uppercase;
-  font-size: 11px;
-  letter-spacing: 0.08em;
-}
-
-.navbar__menu-user {
-  @apply text-sm text-text-primary font-medium py-1 px-2;
-  word-break: break-all;
-}
-
-.navbar__menu-link {
-  @apply block p-2 rounded-md no-underline text-text-secondary text-sm;
-  transition: all var(--transition-fast);
-}
-
-.navbar__menu-link:hover {
-  @apply text-text-primary bg-bg-hover;
-}
-
-.navbar__menu-link:active {
-  @apply bg-surface-secondary;
-}
-
-/* ============================================================================
-   CAPTURE FORM
-   ============================================================================ */
-
-.navbar__capture-form {
-  @apply flex flex-col gap-2 py-2;
-}
-
-.navbar__capture-form .input {
-  @apply w-full;
-}
-
-.navbar__capture-error {
-  @apply text-accent-red text-xs;
+.navbar__settings-link:hover {
+  @apply bg-bg-hover text-text-primary;
 }
 
 /* ============================================================================
    NAV DROPDOWN (collapsed state)
+   ============================================================================
+   At narrower viewports (<=768px), always show the dropdown menu instead of
+   horizontal nav links. This is handled purely via CSS media query for
+   reliability - no JavaScript measurement needed.
    ============================================================================ */
 
 .navbar__nav-dropdown {
   @apply hidden relative;
 }
 
-.navbar--collapsed .navbar__nav {
-  @apply hidden;
-}
+@media (max-width: 768px) {
+  .navbar__nav {
+    @apply hidden;
+  }
 
-.navbar--collapsed .navbar__nav-dropdown {
-  @apply block;
+  .navbar__nav-dropdown {
+    @apply block;
+  }
 }
 
 .navbar__nav-dropdown-trigger {

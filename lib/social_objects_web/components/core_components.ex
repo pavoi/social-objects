@@ -26,9 +26,6 @@ defmodule SocialObjectsWeb.CoreComponents do
   alias Phoenix.HTML.{Form, FormField}
   alias Phoenix.LiveView.JS
 
-  import SocialObjectsWeb.BrandPermissions
-  import SocialObjectsWeb.ThemeComponents
-
   # Verified routes for navigation
   use Phoenix.VerifiedRoutes,
     endpoint: SocialObjectsWeb.Endpoint,
@@ -521,6 +518,31 @@ defmodule SocialObjectsWeb.CoreComponents do
   end
 
   @doc """
+  Renders a brand logo with fallback to brand name initial.
+
+  ## Examples
+
+      <.brand_logo brand={@brand} size="sm" />
+      <.brand_logo brand={@brand} size="md" />
+  """
+  attr :brand, :map, required: true
+  attr :size, :string, default: "sm", values: ["sm", "md"]
+
+  def brand_logo(assigns) do
+    ~H"""
+    <div class={["brand-logo", "brand-logo--#{@size}"]}>
+      <%= if @brand.logo_url do %>
+        <img src={@brand.logo_url} alt={@brand.name} class="brand-logo__img" />
+      <% else %>
+        <span class="brand-logo__fallback">
+          {String.first(@brand.name)}
+        </span>
+      <% end %>
+    </div>
+    """
+  end
+
+  @doc """
   Renders a navigation bar with tabs and page-specific action buttons.
 
   ## Examples
@@ -532,225 +554,13 @@ defmodule SocialObjectsWeb.CoreComponents do
   attr :current_brand, :map, default: nil
   attr :user_brands, :list, default: []
   attr :current_host, :string, default: nil
-  attr :syncing, :boolean, default: false
-  attr :last_sync_at, :any, default: nil
-  attr :tiktok_syncing, :boolean, default: false
-  attr :tiktok_last_sync_at, :any, default: nil
-  attr :bigquery_syncing, :boolean, default: false
-  attr :bigquery_last_sync_at, :any, default: nil
-  attr :enrichment_syncing, :boolean, default: false
-  attr :enrichment_last_sync_at, :any, default: nil
-  attr :video_syncing, :boolean, default: false
-  attr :videos_last_import_at, :any, default: nil
-  attr :analytics_refreshing, :boolean, default: false
-  attr :analytics_last_fetch_at, :any, default: nil
-  attr :stream_scan_syncing, :boolean, default: false
-  attr :stream_last_scan_at, :any, default: nil
-  attr :stream_scan_enabled, :boolean, default: true
-  attr :capture_input, :string, default: ""
-  attr :capture_loading, :boolean, default: false
-  attr :capture_error, :string, default: nil
   attr :is_admin, :boolean, default: false
   attr :feature_flags, :map, default: %{}
 
   def nav_tabs(assigns) do
     ~H"""
-    <nav id="global-nav" class="navbar" phx-hook="NavCollapse">
+    <nav id="global-nav" class="navbar">
       <div class="navbar__start">
-        <div class="navbar__menu-container">
-          <button
-            class="navbar__menu-trigger"
-            aria-label="Open menu"
-            aria-haspopup="true"
-            phx-click={JS.toggle(to: "#navbar-menu", in: "fade-in", out: "fade-out", display: "flex")}
-          >
-            ⋮
-          </button>
-          <div
-            id="navbar-menu"
-            class="navbar__menu navbar__menu--left"
-            phx-click-away={JS.hide(to: "#navbar-menu", transition: "fade-out")}
-          >
-            <%= if @current_page == :streams and @stream_scan_enabled do %>
-              <div class="navbar__sync-group">
-                <.button
-                  variant="primary"
-                  size="sm"
-                  phx-click="scan_streams"
-                  class={@stream_scan_syncing && "button--disabled"}
-                  disabled={@stream_scan_syncing}
-                >
-                  {if @stream_scan_syncing, do: "Scanning...", else: "Scan Streams"}
-                </.button>
-                <div class="navbar__sync-meta">
-                  Scanned: {if @stream_last_scan_at,
-                    do: format_relative_time(@stream_last_scan_at),
-                    else: "Never"}
-                </div>
-              </div>
-            <% end %>
-            <%= if @current_page == :streams and not @stream_scan_enabled do %>
-              <form phx-submit="start_capture" class="navbar__capture-form">
-                <input
-                  type="text"
-                  name="unique_id"
-                  placeholder="@username"
-                  class="input input--sm"
-                  value={@capture_input}
-                  disabled={@capture_loading}
-                />
-                <.button
-                  type="submit"
-                  variant="primary"
-                  size="sm"
-                  disabled={@capture_loading}
-                >
-                  {if @capture_loading, do: "Connecting...", else: "Capture"}
-                </.button>
-                <%= if @capture_error do %>
-                  <span class="navbar__capture-error">{@capture_error}</span>
-                <% end %>
-              </form>
-            <% end %>
-            <%= if @current_page == :products and can_edit?(assigns) do %>
-              <div class="navbar__sync-group">
-                <.button
-                  variant="primary"
-                  size="sm"
-                  phx-click="trigger_shopify_sync"
-                  class={@syncing && "button--disabled"}
-                  disabled={@syncing}
-                >
-                  {if @syncing, do: "Syncing...", else: "Sync Shopify"}
-                </.button>
-                <div class="navbar__sync-meta">
-                  {if @last_sync_at,
-                    do: format_relative_time(@last_sync_at),
-                    else: "Never synced"}
-                </div>
-              </div>
-              <div class="navbar__sync-group">
-                <.button
-                  variant="primary"
-                  size="sm"
-                  phx-click="trigger_tiktok_sync"
-                  class={@tiktok_syncing && "button--disabled"}
-                  disabled={@tiktok_syncing}
-                >
-                  {if @tiktok_syncing, do: "Syncing...", else: "Sync TikTok"}
-                </.button>
-                <div class="navbar__sync-meta">
-                  {if @tiktok_last_sync_at,
-                    do: format_relative_time(@tiktok_last_sync_at),
-                    else: "Never synced"}
-                </div>
-              </div>
-            <% end %>
-            <%= if @current_page == :creators and can_edit?(assigns) do %>
-              <div class="navbar__sync-group">
-                <.button
-                  variant="primary"
-                  size="sm"
-                  phx-click="trigger_bigquery_sync"
-                  class={@bigquery_syncing && "button--disabled"}
-                  disabled={@bigquery_syncing}
-                >
-                  {if @bigquery_syncing, do: "Syncing...", else: "Sync Shop Orders"}
-                </.button>
-                <div class="navbar__sync-meta">
-                  {if @bigquery_last_sync_at,
-                    do: format_relative_time(@bigquery_last_sync_at),
-                    else: "Never synced"}
-                </div>
-              </div>
-              <div class="navbar__sync-group">
-                <.button
-                  variant="primary"
-                  size="sm"
-                  phx-click="trigger_enrichment_sync"
-                  class={@enrichment_syncing && "button--disabled"}
-                  disabled={@enrichment_syncing}
-                >
-                  {if @enrichment_syncing, do: "Syncing...", else: "Sync Creator Profiles"}
-                </.button>
-                <div class="navbar__sync-meta">
-                  {if @enrichment_last_sync_at,
-                    do: format_relative_time(@enrichment_last_sync_at),
-                    else: "Never synced"}
-                </div>
-              </div>
-              <div class="navbar__sync-group">
-                <.button
-                  variant="primary"
-                  size="sm"
-                  phx-click="trigger_video_sync"
-                  class={@video_syncing && "button--disabled"}
-                  disabled={@video_syncing}
-                >
-                  {if @video_syncing, do: "Syncing...", else: "Sync Video Performance"}
-                </.button>
-                <div class="navbar__sync-meta">
-                  {if @videos_last_import_at,
-                    do: format_relative_time(@videos_last_import_at),
-                    else: "Never synced"}
-                </div>
-              </div>
-            <% end %>
-            <%= if @current_page == :videos and can_edit?(assigns) do %>
-              <div class="navbar__sync-group">
-                <.button
-                  variant="primary"
-                  size="sm"
-                  phx-click="trigger_video_sync"
-                  class={@video_syncing && "button--disabled"}
-                  disabled={@video_syncing}
-                >
-                  {if @video_syncing, do: "Syncing...", else: "Sync Videos"}
-                </.button>
-                <div class="navbar__sync-meta">
-                  {if @videos_last_import_at,
-                    do: format_relative_time(@videos_last_import_at),
-                    else: "Never synced"}
-                </div>
-              </div>
-            <% end %>
-            <%= if @current_page == :shop_analytics and can_edit?(assigns) do %>
-              <div class="navbar__sync-group">
-                <.button
-                  variant="primary"
-                  size="sm"
-                  phx-click="refresh_analytics"
-                  class={@analytics_refreshing && "button--disabled"}
-                  disabled={@analytics_refreshing}
-                >
-                  {if @analytics_refreshing, do: "Refreshing...", else: "Refresh Data"}
-                </.button>
-                <div class="navbar__sync-meta">
-                  {if @analytics_last_fetch_at,
-                    do: format_relative_time(@analytics_last_fetch_at),
-                    else: "Never loaded"}
-                </div>
-              </div>
-            <% end %>
-            <div :if={@is_admin && @current_page != :admin} class="navbar__menu-section">
-              <div class="navbar__sync-group">
-                <.button navigate={~p"/admin"} variant="outline" size="sm">
-                  Admin
-                </.button>
-              </div>
-            </div>
-            <div :if={@current_page != :readme} class="navbar__menu-section">
-              <div class="navbar__sync-group">
-                <.button navigate={~p"/readme"} variant="outline" size="sm">
-                  About
-                </.button>
-              </div>
-            </div>
-            <div class="navbar__menu-section">
-              <.theme_toggle />
-            </div>
-          </div>
-        </div>
         <div class="navbar__brand-switcher">
           <%= if length(@user_brands) > 1 do %>
             <button
@@ -762,7 +572,7 @@ defmodule SocialObjectsWeb.CoreComponents do
                 JS.toggle(to: "#brand-switcher-menu", in: "fade-in", out: "fade-out", display: "flex")
               }
             >
-              <span class="brand-switcher__label">{@current_brand.name}</span>
+              <.brand_logo brand={@current_brand} size="sm" />
               <svg
                 class="size-4"
                 viewBox="0 0 24 24"
@@ -788,6 +598,7 @@ defmodule SocialObjectsWeb.CoreComponents do
                   user_brand.brand.id == @current_brand.id && "brand-switcher__item--active"
                 ]}
               >
+                <.brand_logo brand={user_brand.brand} size="sm" />
                 <span class="brand-switcher__item-name">{user_brand.brand.name}</span>
                 <.icon
                   :if={user_brand.brand.id == @current_brand.id}
@@ -797,7 +608,9 @@ defmodule SocialObjectsWeb.CoreComponents do
               </.link>
             </div>
           <% else %>
-            <span class="brand-switcher__label">{@current_brand.name}</span>
+            <div class="brand-switcher__single">
+              <.brand_logo brand={@current_brand} size="sm" />
+            </div>
           <% end %>
         </div>
       </div>
@@ -842,6 +655,14 @@ defmodule SocialObjectsWeb.CoreComponents do
             Analytics
           </.link>
         <% end %>
+        <.link
+          :if={@is_admin}
+          navigate={~p"/admin"}
+          class={["navbar__link", @current_page == :admin && "navbar__link--active"]}
+          data-nav-link
+        >
+          Admin
+        </.link>
       </div>
 
       <div class="navbar__end">
@@ -922,11 +743,21 @@ defmodule SocialObjectsWeb.CoreComponents do
                 Analytics
               </.link>
             <% end %>
+            <.link
+              :if={@is_admin}
+              navigate={~p"/admin"}
+              class={[
+                "navbar__nav-dropdown-item",
+                @current_page == :admin && "navbar__nav-dropdown-item--active"
+              ]}
+            >
+              Admin
+            </.link>
           </div>
         </div>
         <.link
           navigate={~p"/users/settings"}
-          class="navbar__profile-link"
+          class="navbar__settings-link"
           aria-label="Account settings"
         >
           <svg
@@ -938,8 +769,8 @@ defmodule SocialObjectsWeb.CoreComponents do
             stroke-linecap="round"
             stroke-linejoin="round"
           >
-            <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" />
-            <circle cx="12" cy="7" r="4" />
+            <circle cx="12" cy="12" r="3" />
+            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
           </svg>
         </.link>
       </div>
@@ -965,6 +796,7 @@ defmodule SocialObjectsWeb.CoreComponents do
   defp nav_label(:creators), do: "Creators"
   defp nav_label(:videos), do: "Videos"
   defp nav_label(:shop_analytics), do: "Analytics"
+  defp nav_label(:admin), do: "Admin"
   defp nav_label(_), do: "Menu"
 
   @doc """
