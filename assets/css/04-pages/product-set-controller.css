@@ -455,11 +455,21 @@
 }
 
 /* ==========================================================================
-   HIDE NAVBAR FOR CONTROLLER VIEW
+   FULL VIEWPORT MODE FOR CONTROLLER VIEW
    ========================================================================== */
+
+body:has(.controller-container) {
+  @apply overflow-hidden;
+  height: 100vh;
+  height: 100dvh;
+}
 
 body:has(.controller-container) .app-navbar {
   @apply hidden;
+}
+
+body:has(.controller-container) .app-content {
+  @apply pt-0;
 }
 
 /* ===========================================================================

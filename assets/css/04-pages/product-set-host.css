@@ -612,11 +612,21 @@
 }
 
 /* ==========================================================================
-   HIDE NAVBAR
+   FULL VIEWPORT MODE FOR HOST VIEW
    ========================================================================== */
+
+body:has(.host-container) {
+  @apply overflow-hidden;
+  height: 100vh;
+  height: 100dvh;
+}
 
 body:has(.host-container) .app-navbar {
   @apply hidden;
+}
+
+body:has(.host-container) .app-content {
+  @apply pt-0;
 }
 
 /* ==========================================================================
