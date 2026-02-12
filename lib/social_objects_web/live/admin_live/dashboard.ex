@@ -115,71 +115,52 @@ defmodule SocialObjectsWeb.AdminLive.Dashboard do
   # PubSub Handlers - refresh UI when worker state changes
   # ============================================================================
 
-  @impl true
-  def handle_info({:sync_started}, socket), do: {:noreply, load_monitoring_data(socket)}
+  @monitoring_events [
+    :sync_started,
+    :sync_completed,
+    :sync_failed,
+    :tiktok_sync_started,
+    :tiktok_sync_completed,
+    :tiktok_sync_failed,
+    :bigquery_sync_started,
+    :bigquery_sync_completed,
+    :bigquery_sync_failed,
+    :enrichment_started,
+    :enrichment_completed,
+    :enrichment_failed,
+    :video_sync_started,
+    :video_sync_completed,
+    :video_sync_failed,
+    :scan_started,
+    :scan_completed,
+    :product_performance_sync_started,
+    :product_performance_sync_completed,
+    :product_performance_sync_failed,
+    :creator_purchase_sync_started,
+    :creator_purchase_sync_completed,
+    :creator_purchase_sync_failed,
+    :stream_analytics_sync_started,
+    :stream_analytics_sync_completed,
+    :stream_analytics_sync_failed,
+    :weekly_recap_sync_started,
+    :weekly_recap_sync_completed,
+    :weekly_recap_sync_failed,
+    :tiktok_token_refresh_started,
+    :tiktok_token_refresh_completed,
+    :tiktok_token_refresh_failed,
+    :gmv_backfill_started,
+    :gmv_backfill_completed,
+    :gmv_backfill_failed
+  ]
 
   @impl true
-  def handle_info({:tiktok_sync_started}, socket), do: {:noreply, load_monitoring_data(socket)}
-
-  @impl true
-  def handle_info({:bigquery_sync_started}, socket), do: {:noreply, load_monitoring_data(socket)}
-
-  @impl true
-  def handle_info({:enrichment_started, _brand_id}, socket),
-    do: {:noreply, load_monitoring_data(socket)}
-
-  @impl true
-  def handle_info({:video_sync_started}, socket), do: {:noreply, load_monitoring_data(socket)}
-
-  @impl true
-  def handle_info({:scan_started, _source}, socket), do: {:noreply, load_monitoring_data(socket)}
-
-  @impl true
-  def handle_info({:product_performance_sync_started}, socket),
-    do: {:noreply, load_monitoring_data(socket)}
-
-  @impl true
-  def handle_info({:shopify_sync_completed, _brand_id}, socket),
-    do: {:noreply, load_monitoring_data(socket)}
-
-  @impl true
-  def handle_info({:tiktok_sync_completed, _counts}, socket),
-    do: {:noreply, load_monitoring_data(socket)}
-
-  @impl true
-  def handle_info({:bigquery_sync_completed, _brand_id}, socket),
-    do: {:noreply, load_monitoring_data(socket)}
-
-  @impl true
-  def handle_info({:enrichment_completed, _brand_id}, socket),
-    do: {:noreply, load_monitoring_data(socket)}
-
-  @impl true
-  def handle_info({:video_sync_completed, _brand_id}, socket),
-    do: {:noreply, load_monitoring_data(socket)}
-
-  @impl true
-  def handle_info({:scan_completed, _source}, socket),
-    do: {:noreply, load_monitoring_data(socket)}
-
-  @impl true
-  def handle_info({:product_performance_sync_completed, _counts}, socket),
-    do: {:noreply, load_monitoring_data(socket)}
-
-  @impl true
-  def handle_info({:product_performance_sync_failed, _reason}, socket),
-    do: {:noreply, load_monitoring_data(socket)}
-
-  @impl true
-  def handle_info({:tiktok_sync_failed, _reason}, socket),
-    do: {:noreply, load_monitoring_data(socket)}
-
-  @impl true
-  def handle_info({:sync_failed, _reason}, socket),
-    do: {:noreply, load_monitoring_data(socket)}
-
-  @impl true
-  def handle_info(_msg, socket), do: {:noreply, socket}
+  def handle_info(message, socket) do
+    if monitoring_update_event?(message) do
+      {:noreply, load_monitoring_data(socket)}
+    else
+      {:noreply, socket}
+    end
+  end
 
   # ============================================================================
   # Private Functions
@@ -194,8 +175,19 @@ defmodule SocialObjectsWeb.AdminLive.Dashboard do
       Phoenix.PubSub.subscribe(SocialObjects.PubSub, "video:sync:#{brand.id}")
       Phoenix.PubSub.subscribe(SocialObjects.PubSub, "tiktok_live:scan:#{brand.id}")
       Phoenix.PubSub.subscribe(SocialObjects.PubSub, "product_performance:sync:#{brand.id}")
+      Phoenix.PubSub.subscribe(SocialObjects.PubSub, "creator_purchase:sync:#{brand.id}")
+      Phoenix.PubSub.subscribe(SocialObjects.PubSub, "stream_analytics:sync:#{brand.id}")
+      Phoenix.PubSub.subscribe(SocialObjects.PubSub, "weekly_recap:sync:#{brand.id}")
+      Phoenix.PubSub.subscribe(SocialObjects.PubSub, "tiktok_token_refresh:sync:#{brand.id}")
+      Phoenix.PubSub.subscribe(SocialObjects.PubSub, "gmv_backfill:sync:#{brand.id}")
     end
   end
+
+  defp monitoring_update_event?(message) when is_tuple(message) and tuple_size(message) > 0 do
+    elem(message, 0) in @monitoring_events
+  end
+
+  defp monitoring_update_event?(_message), do: false
 
   defp load_monitoring_data(socket) do
     brand_id = socket.assigns.selected_brand_id
