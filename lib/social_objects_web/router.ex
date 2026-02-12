@@ -45,6 +45,7 @@ defmodule SocialObjectsWeb.Router do
   scope "/tiktok", SocialObjectsWeb do
     pipe_through :browser
 
+    get "/authorize", TiktokShopController, :authorize
     get "/callback", TiktokShopController, :callback
   end
 

@@ -50,7 +50,7 @@ defmodule SocialObjectsWeb.AdminLive.Brands do
      |> assign(:secrets_configured, secrets_configured(settings))
      |> assign(:visible_secrets, MapSet.new())
      |> assign(:shared_shopify_brands, shared_shopify_brands)
-     |> assign(:tiktok_oauth_url, TiktokShop.generate_authorization_url(brand.id, region))
+     |> assign(:tiktok_oauth_url, tiktok_authorize_url(brand.id, region))
      |> assign(:tiktok_auth, tiktok_auth)}
   end
 
@@ -118,7 +118,7 @@ defmodule SocialObjectsWeb.AdminLive.Brands do
     {:noreply,
      socket
      |> assign(:tiktok_shop_region, region)
-     |> assign(:tiktok_oauth_url, TiktokShop.generate_authorization_url(brand.id, region))}
+     |> assign(:tiktok_oauth_url, tiktok_authorize_url(brand.id, region))}
   end
 
   @impl true
@@ -271,6 +271,11 @@ defmodule SocialObjectsWeb.AdminLive.Brands do
         Settings.get_shopify_store_name(brand.id) == store_name
       end)
     end
+  end
+
+  # Build URL to our TikTok authorize endpoint (stores brand_id in session before redirecting to TikTok)
+  defp tiktok_authorize_url(brand_id, region) do
+    "/tiktok/authorize?brand_id=#{brand_id}&region=#{region}"
   end
 
   @impl true
