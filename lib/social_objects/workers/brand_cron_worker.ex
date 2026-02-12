@@ -6,6 +6,7 @@ defmodule SocialObjects.Workers.BrandCronWorker do
   use Oban.Worker, queue: :default, max_attempts: 1
 
   alias SocialObjects.Catalog
+  alias SocialObjects.Settings
   alias SocialObjects.TiktokShop
 
   alias SocialObjects.Workers.{
@@ -30,9 +31,13 @@ defmodule SocialObjects.Workers.BrandCronWorker do
   end
 
   defp enqueue_for_brand("shopify_sync", brand_id) do
-    %{"brand_id" => brand_id}
-    |> ShopifySyncWorker.new()
-    |> Oban.insert()
+    if Settings.shopify_configured?(brand_id) do
+      %{"brand_id" => brand_id}
+      |> ShopifySyncWorker.new()
+      |> Oban.insert()
+    else
+      :ok
+    end
   end
 
   defp enqueue_for_brand("tiktok_sync", brand_id) do
@@ -47,9 +52,13 @@ defmodule SocialObjects.Workers.BrandCronWorker do
   end
 
   defp enqueue_for_brand("bigquery_sync", brand_id) do
-    %{"brand_id" => brand_id, "source" => "cron"}
-    |> BigQueryOrderSyncWorker.new()
-    |> Oban.insert()
+    if Settings.bigquery_configured?(brand_id) do
+      %{"brand_id" => brand_id, "source" => "cron"}
+      |> BigQueryOrderSyncWorker.new()
+      |> Oban.insert()
+    else
+      :ok
+    end
   end
 
   defp enqueue_for_brand("tiktok_token_refresh", brand_id) do
