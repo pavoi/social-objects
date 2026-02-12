@@ -24,11 +24,8 @@ config :social_objects,
   ecto_repos: [SocialObjects.Repo],
   generators: [timestamp_type: :utc_datetime]
 
-# Feature flags (defaults - can be overridden via env vars in runtime.exs)
-config :social_objects, :features,
-  voice_control_enabled: true,
-  outreach_email_enabled: true,
-  outreach_email_override: nil
+# Dev/test overrides (set via env vars in runtime.exs)
+config :social_objects, :features, outreach_email_override: nil
 
 # Default application name used in unauthenticated contexts
 config :social_objects, :app_name, "Social Objects"

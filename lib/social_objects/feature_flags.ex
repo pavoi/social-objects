@@ -11,7 +11,9 @@ defmodule SocialObjects.FeatureFlags do
   # Known feature flags with defaults (true = visible)
   @flags %{
     "show_videos_nav" => true,
-    "show_analytics_nav" => true
+    "show_analytics_nav" => true,
+    "voice_control" => true,
+    "outreach_email" => true
   }
 
   @doc "Returns true if a feature flag is enabled."
@@ -105,6 +107,16 @@ defmodule SocialObjects.FeatureFlags do
         key: "show_analytics_nav",
         label: "Analytics",
         description: "Show Analytics in navigation"
+      },
+      %{
+        key: "voice_control",
+        label: "Voice Control",
+        description: "Enable voice commands in the product controller"
+      },
+      %{
+        key: "outreach_email",
+        label: "Outreach Email",
+        description: "Enable sending outreach emails to creators"
       }
     ]
   end

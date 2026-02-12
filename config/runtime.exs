@@ -12,11 +12,9 @@ if config_env() == :dev and File.exists?(".env") and Code.ensure_loaded?(Dotenvy
   Dotenvy.source!([".env"], side_effect: &System.put_env/1)
 end
 
-# Feature flags (read from environment variables, applies to all environments)
+# Dev/test overrides - redirect outreach emails to a test address
 # Must be after Dotenvy loads .env in dev
 config :social_objects, :features,
-  voice_control_enabled: System.get_env("VOICE_CONTROL_ENABLED", "true") == "true",
-  outreach_email_enabled: System.get_env("OUTREACH_EMAIL_ENABLED", "true") == "true",
   outreach_email_override: System.get_env("OUTREACH_EMAIL_OVERRIDE")
 
 # Shopify configuration for development (after .env is loaded)

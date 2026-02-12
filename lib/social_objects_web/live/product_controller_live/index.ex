@@ -21,8 +21,7 @@ defmodule SocialObjectsWeb.ProductControllerLive.Index do
     product_set = ProductSets.get_product_set!(brand_id, product_set_id)
     message_presets = ProductSets.list_message_presets(brand_id)
 
-    voice_control_enabled =
-      Application.get_env(:social_objects, :features)[:voice_control_enabled]
+    voice_control_enabled = SocialObjects.FeatureFlags.enabled?("voice_control")
 
     voice_assets = %{
       vad_worklet: SocialObjectsWeb.Endpoint.static_path("/assets/vad/vad.worklet.bundle.min.js"),
