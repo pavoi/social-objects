@@ -57,7 +57,7 @@
 
 @media (hover: hover) {
   .navbar__brand-switcher:hover .brand-switcher__menu {
-    display: flex !important;
+    @apply flex;
   }
 }
 
@@ -145,8 +145,7 @@
 
 .navbar__badge {
   @apply inline-flex items-center py-1 px-2;
-  @apply text-xs font-semibold rounded-md;
-  color: var(--color-text-on-primary) !important;
+  @apply text-xs font-semibold rounded-md text-text-on-primary;
   background: linear-gradient(135deg, var(--color-accent-blue) 0%, var(--color-accent-purple) 100%);
   letter-spacing: 0.02em;
   @apply uppercase;

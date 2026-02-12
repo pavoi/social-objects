@@ -1026,9 +1026,10 @@
   @apply opacity-100 visible;
 }
 
-.creator-table.is-resizing .sortable-header__tooltip {
-  opacity: 0 !important;
-  visibility: hidden !important;
+.creator-table.is-resizing .sortable-header__tooltip,
+.creator-table.is-resizing .sortable-header:hover .sortable-header__tooltip {
+  opacity: 0;
+  visibility: hidden;
 }
 
 .sortable-header__tooltip-filter {

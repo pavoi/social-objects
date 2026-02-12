@@ -9,7 +9,7 @@ defmodule SocialObjectsWeb.UserLive.Settings do
   @impl true
   def render(assigns) do
     ~H"""
-    <div class="container container--sm region">
+    <div class="mx-auto w-full max-w-screen-sm px-4 region">
       <div class="settings-page">
         <section class="settings-section">
           <div class="settings-section__header">

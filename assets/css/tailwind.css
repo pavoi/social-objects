@@ -8,14 +8,14 @@
    TAILWIND THEME - Design Tokens
    ============================================================================
 
-   These tokens map directly from our existing tokens.css design system.
-   Tailwind v4 uses @theme to define custom design tokens that can be used
-   as utility classes.
+   Tailwind v4 uses @theme as the single source of truth for design tokens.
+   Legacy aliases are defined here so older CSS can reference the same values
+   during migration.
 
    Usage:
    - bg-bg-primary → var(--color-bg-primary)
    - text-text-primary → var(--color-text-primary)
-   - p-4 → var(--space-4)
+   - p-4 → var(--spacing-4)
 
    ============================================================================ */
 
@@ -76,8 +76,46 @@
   --color-accent-red: #EF4444;
   --color-accent-red-hover: #DC2626;
   --color-accent-amber: #F59E0B;
+  --color-accent-yellow: var(--color-accent-amber);
   --color-accent-gold: #F59E0B;
   --color-accent-purple: #8B5CF6;
+  --color-primary-hover: var(--color-accent-blue-hover);
+  --color-primary-rgb: 59, 130, 246;
+  --color-primary-alpha: color-mix(in srgb, var(--color-primary) 22%, transparent);
+  --color-primary-subtle: color-mix(in srgb, var(--color-primary) 12%, transparent);
+  --color-danger: var(--color-accent-red);
+  --color-error: var(--color-accent-red);
+  --color-error-bg: color-mix(in srgb, var(--color-accent-red) 12%, transparent);
+  --color-success-600: var(--color-accent-green-hover);
+  --color-green-500: var(--color-accent-green);
+  --color-red-500: var(--color-accent-red);
+  --color-gray-400: #9CA3AF;
+  --color-amber-400: #FBBF24;
+  --color-amber-600: #D97706;
+
+  --color-accent-blue-10: color-mix(in srgb, var(--color-accent-blue) 10%, transparent);
+  --color-accent-blue-15: color-mix(in srgb, var(--color-accent-blue) 15%, transparent);
+  --color-accent-blue-20: color-mix(in srgb, var(--color-accent-blue) 20%, transparent);
+  --color-accent-green-10: color-mix(in srgb, var(--color-accent-green) 10%, transparent);
+  --color-accent-green-15: color-mix(in srgb, var(--color-accent-green) 15%, transparent);
+  --color-accent-green-20: color-mix(in srgb, var(--color-accent-green) 20%, transparent);
+  --color-accent-red-10: color-mix(in srgb, var(--color-accent-red) 10%, transparent);
+  --color-accent-red-15: color-mix(in srgb, var(--color-accent-red) 15%, transparent);
+  --color-accent-red-20: color-mix(in srgb, var(--color-accent-red) 20%, transparent);
+  --color-accent-amber-10: color-mix(in srgb, var(--color-accent-amber) 10%, transparent);
+  --color-accent-amber-15: color-mix(in srgb, var(--color-accent-amber) 15%, transparent);
+  --color-accent-amber-20: color-mix(in srgb, var(--color-accent-amber) 20%, transparent);
+  --color-accent-purple-15: color-mix(in srgb, var(--color-accent-purple) 15%, transparent);
+
+  --color-warning-50: #FFFBEB;
+  --color-warning-100: #FEF3C7;
+  --color-warning-200: #FDE68A;
+  --color-warning-300: #FCD34D;
+  --color-warning-400: #FBBF24;
+  --color-warning-600: #D97706;
+  --color-warning-700: #B45309;
+  --color-warning-800: #92400E;
+  --color-warning-rgb: 245, 158, 11;
 
   /* ========================================================================
      STATUS COLORS
@@ -86,6 +124,10 @@
   --color-status-draft: #6B7280;
   --color-status-live: #10B981;
   --color-status-complete: #8B5CF6;
+  --color-border-strong: var(--color-border-primary);
+  --color-text: var(--color-text-primary);
+  --color-text-muted: var(--color-text-tertiary);
+  --color-backdrop: rgba(0, 0, 0, 0.75);
 
   /* ========================================================================
      SPACING (Maps to Tailwind's default scale)
@@ -107,6 +149,22 @@
   --spacing-16: 4rem;
   --spacing-20: 5rem;
   --spacing-24: 6rem;
+  --space-0-5: var(--spacing-0-5);
+  --space-1: var(--spacing-1);
+  --space-1-5: var(--spacing-1-5);
+  --space-2: var(--spacing-2);
+  --space-2-5: var(--spacing-2-5);
+  --space-3: var(--spacing-3);
+  --space-4: var(--spacing-4);
+  --space-5: var(--spacing-5);
+  --space-6: var(--spacing-6);
+  --space-8: var(--spacing-8);
+  --space-10: var(--spacing-10);
+  --space-12: var(--spacing-12);
+  --space-14: var(--spacing-14);
+  --space-16: var(--spacing-16);
+  --space-20: var(--spacing-20);
+  --space-24: var(--spacing-24);
 
   /* ========================================================================
      TYPOGRAPHY
@@ -120,19 +178,37 @@
   --font-size-2xl: 1.5rem;
   --font-size-3xl: 1.875rem;
   --font-size-4xl: 2.25rem;
+  --text-xs: var(--font-size-xs);
+  --text-sm: var(--font-size-sm);
+  --text-base: var(--font-size-base);
+  --text-lg: var(--font-size-lg);
+  --text-xl: var(--font-size-xl);
+  --text-2xl: var(--font-size-2xl);
+  --text-3xl: var(--font-size-3xl);
+  --text-4xl: var(--font-size-4xl);
 
   --font-weight-light: 300;
   --font-weight-normal: 400;
   --font-weight-medium: 500;
   --font-weight-semibold: 600;
   --font-weight-bold: 700;
+  --font-light: var(--font-weight-light);
+  --font-normal: var(--font-weight-normal);
+  --font-medium: var(--font-weight-medium);
+  --font-semibold: var(--font-weight-semibold);
+  --font-bold: var(--font-weight-bold);
 
   --font-family-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  --font-mono: var(--font-family-mono);
 
   --line-height-tight: 1.25;
   --line-height-snug: 1.375;
   --line-height-normal: 1.5;
   --line-height-relaxed: 1.75;
+  --leading-tight: var(--line-height-tight);
+  --leading-snug: var(--line-height-snug);
+  --leading-normal: var(--line-height-normal);
+  --leading-relaxed: var(--line-height-relaxed);
 
   /* ========================================================================
      BORDER RADIUS
@@ -152,6 +228,7 @@
   --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
   --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
   --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  --shadow-2xl: 0 25px 50px -12px rgba(0, 0, 0, 0.35);
 
   /* ========================================================================
      TRANSITIONS
@@ -169,7 +246,7 @@
   --z-dropdown: 100;
   --z-sticky: 200;
   --z-modal: 300;
-  --z-toast: 400;
+  --z-toast: 1000;
   --z-tooltip: 500;
 }
 
@@ -181,10 +258,6 @@
    ============================================================================ */
 
 @variant dark (&:where(.dark, .dark *));
-
-@theme {
-  /* Dark mode colors - these will be applied when .dark class is present */
-}
 
 /* Dark mode CSS variable overrides - Warm, comfortable dark theme */
 .dark {
@@ -222,14 +295,19 @@
   --color-accent-blue-hover: #3b82f6;
   --color-primary: #60A5FA;
   --color-primary-50: rgba(96, 165, 250, 0.5);
+  --color-primary-rgb: 96, 165, 250;
   --color-accent-green: #34D399;
   --color-accent-green-hover: #10B981;
   --color-success: #34D399;
   --color-accent-red: #F87171;
   --color-accent-red-hover: #EF4444;
   --color-accent-amber: #FBBF24;
+  --color-accent-yellow: var(--color-accent-amber);
   --color-accent-gold: #FBBF24;
   --color-accent-purple: #A78BFA;
+  --color-green-500: var(--color-accent-green);
+  --color-red-500: var(--color-accent-red);
+  --color-warning-rgb: 251, 191, 36;
 
   /* Status Colors */
   --color-status-draft: #6B7280;
@@ -261,30 +339,20 @@
 @variant group-phx-submit-loading (:where(.group[phx-submit][phx-submit-loading]) &);
 
 /* ============================================================================
-   EXISTING CSS IMPORTS
+   CSS IMPORTS
    ============================================================================
 
-   Import existing CSS files to run both systems in parallel during migration.
-   These will be gradually removed as components are migrated to Tailwind.
-   All imported styles are explicitly layered so Tailwind utilities keep
-   predictable precedence in v4.
-   ============================================================================ */
-
-/* Settings Layer - Design tokens (still needed for non-Tailwind classes) */
-@import "./01-settings/tokens.css" layer(theme);
+   All non-utility selectors are layered for predictable cascade behavior.
+   ============================================================================
+*/
 
 /* Generic Layer - Reset, normalize, and animations */
 @import "./02-generic/reset.css" layer(base);
 @import "./02-generic/animations.css" layer(base);
 
 /* Elements Layer - Base HTML elements */
-/* Keep unlayered because this file defines @utility rules, which Tailwind
-   requires at top level (cannot be nested in a layer wrapper). */
-@import "./03-elements/base.css";
+@import "./03-elements/base.css" layer(base);
 @import "./03-elements/typography.css" layer(base);
-
-/* Layouts Layer - Composition patterns */
-@import "./04-layouts/compositions.css" layer(components);
 
 /* Pages Layer - Page-specific styles */
 @import "./04-pages/product-set-index.css" layer(components);
@@ -323,3 +391,6 @@
 @import "./05-components/video-grid.css" layer(components);
 @import "./05-components/monitoring.css" layer(components);
 @import "./05-components/data-table.css" layer(components);
+
+/* Intentional top-level utilities - keep unlayered so @utility remains valid. */
+@import "./06-utilities/utilities.css";

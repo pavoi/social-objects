@@ -441,7 +441,7 @@
 
 @media (hover: hover) {
   .menu-container:hover .product-set-menu {
-    display: block !important;
+    @apply block;
   }
 }
 

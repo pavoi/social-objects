@@ -31,7 +31,7 @@
 
 .template-editor-back:hover {
   @apply bg-surface-secondary;
-  color: var(--color-text);
+  color: var(--color-text-primary);
 }
 
 .template-editor-fields {

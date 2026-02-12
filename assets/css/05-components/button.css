@@ -7,7 +7,7 @@
 .button {
   @apply inline-flex items-center justify-center gap-2;
   @apply py-3 px-6;
-  @apply text-base font-medium leading-none;
+  @apply text-base font-medium leading-none text-text-primary;
   @apply rounded-md border border-transparent;
   @apply cursor-pointer whitespace-nowrap;
   @apply no-underline;
@@ -23,18 +23,15 @@
    ============================================================================ */
 
 .button--primary {
-  @apply bg-accent-blue;
-  color: var(--color-text-on-primary) !important;
+  @apply bg-accent-blue text-text-on-primary;
 }
 
 .button--primary:hover:not(:disabled) {
   @apply bg-accent-blue-hover;
-  color: var(--color-text-on-primary) !important;
 }
 
 .button--success {
-  @apply bg-accent-green;
-  color: var(--color-text-on-primary) !important;
+  @apply bg-accent-green text-text-on-primary;
 }
 
 .button--success:hover:not(:disabled) {
@@ -42,12 +39,19 @@
 }
 
 .button--error {
-  @apply bg-accent-red;
-  color: var(--color-text-on-primary) !important;
+  @apply bg-accent-red text-text-on-primary;
 }
 
 .button--error:hover:not(:disabled) {
   @apply bg-accent-red-hover;
+}
+
+.button--warning {
+  @apply bg-accent-amber text-text-on-primary;
+}
+
+.button--warning:hover:not(:disabled) {
+  background-color: color-mix(in srgb, var(--color-accent-amber) 85%, black);
 }
 
 .button--ghost {
@@ -71,8 +75,7 @@
 }
 
 .button--outline-error:hover:not(:disabled) {
-  @apply bg-accent-red;
-  color: var(--color-text-on-primary) !important;
+  @apply bg-accent-red text-text-on-primary;
 }
 
 .button--ghost-error {

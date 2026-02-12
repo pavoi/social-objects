@@ -21,10 +21,6 @@
   transition: max-height var(--transition-base);
 }
 
-.product-variants__grid-wrapper--expanded {
-  max-height: none !important;
-}
-
 .product-variants__grid {
   @apply flex flex-wrap gap-2;
 }
@@ -110,6 +106,11 @@
 /* Compact mode: limit to 1 row by default */
 .product-variants--compact .product-variants__grid-wrapper {
   max-height: 2.2em;
+}
+
+.product-variants__grid-wrapper--expanded,
+.product-variants--compact .product-variants__grid-wrapper--expanded {
+  max-height: none;
 }
 
 /* ============================================================================

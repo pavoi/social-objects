@@ -22,8 +22,7 @@
 
 /* Toggle Button */
 .voice-toggle-btn {
-  @apply flex items-center gap-2 py-2 px-4 bg-primary border-0 rounded-md text-sm font-medium cursor-pointer;
-  color: var(--color-text-on-primary) !important;
+  @apply flex items-center gap-2 py-2 px-4 bg-primary border-0 rounded-md text-sm font-medium text-text-on-primary cursor-pointer;
   line-height: 1;
   transition: all 0.2s ease;
 }

@@ -6,7 +6,7 @@
 
 <div
   id="product-sets-container"
-  class="container container--xl pb-8 max-sm:pb-6 product-sets-index"
+  class="mx-auto w-full max-w-screen-xl px-4 pb-8 max-sm:pb-6 product-sets-index"
   phx-hook="ProductContextMenu"
   phx-window-keydown={
     JS.push("escape_pressed") |> JS.hide(to: ".product-set-menu", transition: "fade-out")

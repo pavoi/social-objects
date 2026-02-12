@@ -180,8 +180,7 @@
 }
 
 .stream-link-product-set-btn:hover {
-  @apply bg-primary;
-  color: var(--color-text-on-primary) !important;
+  @apply bg-primary text-text-on-primary;
 }
 
 /* ============================================================================

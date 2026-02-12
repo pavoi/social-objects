@@ -16,18 +16,15 @@
    ============================================================================ */
 
 .badge--draft {
-  @apply bg-status-draft;
-  color: var(--color-text-on-primary) !important;
+  @apply bg-status-draft text-text-on-primary;
 }
 
 .badge--live {
-  @apply bg-status-live;
-  color: var(--color-text-on-primary) !important;
+  @apply bg-status-live text-text-on-primary;
 }
 
 .badge--complete {
-  @apply bg-status-complete;
-  color: var(--color-text-on-primary) !important;
+  @apply bg-status-complete text-text-on-primary;
 }
 
 /* ============================================================================
@@ -35,23 +32,19 @@
    ============================================================================ */
 
 .badge--primary {
-  @apply bg-accent-blue;
-  color: var(--color-text-on-primary) !important;
+  @apply bg-accent-blue text-text-on-primary;
 }
 
 .badge--success {
-  @apply bg-accent-green;
-  color: var(--color-text-on-primary) !important;
+  @apply bg-accent-green text-text-on-primary;
 }
 
 .badge--error {
-  @apply bg-accent-red;
-  color: var(--color-text-on-primary) !important;
+  @apply bg-accent-red text-text-on-primary;
 }
 
 .badge--warning {
-  @apply bg-accent-amber;
-  color: var(--color-text-on-primary) !important;
+  @apply bg-accent-amber text-text-on-primary;
 }
 
 .badge--neutral {
@@ -98,7 +91,7 @@
 
 .badge--soft.badge--warning {
   background: var(--color-accent-amber-10);
-  color: var(--color-accent-amber);
+  color: var(--color-warning-700);
   border-color: var(--color-accent-amber-20);
 }
 
@@ -140,6 +133,7 @@
 
 .dark .badge--soft.badge--warning {
   background: var(--color-accent-amber-15);
+  color: var(--color-accent-amber);
 }
 
 .dark .badge--soft.badge--info {

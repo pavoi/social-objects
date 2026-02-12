@@ -387,7 +387,7 @@
 .host-message-banner {
   @apply py-3 px-4 shrink-0;
   background-color: var(--color-accent-amber);
-  color: var(--color-text-on-primary) !important;
+  @apply text-text-on-primary;
   border-radius: var(--radius-md);
   animation: slideDownPulse 0.5s ease-out;
   box-shadow: var(--shadow-lg);

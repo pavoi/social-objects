@@ -161,13 +161,13 @@
 
 /* Disable transitions on initial page load to prevent flash */
 .preload * {
-  transition: none !important;
+  transition: none;
 }
 
 /* Specific elements that should not transition */
 .no-transition,
 .no-transition * {
-  transition: none !important;
+  transition: none;
 }
 
 /* Elements with their own transitions (don't override) */
