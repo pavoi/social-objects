@@ -893,7 +893,7 @@ defmodule SocialObjectsWeb.AdminComponents do
             :for={worker <- @workers}
             worker={worker}
             status={get_worker_status(@statuses, @brand_id, worker.status_key)}
-            is_running={worker_running?(@running_workers, worker.key)}
+            worker_state={get_worker_state(@running_workers, worker.key)}
             rate_limit_info={if worker.key == :creator_enrichment, do: @rate_limit_info, else: nil}
             brand_id={@brand_id}
           />
@@ -908,7 +908,7 @@ defmodule SocialObjectsWeb.AdminComponents do
   """
   attr :worker, :map, required: true
   attr :status, :any, default: nil
-  attr :is_running, :boolean, default: false
+  attr :worker_state, :atom, default: nil
   attr :rate_limit_info, :map, default: nil
   attr :brand_id, :any, required: true
 
@@ -931,9 +931,9 @@ defmodule SocialObjectsWeb.AdminComponents do
       </td>
       <td>
         <div class="worker-status">
-          <span class={"worker-status__indicator " <> status_indicator_class(@status, @is_running)} />
-          <span class={"worker-status__text " <> if(@is_running, do: "worker-status__text--running", else: "")}>
-            {status_text(@status, @is_running)}
+          <span class={"worker-status__indicator " <> status_indicator_class(@status, @worker_state)} />
+          <span class={"worker-status__text " <> if(@worker_state == :running, do: "worker-status__text--running", else: "")}>
+            {status_text(@status, @worker_state)}
           </span>
         </div>
       </td>
@@ -945,9 +945,9 @@ defmodule SocialObjectsWeb.AdminComponents do
           phx-click="trigger_worker"
           phx-value-worker={@worker.key}
           phx-value-brand_id={@brand_id}
-          disabled={@is_running}
+          disabled={@worker_state != nil}
         >
-          {if @is_running, do: "Running...", else: "Run"}
+          {button_label(@worker_state)}
         </.button>
       </td>
     </tr>
@@ -1040,14 +1040,22 @@ defmodule SocialObjectsWeb.AdminComponents do
     Map.get(statuses, {brand_id, status_key})
   end
 
-  defp worker_running?(running_workers, worker_key) do
-    Enum.any?(running_workers, fn rw -> rw.worker_key == worker_key end)
+  defp get_worker_state(running_workers, worker_key) do
+    case Enum.find(running_workers, fn rw -> rw.worker_key == worker_key end) do
+      nil -> nil
+      worker -> worker.state
+    end
   end
+
+  defp button_label(:running), do: "Running..."
+  defp button_label(:pending), do: "Pending..."
+  defp button_label(_), do: "Run"
 
   defp format_last_run(nil), do: "Never"
   defp format_last_run(datetime), do: format_relative_time(datetime)
 
-  defp status_indicator_class(_status, true), do: "worker-status__indicator--running"
+  defp status_indicator_class(_status, :running), do: "worker-status__indicator--running"
+  defp status_indicator_class(_status, :pending), do: "worker-status__indicator--running"
   defp status_indicator_class(nil, _), do: "worker-status__indicator--stale"
 
   defp status_indicator_class(datetime, _) do
@@ -1060,7 +1068,8 @@ defmodule SocialObjectsWeb.AdminComponents do
     end
   end
 
-  defp status_text(_status, true), do: "Running"
+  defp status_text(_status, :running), do: "Running"
+  defp status_text(_status, :pending), do: "Pending"
   defp status_text(nil, _), do: "Never run"
 
   defp status_text(datetime, _) do

@@ -179,18 +179,25 @@ defmodule SocialObjects.Monitoring do
   end
 
   @doc """
-  Gets currently running workers for a specific brand.
+  Gets currently active workers (pending or running) for a specific brand.
+
+  Returns a list of maps with:
+  - :worker_key - the worker registry key
+  - :state - "pending" (available/scheduled) or "running" (executing)
+  - :started_at - when the job was attempted (for executing jobs)
   """
   def get_running_workers_for_brand(brand_id) do
     from(j in Oban.Job,
-      where: j.state == "executing",
+      where: j.state in ["available", "scheduled", "executing"],
       where: fragment("?->>'brand_id' = ?", j.args, ^to_string(brand_id)),
-      order_by: [asc: j.attempted_at]
+      order_by: [asc: j.inserted_at]
     )
     |> Repo.all()
     |> Enum.map(fn job ->
       worker_key = worker_module_to_key(job.worker)
-      %{worker_key: worker_key, started_at: job.attempted_at}
+      state = if job.state == "executing", do: :running, else: :pending
+
+      %{worker_key: worker_key, state: state, started_at: job.attempted_at}
     end)
   end
 
@@ -309,13 +316,19 @@ defmodule SocialObjects.Monitoring do
   end
 
   defp worker_module_to_key(worker_module) when is_binary(worker_module) do
+    # Oban stores worker as "SocialObjects.Workers.Foo" but Elixir modules
+    # stringify as "Elixir.SocialObjects.Workers.Foo", so convert to atom for comparison
+    module_atom = String.to_existing_atom("Elixir." <> worker_module)
+
     worker =
       Registry.all_workers()
-      |> Enum.find(fn w -> "#{w.module}" == worker_module end)
+      |> Enum.find(fn w -> w.module == module_atom end)
 
     case worker do
       nil -> nil
       w -> w.key
     end
+  rescue
+    ArgumentError -> nil
   end
 end

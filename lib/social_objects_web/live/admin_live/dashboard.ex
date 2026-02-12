@@ -112,102 +112,74 @@ defmodule SocialObjectsWeb.AdminLive.Dashboard do
   end
 
   # ============================================================================
-  # PubSub Handlers
+  # PubSub Handlers - refresh UI when worker state changes
   # ============================================================================
 
-  # Started events - refresh to show "Running..." state
   @impl true
-  def handle_info({:sync_started}, socket) do
-    {:noreply, load_monitoring_data(socket)}
-  end
+  def handle_info({:sync_started}, socket), do: {:noreply, load_monitoring_data(socket)}
 
   @impl true
-  def handle_info({:tiktok_sync_started}, socket) do
-    {:noreply, load_monitoring_data(socket)}
-  end
+  def handle_info({:tiktok_sync_started}, socket), do: {:noreply, load_monitoring_data(socket)}
 
   @impl true
-  def handle_info({:bigquery_sync_started}, socket) do
-    {:noreply, load_monitoring_data(socket)}
-  end
+  def handle_info({:bigquery_sync_started}, socket), do: {:noreply, load_monitoring_data(socket)}
 
   @impl true
-  def handle_info({:enrichment_started, _brand_id}, socket) do
-    {:noreply, load_monitoring_data(socket)}
-  end
+  def handle_info({:enrichment_started, _brand_id}, socket),
+    do: {:noreply, load_monitoring_data(socket)}
 
   @impl true
-  def handle_info({:video_sync_started}, socket) do
-    {:noreply, load_monitoring_data(socket)}
-  end
+  def handle_info({:video_sync_started}, socket), do: {:noreply, load_monitoring_data(socket)}
 
   @impl true
-  def handle_info({:scan_started, _source}, socket) do
-    {:noreply, load_monitoring_data(socket)}
-  end
-
-  # Completed events - refresh to update status and last run time
-  @impl true
-  def handle_info({:shopify_sync_completed, _brand_id}, socket) do
-    {:noreply, load_monitoring_data(socket)}
-  end
+  def handle_info({:scan_started, _source}, socket), do: {:noreply, load_monitoring_data(socket)}
 
   @impl true
-  def handle_info({:tiktok_sync_completed, _counts}, socket) do
-    {:noreply, load_monitoring_data(socket)}
-  end
+  def handle_info({:product_performance_sync_started}, socket),
+    do: {:noreply, load_monitoring_data(socket)}
 
   @impl true
-  def handle_info({:bigquery_sync_completed, _brand_id}, socket) do
-    {:noreply, load_monitoring_data(socket)}
-  end
+  def handle_info({:shopify_sync_completed, _brand_id}, socket),
+    do: {:noreply, load_monitoring_data(socket)}
 
   @impl true
-  def handle_info({:enrichment_completed, _brand_id}, socket) do
-    {:noreply, load_monitoring_data(socket)}
-  end
+  def handle_info({:tiktok_sync_completed, _counts}, socket),
+    do: {:noreply, load_monitoring_data(socket)}
 
   @impl true
-  def handle_info({:video_sync_completed, _brand_id}, socket) do
-    {:noreply, load_monitoring_data(socket)}
-  end
+  def handle_info({:bigquery_sync_completed, _brand_id}, socket),
+    do: {:noreply, load_monitoring_data(socket)}
 
   @impl true
-  def handle_info({:scan_completed, _source}, socket) do
-    {:noreply, load_monitoring_data(socket)}
-  end
-
-  # Product performance events
-  @impl true
-  def handle_info({:product_performance_sync_started}, socket) do
-    {:noreply, load_monitoring_data(socket)}
-  end
+  def handle_info({:enrichment_completed, _brand_id}, socket),
+    do: {:noreply, load_monitoring_data(socket)}
 
   @impl true
-  def handle_info({:product_performance_sync_completed, _counts}, socket) do
-    {:noreply, load_monitoring_data(socket)}
-  end
+  def handle_info({:video_sync_completed, _brand_id}, socket),
+    do: {:noreply, load_monitoring_data(socket)}
 
   @impl true
-  def handle_info({:product_performance_sync_failed, _reason}, socket) do
-    {:noreply, load_monitoring_data(socket)}
-  end
-
-  # Failed events - refresh to clear running state
-  @impl true
-  def handle_info({:tiktok_sync_failed, _reason}, socket) do
-    {:noreply, load_monitoring_data(socket)}
-  end
+  def handle_info({:scan_completed, _source}, socket),
+    do: {:noreply, load_monitoring_data(socket)}
 
   @impl true
-  def handle_info({:sync_failed, _reason}, socket) do
-    {:noreply, load_monitoring_data(socket)}
-  end
+  def handle_info({:product_performance_sync_completed, _counts}, socket),
+    do: {:noreply, load_monitoring_data(socket)}
 
   @impl true
-  def handle_info(_msg, socket) do
-    {:noreply, socket}
-  end
+  def handle_info({:product_performance_sync_failed, _reason}, socket),
+    do: {:noreply, load_monitoring_data(socket)}
+
+  @impl true
+  def handle_info({:tiktok_sync_failed, _reason}, socket),
+    do: {:noreply, load_monitoring_data(socket)}
+
+  @impl true
+  def handle_info({:sync_failed, _reason}, socket),
+    do: {:noreply, load_monitoring_data(socket)}
+
+  @impl true
+  def handle_info(_msg, socket), do: {:noreply, socket}
 
   # ============================================================================
   # Private Functions
