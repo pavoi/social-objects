@@ -79,6 +79,20 @@ config :social_objects, Oban,
 # TikTok Live stream capture configuration
 config :social_objects, :tiktok_live_monitor, accounts: []
 
+# Worker tuning defaults (can be overridden per environment)
+config :social_objects, :worker_tuning,
+  creator_enrichment: [
+    batch_size: 75,
+    api_delay_ms: 300,
+    rate_limit_max_consecutive: 3,
+    rate_limit_initial_backoff_seconds: 15 * 60,
+    rate_limit_max_backoff_seconds: 2 * 60 * 60,
+    rate_limit_cooldown_seconds: 10 * 60
+  ],
+  tiktok_sync: [page_size: 50],
+  product_performance_sync: [page_size: 100],
+  video_sync: [page_size: 100, thumbnail_api_delay_ms: 100]
+
 # Configure esbuild (the version is required)
 config :esbuild,
   version: "0.25.4",

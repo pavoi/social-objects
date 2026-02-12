@@ -174,7 +174,7 @@ defmodule SocialObjects.Workers.TiktokSyncWorker do
 
   defp fetch_all_products_with_pagination(brand_id, page_token \\ nil, accumulated_products \\ []) do
     # Build query parameters with pagination (50 is a good balance for TikTok API)
-    params = %{page_size: 50}
+    params = %{page_size: page_size()}
     params = if page_token, do: Map.put(params, :page_token, page_token), else: params
 
     case TiktokShop.make_api_request(
@@ -202,6 +202,12 @@ defmodule SocialObjects.Workers.TiktokSyncWorker do
       {:error, reason} ->
         {:error, reason}
     end
+  end
+
+  defp page_size do
+    Application.get_env(:social_objects, :worker_tuning, [])
+    |> Keyword.get(:tiktok_sync, [])
+    |> Keyword.get(:page_size, 50)
   end
 
   defp fetch_product_details(brand_id, tiktok_product_id) do

@@ -35,20 +35,6 @@ defmodule SocialObjects.Workers.CreatorEnrichmentWorker do
   alias SocialObjects.Settings
   alias SocialObjects.TiktokShop
 
-  # Number of creators to enrich per run
-  # Small batches (75) complete in ~22 seconds, avoiding rate limits
-  # Runs every 30 min = 48 runs/day × 75 = 3600 creators/day max
-  @batch_size 75
-  # Delay between API calls (ms) to avoid rate limiting
-  @api_delay_ms 300
-  @rate_limit_max_consecutive 3
-  # Initial backoff seconds (will be multiplied exponentially)
-  @rate_limit_initial_backoff_seconds 15 * 60
-  # Max backoff (2 hours)
-  @rate_limit_max_backoff_seconds 2 * 60 * 60
-  # Cooldown period - don't start if we rate-limited within this window
-  @rate_limit_cooldown_seconds 10 * 60
-
   @impl Oban.Worker
   def perform(%Oban.Job{args: args}) do
     case resolve_brand_id(Map.get(args, "brand_id")) do
@@ -91,7 +77,7 @@ defmodule SocialObjects.Workers.CreatorEnrichmentWorker do
         Process.sleep(5_000)
 
         # Step 2: Enrich creators with marketplace data (followers, GMV, etc.)
-        batch_size = Map.get(args, "batch_size", @batch_size)
+        batch_size = Map.get(args, "batch_size", creator_batch_size())
         Logger.info("Starting creator enrichment (batch_size: #{batch_size})...")
 
         case enrich_creators(brand_id, batch_size) do
@@ -178,9 +164,9 @@ defmodule SocialObjects.Workers.CreatorEnrichmentWorker do
   defp calculate_backoff(streak) do
     # Exponential backoff: 15min, 30min, 60min, 120min (max)
     # Formula: initial * 2^(streak-1), capped at max
-    base = @rate_limit_initial_backoff_seconds
+    base = rate_limit_initial_backoff_seconds()
     multiplier = :math.pow(2, min(streak - 1, 3)) |> round()
-    min(base * multiplier, @rate_limit_max_backoff_seconds)
+    min(base * multiplier, rate_limit_max_backoff_seconds())
   end
 
   defp check_rate_limit_cooldown(brand_id) do
@@ -192,8 +178,10 @@ defmodule SocialObjects.Workers.CreatorEnrichmentWorker do
         now = DateTime.utc_now()
         seconds_since = DateTime.diff(now, last_rate_limited_at, :second)
 
-        if seconds_since < @rate_limit_cooldown_seconds do
-          {:cooldown, @rate_limit_cooldown_seconds - seconds_since}
+        cooldown_seconds = rate_limit_cooldown_seconds()
+
+        if seconds_since < cooldown_seconds do
+          {:cooldown, cooldown_seconds - seconds_since}
         else
           :ok
         end
@@ -283,7 +271,7 @@ defmodule SocialObjects.Workers.CreatorEnrichmentWorker do
 
     case TiktokShop.make_api_request(brand_id, :post, "/order/202309/orders/search", params, %{}) do
       {:ok, %{"data" => data}} ->
-        Process.sleep(@api_delay_ms)
+        Process.sleep(api_delay_ms())
         handle_orders_response(data, stats, context, max_pages)
 
       {:error, reason} ->
@@ -736,7 +724,7 @@ defmodule SocialObjects.Workers.CreatorEnrichmentWorker do
     case final_state.halted_reason do
       :rate_limited ->
         Logger.warning("""
-        Marketplace API rate limited #{@rate_limit_max_consecutive} times in a row; stopping enrichment early.
+        Marketplace API rate limited #{rate_limit_max_consecutive()} times in a row; stopping enrichment early.
         Last error: #{inspect(final_state.last_rate_limit_reason)}
         """)
 
@@ -774,7 +762,7 @@ defmodule SocialObjects.Workers.CreatorEnrichmentWorker do
   defp process_creator(brand_id, creator, state) do
     stats = state.stats
 
-    if stats.enriched > 0, do: Process.sleep(@api_delay_ms)
+    if stats.enriched > 0, do: Process.sleep(api_delay_ms())
 
     result = enrich_creator(brand_id, creator)
     new_stats = update_stats(result, stats)
@@ -810,7 +798,7 @@ defmodule SocialObjects.Workers.CreatorEnrichmentWorker do
         last_rate_limit_reason: reason
     }
 
-    if new_streak >= @rate_limit_max_consecutive do
+    if new_streak >= rate_limit_max_consecutive() do
       {:halt, %{new_state | halted_reason: :rate_limited}}
     else
       {:cont, new_state}
@@ -833,6 +821,41 @@ defmodule SocialObjects.Workers.CreatorEnrichmentWorker do
   end
 
   defp rate_limited_reason?(_reason), do: false
+
+  defp creator_batch_size do
+    enrichment_config()
+    |> Keyword.get(:batch_size, 75)
+  end
+
+  defp api_delay_ms do
+    enrichment_config()
+    |> Keyword.get(:api_delay_ms, 300)
+  end
+
+  defp rate_limit_max_consecutive do
+    enrichment_config()
+    |> Keyword.get(:rate_limit_max_consecutive, 3)
+  end
+
+  defp rate_limit_initial_backoff_seconds do
+    enrichment_config()
+    |> Keyword.get(:rate_limit_initial_backoff_seconds, 15 * 60)
+  end
+
+  defp rate_limit_max_backoff_seconds do
+    enrichment_config()
+    |> Keyword.get(:rate_limit_max_backoff_seconds, 2 * 60 * 60)
+  end
+
+  defp rate_limit_cooldown_seconds do
+    enrichment_config()
+    |> Keyword.get(:rate_limit_cooldown_seconds, 10 * 60)
+  end
+
+  defp enrichment_config do
+    Application.get_env(:social_objects, :worker_tuning, [])
+    |> Keyword.get(:creator_enrichment, [])
+  end
 
   defp normalize_brand_id(brand_id) when is_integer(brand_id), do: brand_id
 

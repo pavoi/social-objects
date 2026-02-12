@@ -106,7 +106,7 @@ defmodule SocialObjects.Workers.VideoSyncWorker do
     opts = [
       start_date_ge: start_date,
       end_date_lt: end_date,
-      page_size: 100,
+      page_size: page_size(),
       sort_field: "gmv",
       sort_order: "DESC",
       account_type: "AFFILIATE_ACCOUNTS"
@@ -294,13 +294,25 @@ defmodule SocialObjects.Workers.VideoSyncWorker do
             count
         end
         |> tap(fn _ ->
-          # Rate limit: 100ms between requests to avoid hitting TikTok limits
-          Process.sleep(100)
+          # Rate limit: pause between requests to avoid hitting TikTok limits
+          Process.sleep(thumbnail_api_delay_ms())
         end)
       end)
 
     if thumbnails_fetched > 0 do
       Logger.info("Fetched #{thumbnails_fetched} video thumbnails for brand #{brand_id}")
     end
+  end
+
+  defp page_size do
+    Application.get_env(:social_objects, :worker_tuning, [])
+    |> Keyword.get(:video_sync, [])
+    |> Keyword.get(:page_size, 100)
+  end
+
+  defp thumbnail_api_delay_ms do
+    Application.get_env(:social_objects, :worker_tuning, [])
+    |> Keyword.get(:video_sync, [])
+    |> Keyword.get(:thumbnail_api_delay_ms, 100)
   end
 end
