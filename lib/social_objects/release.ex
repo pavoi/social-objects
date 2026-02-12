@@ -68,5 +68,12 @@ defmodule SocialObjects.Release do
     # Many platforms require SSL when connecting to the database
     Application.ensure_all_started(:ssl)
     Application.ensure_loaded(@app)
+
+    # Railway's internal network isn't available during release phase,
+    # so use DATABASE_PUBLIC_URL if set
+    if public_url = System.get_env("DATABASE_PUBLIC_URL") do
+      IO.puts("[Release] Using DATABASE_PUBLIC_URL for migrations")
+      Application.put_env(:social_objects, SocialObjects.Repo, url: public_url)
+    end
   end
 end
