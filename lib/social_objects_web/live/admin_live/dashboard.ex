@@ -15,7 +15,10 @@ defmodule SocialObjectsWeb.AdminLive.Dashboard do
 
   alias SocialObjects.Catalog
   alias SocialObjects.Monitoring
+  alias SocialObjects.TiktokShop
   alias SocialObjects.Workers.Registry
+
+  @monitoring_refresh_ms 10_000
 
   @impl true
   def mount(_params, _session, socket) do
@@ -29,6 +32,7 @@ defmodule SocialObjectsWeb.AdminLive.Dashboard do
     # Subscribe to PubSub topics for real-time updates
     if connected?(socket) do
       subscribe_to_sync_topics(brands)
+      schedule_monitoring_refresh()
     end
 
     socket =
@@ -79,19 +83,24 @@ defmodule SocialObjectsWeb.AdminLive.Dashboard do
     brand_id = parse_brand_id(brand_id)
     worker = Registry.get_worker(String.to_existing_atom(worker_key))
 
-    if is_nil(brand_id) do
-      {:noreply, put_flash(socket, :error, "Please select a brand to run this worker")}
-    else
-      case trigger_worker(worker, brand_id) do
-        {:ok, _job} ->
-          {:noreply,
-           socket
-           |> put_flash(:info, "#{worker.name} job queued for brand")
-           |> load_monitoring_data()}
+    cond do
+      is_nil(brand_id) ->
+        {:noreply, put_flash(socket, :error, "Please select a brand to run this worker")}
 
-        {:error, reason} ->
-          {:noreply, put_flash(socket, :error, "Failed to trigger worker: #{inspect(reason)}")}
-      end
+      missing_tiktok_auth_for_worker?(worker, brand_id) ->
+        {:noreply, put_flash(socket, :error, "TikTok auth is missing for this brand")}
+
+      true ->
+        case trigger_worker(worker, brand_id) do
+          {:ok, _job} ->
+            {:noreply,
+             socket
+             |> put_flash(:info, "#{worker.name} job queued for brand")
+             |> load_monitoring_data()}
+
+          {:error, reason} ->
+            {:noreply, put_flash(socket, :error, "Failed to trigger worker: #{inspect(reason)}")}
+        end
     end
   end
 
@@ -154,6 +163,12 @@ defmodule SocialObjectsWeb.AdminLive.Dashboard do
   ]
 
   @impl true
+  def handle_info(:refresh_monitoring, socket) do
+    schedule_monitoring_refresh()
+    {:noreply, load_monitoring_data(socket)}
+  end
+
+  @impl true
   def handle_info(message, socket) do
     if monitoring_update_event?(message) do
       {:noreply, load_monitoring_data(socket)}
@@ -189,6 +204,10 @@ defmodule SocialObjectsWeb.AdminLive.Dashboard do
 
   defp monitoring_update_event?(_message), do: false
 
+  defp schedule_monitoring_refresh do
+    Process.send_after(self(), :refresh_monitoring, @monitoring_refresh_ms)
+  end
+
   defp load_monitoring_data(socket) do
     brand_id = socket.assigns.selected_brand_id
 
@@ -197,19 +216,58 @@ defmodule SocialObjectsWeb.AdminLive.Dashboard do
     |> assign(:oban_stats, Monitoring.get_oban_queue_stats())
     |> assign(:failed_jobs, Monitoring.get_recent_failed_jobs(brand_id: brand_id, limit: 5))
     |> assign(:running_workers, get_running_workers(brand_id))
+    |> assign(:failed_worker_states, get_failed_worker_states(brand_id))
+    |> assign(:tiktok_auth_health, get_tiktok_auth_health(brand_id))
     |> assign(:rate_limit_info, get_rate_limit_info(brand_id))
   end
 
   defp get_running_workers(nil), do: []
   defp get_running_workers(brand_id), do: Monitoring.get_running_workers_for_brand(brand_id)
 
+  defp get_failed_worker_states(nil), do: %{}
+
+  defp get_failed_worker_states(brand_id),
+    do: Monitoring.get_failed_worker_states_for_brand(brand_id)
+
   defp get_rate_limit_info(nil), do: nil
   defp get_rate_limit_info(brand_id), do: Monitoring.get_enrichment_rate_limit_info(brand_id)
+
+  defp get_tiktok_auth_health(nil), do: nil
+
+  defp get_tiktok_auth_health(brand_id) do
+    case TiktokShop.get_auth(brand_id) do
+      nil ->
+        %{status: :missing, expires_at: nil}
+
+      auth ->
+        expires_at = auth.access_token_expires_at
+        now = DateTime.utc_now()
+
+        status =
+          cond do
+            is_nil(expires_at) -> :missing
+            DateTime.compare(expires_at, now) == :lt -> :expired
+            DateTime.diff(expires_at, now, :second) <= 3600 -> :expiring
+            true -> :ok
+          end
+
+        %{
+          status: status,
+          expires_at: expires_at,
+          shop_name: auth.shop_name,
+          shop_code: auth.shop_code
+        }
+    end
+  end
 
   defp parse_brand_id(nil), do: nil
   defp parse_brand_id(""), do: nil
   defp parse_brand_id(id) when is_binary(id), do: String.to_integer(id)
   defp parse_brand_id(id) when is_integer(id), do: id
+
+  defp missing_tiktok_auth_for_worker?(worker, brand_id) do
+    Map.get(worker, :requires_tiktok_auth, false) and is_nil(TiktokShop.get_auth(brand_id))
+  end
 
   defp trigger_worker(worker, brand_id) do
     args = %{"brand_id" => brand_id}
@@ -294,6 +352,8 @@ defmodule SocialObjectsWeb.AdminLive.Dashboard do
             <.queue_health_stats stats={@oban_stats} />
 
             <div :if={@selected_brand_id}>
+              <.tiktok_auth_status_banner auth={@tiktok_auth_health} />
+
               <.worker_category_panel
                 :for={{category, workers} <- @workers_by_category}
                 category={category}
@@ -301,6 +361,8 @@ defmodule SocialObjectsWeb.AdminLive.Dashboard do
                 workers={workers}
                 statuses={@worker_statuses}
                 running_workers={@running_workers}
+                failed_worker_states={@failed_worker_states}
+                tiktok_auth_health={@tiktok_auth_health}
                 rate_limit_info={@rate_limit_info}
                 brand_id={@selected_brand_id}
               />

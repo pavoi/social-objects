@@ -190,6 +190,43 @@ defmodule SocialObjects.Monitoring do
   end
 
   @doc """
+  Gets the latest failed state (retryable/discarded) per worker for a brand.
+
+  Returns a map keyed by worker key:
+  - :state - "retryable" or "discarded"
+  - :attempted_at - most recent failure timestamp
+  - :error - most recent error message
+  - :job_id - Oban job id
+  """
+  def get_failed_worker_states_for_brand(brand_id) do
+    from(j in Oban.Job,
+      where: j.state in ["retryable", "discarded"],
+      where: fragment("?->>'brand_id' = ?", j.args, ^to_string(brand_id)),
+      order_by: [desc: j.attempted_at, desc: j.inserted_at]
+    )
+    |> Repo.all()
+    |> Enum.reduce(%{}, fn job, acc ->
+      worker_key = worker_module_to_key(job.worker)
+
+      cond do
+        is_nil(worker_key) ->
+          acc
+
+        Map.has_key?(acc, worker_key) ->
+          acc
+
+        true ->
+          Map.put(acc, worker_key, %{
+            job_id: job.id,
+            state: job.state,
+            attempted_at: job.attempted_at || job.inserted_at,
+            error: extract_job_error(job)
+          })
+      end
+    end)
+  end
+
+  @doc """
   Gets rate limit info for creator enrichment worker.
 
   Returns:
@@ -260,25 +297,26 @@ defmodule SocialObjects.Monitoring do
   end
 
   defp format_failed_job(job) do
-    error_message =
-      case job.errors do
-        [%{"error" => error} | _] -> error
-        [%{"message" => msg} | _] -> msg
-        [error | _] when is_map(error) -> inspect(error)
-        _ -> "Unknown error"
-      end
-
     %{
       id: job.id,
       worker: job.worker,
       worker_name: worker_display_name(job.worker),
       state: job.state,
       attempted_at: job.attempted_at,
-      error: error_message,
+      error: extract_job_error(job),
       attempt: job.attempt,
       max_attempts: job.max_attempts,
       brand_id: get_in(job.args, ["brand_id"])
     }
+  end
+
+  defp extract_job_error(job) do
+    case job.errors do
+      [%{"error" => error} | _] -> error
+      [%{"message" => msg} | _] -> msg
+      [error | _] when is_map(error) -> inspect(error)
+      _ -> "Unknown error"
+    end
   end
 
   defp worker_display_name(worker_module) when is_binary(worker_module) do

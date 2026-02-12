@@ -862,6 +862,31 @@ defmodule SocialObjectsWeb.AdminComponents do
   end
 
   @doc """
+  Renders TikTok auth health for the selected brand.
+  """
+  attr :auth, :map, default: nil
+
+  def tiktok_auth_status_banner(assigns) do
+    ~H"""
+    <div :if={@auth} class={"tiktok-auth-banner " <> tiktok_auth_banner_class(@auth.status)}>
+      <span class="tiktok-auth-banner__label">TikTok Auth</span>
+      <span class="tiktok-auth-banner__status">{tiktok_auth_status_text(@auth.status)}</span>
+      <span class="tiktok-auth-banner__meta">
+        <%= if @auth[:shop_name] do %>
+          Shop {@auth.shop_name}
+          <%= if @auth[:shop_code] do %>
+            ({@auth.shop_code})
+          <% end %>
+        <% end %>
+        <%= if @auth[:expires_at] do %>
+          {if @auth[:shop_name], do: " · ", else: ""} Expires {format_relative_time(@auth.expires_at)}
+        <% end %>
+      </span>
+    </div>
+    """
+  end
+
+  @doc """
   Renders a worker category panel with its workers.
   """
   attr :category, :atom, required: true
@@ -869,6 +894,8 @@ defmodule SocialObjectsWeb.AdminComponents do
   attr :workers, :list, required: true
   attr :statuses, :map, required: true
   attr :running_workers, :list, required: true
+  attr :failed_worker_states, :map, required: true
+  attr :tiktok_auth_health, :map, default: nil
   attr :rate_limit_info, :map, default: nil
   attr :brand_id, :any, required: true
 
@@ -894,6 +921,8 @@ defmodule SocialObjectsWeb.AdminComponents do
             worker={worker}
             status={get_worker_status(@statuses, @brand_id, worker.status_key)}
             worker_state={get_worker_state(@running_workers, worker.key)}
+            worker_failure={Map.get(@failed_worker_states, worker.key)}
+            tiktok_auth_health={@tiktok_auth_health}
             rate_limit_info={if worker.key == :creator_enrichment, do: @rate_limit_info, else: nil}
             brand_id={@brand_id}
           />
@@ -909,11 +938,15 @@ defmodule SocialObjectsWeb.AdminComponents do
   attr :worker, :map, required: true
   attr :status, :any, default: nil
   attr :worker_state, :atom, default: nil
+  attr :worker_failure, :map, default: nil
+  attr :tiktok_auth_health, :map, default: nil
   attr :rate_limit_info, :map, default: nil
   attr :brand_id, :any, required: true
 
   def worker_row(assigns) do
     ~H"""
+    <% failure = active_failure(@status, @worker_failure) %>
+    <% disabled = run_button_disabled?(@worker_state, @worker, @tiktok_auth_health) %>
     <tr>
       <td>
         <div class="worker-name">{@worker.name}</div>
@@ -931,9 +964,12 @@ defmodule SocialObjectsWeb.AdminComponents do
       </td>
       <td>
         <div class="worker-status">
-          <span class={"worker-status__indicator " <> status_indicator_class(@status, @worker_state)} />
-          <span class={"worker-status__text " <> if(@worker_state == :running, do: "worker-status__text--running", else: "")}>
-            {status_text(@status, @worker_state)}
+          <span class={"worker-status__indicator " <> status_indicator_class(@status, @worker_state, failure)} />
+          <span
+            class={"worker-status__text " <> status_text_class(@worker_state, failure)}
+            title={failure_title(failure)}
+          >
+            {status_text(@status, @worker_state, failure)}
           </span>
         </div>
       </td>
@@ -945,7 +981,8 @@ defmodule SocialObjectsWeb.AdminComponents do
           phx-click="trigger_worker"
           phx-value-worker={@worker.key}
           phx-value-brand_id={@brand_id}
-          disabled={@worker_state != nil}
+          disabled={disabled}
+          title={run_button_title(@worker_state, @worker, @tiktok_auth_health)}
         >
           {button_label(@worker_state)}
         </.button>
@@ -1054,11 +1091,33 @@ defmodule SocialObjectsWeb.AdminComponents do
   defp format_last_run(nil), do: "Never"
   defp format_last_run(datetime), do: format_relative_time(datetime)
 
-  defp status_indicator_class(_status, :running), do: "worker-status__indicator--running"
-  defp status_indicator_class(_status, :pending), do: "worker-status__indicator--running"
-  defp status_indicator_class(nil, _), do: "worker-status__indicator--stale"
+  defp status_text_class(:running, _), do: "worker-status__text--running"
+  defp status_text_class(:pending, _), do: "worker-status__text--running"
+  defp status_text_class(_, %{}), do: "worker-status__text--failed"
+  defp status_text_class(_, _), do: ""
 
-  defp status_indicator_class(datetime, _) do
+  defp tiktok_auth_banner_class(:ok), do: "tiktok-auth-banner--ok"
+  defp tiktok_auth_banner_class(:expiring), do: "tiktok-auth-banner--warning"
+  defp tiktok_auth_banner_class(:expired), do: "tiktok-auth-banner--failed"
+  defp tiktok_auth_banner_class(:missing), do: "tiktok-auth-banner--failed"
+  defp tiktok_auth_banner_class(_), do: "tiktok-auth-banner--warning"
+
+  defp tiktok_auth_status_text(:ok), do: "Connected"
+  defp tiktok_auth_status_text(:expiring), do: "Expiring Soon"
+  defp tiktok_auth_status_text(:expired), do: "Expired"
+  defp tiktok_auth_status_text(:missing), do: "Missing"
+  defp tiktok_auth_status_text(_), do: "Unknown"
+
+  defp status_indicator_class(_status, :running, _failure),
+    do: "worker-status__indicator--running"
+
+  defp status_indicator_class(_status, :pending, _failure),
+    do: "worker-status__indicator--running"
+
+  defp status_indicator_class(_status, _worker_state, %{}), do: "worker-status__indicator--failed"
+  defp status_indicator_class(nil, _worker_state, _failure), do: "worker-status__indicator--stale"
+
+  defp status_indicator_class(datetime, _worker_state, _failure) do
     hours_ago = DateTime.diff(DateTime.utc_now(), datetime, :hour)
 
     cond do
@@ -1068,11 +1127,14 @@ defmodule SocialObjectsWeb.AdminComponents do
     end
   end
 
-  defp status_text(_status, :running), do: "Running"
-  defp status_text(_status, :pending), do: "Pending"
-  defp status_text(nil, _), do: "Never run"
+  defp status_text(_status, :running, _failure), do: "Running"
+  defp status_text(_status, :pending, _failure), do: "Pending"
+  defp status_text(_status, _worker_state, %{state: "retryable"}), do: "Failed (Retrying)"
+  defp status_text(_status, _worker_state, %{state: "discarded"}), do: "Failed"
+  defp status_text(_status, _worker_state, %{}), do: "Failed"
+  defp status_text(nil, _worker_state, _failure), do: "Never run"
 
-  defp status_text(datetime, _) do
+  defp status_text(datetime, _worker_state, _failure) do
     hours_ago = DateTime.diff(DateTime.utc_now(), datetime, :hour)
 
     cond do
@@ -1081,4 +1143,58 @@ defmodule SocialObjectsWeb.AdminComponents do
       true -> "Stale"
     end
   end
+
+  defp failure_title(nil), do: nil
+  defp failure_title(%{error: error}), do: error
+
+  defp run_button_disabled?(worker_state, worker, auth_health) do
+    worker_state != nil || tiktok_auth_missing_for_worker?(worker, auth_health)
+  end
+
+  defp run_button_title(worker_state, worker, auth_health) do
+    cond do
+      worker_state == :running ->
+        "Worker is currently running"
+
+      worker_state == :pending ->
+        "Worker is currently queued"
+
+      tiktok_auth_missing_for_worker?(worker, auth_health) ->
+        "TikTok auth is missing for this brand"
+
+      true ->
+        nil
+    end
+  end
+
+  defp tiktok_auth_missing_for_worker?(worker, auth_health) do
+    Map.get(worker, :requires_tiktok_auth, false) && tiktok_auth_missing?(auth_health)
+  end
+
+  defp tiktok_auth_missing?(%{status: :missing}), do: true
+  defp tiktok_auth_missing?(_), do: false
+
+  defp active_failure(_status, nil), do: nil
+  defp active_failure(nil, failure), do: failure
+
+  defp active_failure(status, %{attempted_at: attempted_at} = failure) do
+    case {to_unix_timestamp(attempted_at), to_unix_timestamp(status)} do
+      {failed_ts, status_ts}
+      when is_integer(failed_ts) and is_integer(status_ts) and failed_ts < status_ts ->
+        nil
+
+      _ ->
+        failure
+    end
+  end
+
+  defp to_unix_timestamp(%DateTime{} = datetime), do: DateTime.to_unix(datetime)
+
+  defp to_unix_timestamp(%NaiveDateTime{} = datetime) do
+    datetime
+    |> DateTime.from_naive!("Etc/UTC")
+    |> DateTime.to_unix()
+  end
+
+  defp to_unix_timestamp(_), do: nil
 end
