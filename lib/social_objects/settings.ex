@@ -125,6 +125,70 @@ defmodule SocialObjects.Settings do
   end
 
   @doc """
+  Gets the last product performance sync timestamp.
+
+  Returns nil if never synced or a DateTime if synced before.
+  """
+  def get_product_performance_last_sync_at(brand_id) do
+    get_datetime_setting(brand_id, "product_performance_last_sync_at")
+  end
+
+  @doc """
+  Updates the last product performance sync timestamp to the current time.
+  """
+  def update_product_performance_last_sync_at(brand_id) do
+    upsert_setting(brand_id, "product_performance_last_sync_at", now_iso(), "datetime")
+  end
+
+  @doc """
+  Gets the last creator purchase sync timestamp.
+
+  Returns nil if never synced or a DateTime if synced before.
+  """
+  def get_creator_purchase_last_sync_at(brand_id) do
+    get_datetime_setting(brand_id, "creator_purchase_last_sync_at")
+  end
+
+  @doc """
+  Updates the last creator purchase sync timestamp to the current time.
+  """
+  def update_creator_purchase_last_sync_at(brand_id) do
+    upsert_setting(brand_id, "creator_purchase_last_sync_at", now_iso(), "datetime")
+  end
+
+  @doc """
+  Gets the last stream analytics sync timestamp.
+
+  Returns nil if never synced or a DateTime if synced before.
+  """
+  def get_stream_analytics_last_sync_at(brand_id) do
+    get_datetime_setting(brand_id, "stream_analytics_last_sync_at")
+  end
+
+  @doc """
+  Updates the last stream analytics sync timestamp to the current time.
+  """
+  def update_stream_analytics_last_sync_at(brand_id) do
+    upsert_setting(brand_id, "stream_analytics_last_sync_at", now_iso(), "datetime")
+  end
+
+  @doc """
+  Gets the last weekly recap sent timestamp.
+
+  Returns nil if never sent or a DateTime if sent before.
+  """
+  def get_weekly_recap_last_sent_at(brand_id) do
+    get_datetime_setting(brand_id, "weekly_recap_last_sent_at")
+  end
+
+  @doc """
+  Updates the last weekly recap sent timestamp to the current time.
+  """
+  def update_weekly_recap_last_sent_at(brand_id) do
+    upsert_setting(brand_id, "weekly_recap_last_sent_at", now_iso(), "datetime")
+  end
+
+  @doc """
   Gets a generic string setting by key.
 
   Returns nil if the setting doesn't exist.
