@@ -167,18 +167,6 @@ defmodule SocialObjects.Monitoring do
   end
 
   @doc """
-  Gets currently executing workers.
-  """
-  def get_currently_running_workers do
-    from(j in Oban.Job,
-      where: j.state == "executing",
-      order_by: [asc: j.attempted_at]
-    )
-    |> Repo.all()
-    |> Enum.map(&format_running_job/1)
-  end
-
-  @doc """
   Gets currently active workers (pending or running) for a specific brand.
 
   Returns a list of maps with:
@@ -289,16 +277,6 @@ defmodule SocialObjects.Monitoring do
       error: error_message,
       attempt: job.attempt,
       max_attempts: job.max_attempts,
-      brand_id: get_in(job.args, ["brand_id"])
-    }
-  end
-
-  defp format_running_job(job) do
-    %{
-      id: job.id,
-      worker: job.worker,
-      worker_name: worker_display_name(job.worker),
-      started_at: job.attempted_at,
       brand_id: get_in(job.args, ["brand_id"])
     }
   end
