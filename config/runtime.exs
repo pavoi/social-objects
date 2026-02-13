@@ -20,29 +20,16 @@ config :social_objects, :features,
 config :social_objects,
   outbound_base_url: System.get_env("OUTBOUND_BASE_URL")
 
-# Shopify configuration for development (after .env is loaded)
-# Note: SHOPIFY_ACCESS_TOKEN is NOT needed here - tokens are generated dynamically
-# using client credentials grant. See lib/social_objects/shopify/auth.ex for details.
+# Development configuration (after .env is loaded)
 if config_env() == :dev do
   config :social_objects,
-    shopify_client_id: System.get_env("SHOPIFY_CLIENT_ID"),
-    shopify_client_secret: System.get_env("SHOPIFY_CLIENT_SECRET"),
-    shopify_store_name: System.get_env("SHOPIFY_STORE_NAME"),
     openai_api_key: System.get_env("OPENAI_API_KEY"),
-    # BigQuery configuration for Creator CRM sync
-    bigquery_project_id: System.get_env("BIGQUERY_PROJECT_ID"),
-    bigquery_dataset: System.get_env("BIGQUERY_DATASET"),
-    bigquery_service_account_email: System.get_env("BIGQUERY_SERVICE_ACCOUNT_EMAIL"),
-    bigquery_private_key: System.get_env("BIGQUERY_PRIVATE_KEY"),
-    # SendGrid configuration for creator outreach emails
+    # SendGrid API key (from name/email are brand-specific in DB)
     sendgrid_api_key: System.get_env("SENDGRID_API_KEY"),
-    sendgrid_from_email: System.get_env("SENDGRID_FROM_EMAIL"),
-    sendgrid_from_name:
-      System.get_env("SENDGRID_FROM_NAME", Application.get_env(:social_objects, :app_name, "App")),
+    sendgrid_webhook_verification_key: System.get_env("SENDGRID_WEBHOOK_VERIFICATION_KEY"),
+    # Auth email sender (for login/password reset, not creator outreach)
     auth_from_name: System.get_env("AUTH_FROM_NAME"),
     auth_from_email: System.get_env("AUTH_FROM_EMAIL"),
-    # SendGrid webhook signature verification (optional - if set, webhook requests are verified)
-    sendgrid_webhook_verification_key: System.get_env("SENDGRID_WEBHOOK_VERIFICATION_KEY"),
     # Twilio configuration for creator outreach SMS
     twilio_account_sid: System.get_env("TWILIO_ACCOUNT_SID"),
     twilio_auth_token: System.get_env("TWILIO_AUTH_TOKEN"),
@@ -52,11 +39,7 @@ if config_env() == :dev do
     tiktok_bridge_enabled: System.get_env("TIKTOK_BRIDGE_ENABLED", "false") == "true",
     tiktok_bridge_url:
       System.get_env("TIKTOK_BRIDGE_URL") ||
-        "http://localhost:#{System.get_env("TIKTOK_BRIDGE_PORT", "8080")}",
-    # Slack configuration for stream reports
-    slack_bot_token: System.get_env("SLACK_BOT_TOKEN"),
-    slack_channel: System.get_env("SLACK_CHANNEL", "#tiktok-live-reports"),
-    slack_dev_user_id: System.get_env("SLACK_DEV_USER_ID")
+        "http://localhost:#{System.get_env("TIKTOK_BRIDGE_PORT", "8080")}"
 
   # OpenAI client configuration
   config :social_objects, SocialObjects.AI.OpenAIClient,
@@ -112,28 +95,15 @@ if config_env() == :prod do
 
   config :social_objects, :dns_cluster_query, System.get_env("DNS_CLUSTER_QUERY")
 
-  # Shopify configuration
-  # Note: SHOPIFY_ACCESS_TOKEN is NOT needed - tokens are generated dynamically
-  # using client credentials grant. See lib/social_objects/shopify/auth.ex for details.
+  # Global configuration (brand-specific settings like Shopify, BigQuery, Slack are in DB)
   config :social_objects,
-    shopify_client_id: System.get_env("SHOPIFY_CLIENT_ID"),
-    shopify_client_secret: System.get_env("SHOPIFY_CLIENT_SECRET"),
-    shopify_store_name: System.get_env("SHOPIFY_STORE_NAME"),
     openai_api_key: System.get_env("OPENAI_API_KEY"),
-    # BigQuery configuration for Creator CRM sync
-    bigquery_project_id: System.get_env("BIGQUERY_PROJECT_ID"),
-    bigquery_dataset: System.get_env("BIGQUERY_DATASET"),
-    bigquery_service_account_email: System.get_env("BIGQUERY_SERVICE_ACCOUNT_EMAIL"),
-    bigquery_private_key: System.get_env("BIGQUERY_PRIVATE_KEY"),
-    # SendGrid configuration for creator outreach emails
+    # SendGrid API key (from name/email are brand-specific in DB)
     sendgrid_api_key: System.get_env("SENDGRID_API_KEY"),
-    sendgrid_from_email: System.get_env("SENDGRID_FROM_EMAIL"),
-    sendgrid_from_name:
-      System.get_env("SENDGRID_FROM_NAME", Application.get_env(:social_objects, :app_name, "App")),
+    sendgrid_webhook_verification_key: System.get_env("SENDGRID_WEBHOOK_VERIFICATION_KEY"),
+    # Auth email sender (for login/password reset, not creator outreach)
     auth_from_name: System.get_env("AUTH_FROM_NAME"),
     auth_from_email: System.get_env("AUTH_FROM_EMAIL"),
-    # SendGrid webhook signature verification (optional - if set, webhook requests are verified)
-    sendgrid_webhook_verification_key: System.get_env("SENDGRID_WEBHOOK_VERIFICATION_KEY"),
     # Twilio configuration for creator outreach SMS
     twilio_account_sid: System.get_env("TWILIO_ACCOUNT_SID"),
     twilio_auth_token: System.get_env("TWILIO_AUTH_TOKEN"),
@@ -142,10 +112,7 @@ if config_env() == :prod do
     tiktok_bridge_enabled: System.get_env("TIKTOK_BRIDGE_ENABLED", "true") == "true",
     tiktok_bridge_url:
       System.get_env("TIKTOK_BRIDGE_URL") ||
-        "http://localhost:#{System.get_env("TIKTOK_BRIDGE_PORT", "8080")}",
-    # Slack configuration for stream reports
-    slack_bot_token: System.get_env("SLACK_BOT_TOKEN"),
-    slack_channel: System.get_env("SLACK_CHANNEL", "#tiktok-live-reports")
+        "http://localhost:#{System.get_env("TIKTOK_BRIDGE_PORT", "8080")}"
 
   # OpenAI client configuration
   config :social_objects, SocialObjects.AI.OpenAIClient,

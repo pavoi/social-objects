@@ -231,21 +231,17 @@ defmodule SocialObjects.Settings do
   @doc """
   Returns the SendGrid from name for a brand.
 
-  Brand-scoped settings do not fall back to app config to avoid cross-brand leakage.
-  Use `brand_id = nil` only for global/default contexts.
+  Returns nil if not configured. Callers should fall back to brand name or app name.
   """
-  def get_sendgrid_from_name(nil), do: env_or_default(:sendgrid_from_name, app_name())
+  def get_sendgrid_from_name(nil), do: nil
   def get_sendgrid_from_name(brand_id), do: get_setting_value(brand_id, "sendgrid_from_name")
 
   @doc """
   Returns the SendGrid from email for a brand.
 
-  Brand-scoped settings do not fall back to app config to avoid cross-brand leakage.
-  Use `brand_id = nil` only for global/default contexts.
+  Returns nil if not configured.
   """
-  def get_sendgrid_from_email(nil),
-    do: env_or_default(:sendgrid_from_email, "noreply@example.com")
-
+  def get_sendgrid_from_email(nil), do: nil
   def get_sendgrid_from_email(brand_id), do: get_setting_value(brand_id, "sendgrid_from_email")
 
   defp env_or_default(key, default) do
@@ -258,61 +254,50 @@ defmodule SocialObjects.Settings do
   @doc """
   Returns Slack bot token for a brand.
 
-  Brand-scoped settings do not fall back to app config to avoid cross-brand leakage.
-  Use `brand_id = nil` only for global/default contexts.
+  Returns nil if not configured.
   """
-  def get_slack_bot_token(nil), do: Application.get_env(:social_objects, :slack_bot_token)
+  def get_slack_bot_token(nil), do: nil
   def get_slack_bot_token(brand_id), do: get_setting_value(brand_id, "slack_bot_token")
 
   @doc """
   Returns Slack channel for a brand.
 
-  Brand-scoped settings do not fall back to app config to avoid cross-brand leakage.
-  Use `brand_id = nil` only for global/default contexts.
+  Returns nil if not configured.
   """
-  def get_slack_channel(nil),
-    do: Application.get_env(:social_objects, :slack_channel, "#tiktok-live-reports")
-
+  def get_slack_channel(nil), do: nil
   def get_slack_channel(brand_id), do: get_setting_value(brand_id, "slack_channel")
 
   @doc """
   Returns Slack dev user id for a brand.
 
-  Brand-scoped settings do not fall back to app config to avoid cross-brand leakage.
-  Use `brand_id = nil` only for global/default contexts.
+  Returns nil if not configured.
   """
-  def get_slack_dev_user_id(nil), do: Application.get_env(:social_objects, :slack_dev_user_id)
+  def get_slack_dev_user_id(nil), do: nil
   def get_slack_dev_user_id(brand_id), do: get_setting_value(brand_id, "slack_dev_user_id")
 
   @doc """
   Returns Shopify store name for a brand.
 
-  Brand-scoped settings do not fall back to app config to avoid cross-brand leakage.
-  Use `brand_id = nil` only for global/default contexts.
+  Returns nil if not configured.
   """
-  def get_shopify_store_name(nil), do: Application.get_env(:social_objects, :shopify_store_name)
+  def get_shopify_store_name(nil), do: nil
   def get_shopify_store_name(brand_id), do: get_setting_value(brand_id, "shopify_store_name")
 
   @doc """
   Returns Shopify client id for a brand.
 
-  Brand-scoped settings do not fall back to app config to avoid cross-brand leakage.
-  Use `brand_id = nil` only for global/default contexts.
+  Returns nil if not configured.
   """
-  def get_shopify_client_id(nil), do: Application.get_env(:social_objects, :shopify_client_id)
+  def get_shopify_client_id(nil), do: nil
   def get_shopify_client_id(brand_id), do: get_setting_value(brand_id, "shopify_client_id")
 
   @doc """
   Returns Shopify client secret for a brand.
 
-  Brand-scoped settings do not fall back to app config to avoid cross-brand leakage.
-  Use `brand_id = nil` only for global/default contexts.
+  Returns nil if not configured.
   """
-  def get_shopify_client_secret(nil),
-    do: Application.get_env(:social_objects, :shopify_client_secret)
-
-  def get_shopify_client_secret(brand_id),
-    do: get_setting_value(brand_id, "shopify_client_secret")
+  def get_shopify_client_secret(nil), do: nil
+  def get_shopify_client_secret(brand_id), do: get_setting_value(brand_id, "shopify_client_secret")
 
   @doc """
   Returns true when all required Shopify credentials are configured for the brand.
@@ -364,42 +349,33 @@ defmodule SocialObjects.Settings do
   @doc """
   Returns BigQuery project id for a brand.
 
-  Brand-scoped settings do not fall back to app config to avoid cross-brand leakage.
-  Use `brand_id = nil` only for global/default contexts.
+  Returns nil if not configured.
   """
-  def get_bigquery_project_id(nil), do: Application.get_env(:social_objects, :bigquery_project_id)
+  def get_bigquery_project_id(nil), do: nil
   def get_bigquery_project_id(brand_id), do: get_setting_value(brand_id, "bigquery_project_id")
 
   @doc """
   Returns BigQuery dataset identifier for a brand.
 
-  Brand-scoped settings do not fall back to app config to avoid cross-brand leakage.
-  Use `brand_id = nil` only for global/default contexts.
+  Returns nil if not configured.
   """
-  def get_bigquery_dataset(nil), do: Application.get_env(:social_objects, :bigquery_dataset)
+  def get_bigquery_dataset(nil), do: nil
   def get_bigquery_dataset(brand_id), do: get_setting_value(brand_id, "bigquery_dataset")
 
   @doc """
   Returns BigQuery service account email for a brand.
 
-  Brand-scoped settings do not fall back to app config to avoid cross-brand leakage.
-  Use `brand_id = nil` only for global/default contexts.
+  Returns nil if not configured.
   """
-  def get_bigquery_service_account_email(nil),
-    do: Application.get_env(:social_objects, :bigquery_service_account_email)
-
-  def get_bigquery_service_account_email(brand_id),
-    do: get_setting_value(brand_id, "bigquery_service_account_email")
+  def get_bigquery_service_account_email(nil), do: nil
+  def get_bigquery_service_account_email(brand_id), do: get_setting_value(brand_id, "bigquery_service_account_email")
 
   @doc """
   Returns BigQuery private key for a brand.
 
-  Brand-scoped settings do not fall back to app config to avoid cross-brand leakage.
-  Use `brand_id = nil` only for global/default contexts.
+  Returns nil if not configured.
   """
-  def get_bigquery_private_key(nil),
-    do: Application.get_env(:social_objects, :bigquery_private_key)
-
+  def get_bigquery_private_key(nil), do: nil
   def get_bigquery_private_key(brand_id), do: get_setting_value(brand_id, "bigquery_private_key")
 
   @doc """
@@ -415,13 +391,9 @@ defmodule SocialObjects.Settings do
   @doc """
   Returns the TikTok Live accounts to monitor for a brand.
 
-  Brand-scoped settings do not fall back to app config to avoid cross-brand leakage.
-  Use `brand_id = nil` only for global/default contexts.
+  Returns an empty list if not configured.
   """
-  def get_tiktok_live_accounts(nil) do
-    Application.get_env(:social_objects, :tiktok_live_monitor, [])
-    |> Keyword.get(:accounts, [])
-  end
+  def get_tiktok_live_accounts(nil), do: []
 
   def get_tiktok_live_accounts(brand_id) do
     case get_setting(brand_id, "tiktok_live_accounts") do
