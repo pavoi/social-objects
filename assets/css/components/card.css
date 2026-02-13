@@ -423,6 +423,11 @@
   @apply bg-bg-hover border-border-primary;
 }
 
+/* Button-styled menu trigger (for dropdown buttons like "New Template") */
+.menu-trigger--button {
+  @apply w-auto h-auto gap-1;
+}
+
 .product-set-menu {
   @apply hidden absolute right-0 min-w-[180px];
   @apply bg-surface-primary border border-border-secondary rounded-md;

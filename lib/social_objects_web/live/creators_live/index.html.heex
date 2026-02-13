@@ -55,16 +55,12 @@
             </div>
           <% end %>
         <% "templates" -> %>
-          <div class="template-type-buttons">
-            <.link
-              navigate={
-                SocialObjectsWeb.BrandRoutes.brand_path(
-                  @current_brand,
-                  "/templates/new",
-                  @current_host
-                )
-              }
-              class="button button--sm button--primary"
+          <div class="menu-container">
+            <button
+              type="button"
+              class="button button--sm button--primary menu-trigger--button"
+              aria-haspopup="true"
+              phx-click={JS.toggle(to: "#new-template-menu", in: "fade-in", out: "fade-out")}
             >
               <svg
                 xmlns="http://www.w3.org/2000/svg"
@@ -74,28 +70,74 @@
               >
                 <path d="M10.75 4.75a.75.75 0 0 0-1.5 0v4.5h-4.5a.75.75 0 0 0 0 1.5h4.5v4.5a.75.75 0 0 0 1.5 0v-4.5h4.5a.75.75 0 0 0 0-1.5h-4.5v-4.5Z" />
               </svg>
-              New Email Template
-            </.link>
-            <.link
-              navigate={
-                SocialObjectsWeb.BrandRoutes.brand_path(
-                  @current_brand,
-                  "/templates/new?type=page",
-                  @current_host
-                )
-              }
-              class="button button--sm button--outline"
-            >
+              New Template
               <svg
                 xmlns="http://www.w3.org/2000/svg"
                 viewBox="0 0 20 20"
                 fill="currentColor"
                 class="size-4"
               >
-                <path d="M10.75 4.75a.75.75 0 0 0-1.5 0v4.5h-4.5a.75.75 0 0 0 0 1.5h4.5v4.5a.75.75 0 0 0 1.5 0v-4.5h4.5a.75.75 0 0 0 0-1.5h-4.5v-4.5Z" />
+                <path
+                  fill-rule="evenodd"
+                  d="M5.22 8.22a.75.75 0 0 1 1.06 0L10 11.94l3.72-3.72a.75.75 0 1 1 1.06 1.06l-4.25 4.25a.75.75 0 0 1-1.06 0L5.22 9.28a.75.75 0 0 1 0-1.06Z"
+                  clip-rule="evenodd"
+                />
               </svg>
-              New Page Template
-            </.link>
+            </button>
+            <nav
+              id="new-template-menu"
+              class="product-set-menu"
+              phx-click-away={JS.hide(to: "#new-template-menu", transition: "fade-out")}
+              role="menu"
+            >
+              <.link
+                navigate={
+                  SocialObjectsWeb.BrandRoutes.brand_path(
+                    @current_brand,
+                    "/templates/new",
+                    @current_host
+                  )
+                }
+                class="product-set-menu__item"
+                role="menuitem"
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 20 20"
+                  fill="currentColor"
+                  class="size-4"
+                >
+                  <path d="M3 4a2 2 0 0 0-2 2v1.161l8.441 4.221a1.25 1.25 0 0 0 1.118 0L19 7.162V6a2 2 0 0 0-2-2H3Z" />
+                  <path d="m19 8.839-7.77 3.885a2.75 2.75 0 0 1-2.46 0L1 8.839V14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V8.839Z" />
+                </svg>
+                Email Template
+              </.link>
+              <.link
+                navigate={
+                  SocialObjectsWeb.BrandRoutes.brand_path(
+                    @current_brand,
+                    "/templates/new?type=page",
+                    @current_host
+                  )
+                }
+                class="product-set-menu__item"
+                role="menuitem"
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 20 20"
+                  fill="currentColor"
+                  class="size-4"
+                >
+                  <path
+                    fill-rule="evenodd"
+                    d="M4.5 2A1.5 1.5 0 0 0 3 3.5v13A1.5 1.5 0 0 0 4.5 18h11a1.5 1.5 0 0 0 1.5-1.5V7.621a1.5 1.5 0 0 0-.44-1.06l-4.12-4.122A1.5 1.5 0 0 0 11.378 2H4.5Zm2.25 8.5a.75.75 0 0 0 0 1.5h6.5a.75.75 0 0 0 0-1.5h-6.5Zm0 3a.75.75 0 0 0 0 1.5h6.5a.75.75 0 0 0 0-1.5h-6.5Z"
+                    clip-rule="evenodd"
+                  />
+                </svg>
+                Page Template
+              </.link>
+            </nav>
           </div>
       <% end %>
     </:actions>

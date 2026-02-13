@@ -445,12 +445,8 @@ table.is-resizing th {
 }
 
 /* ============================================
-   TEMPLATE HEADER & BUTTONS
+   TEMPLATE HEADER
    ============================================ */
-
-.template-type-buttons {
-  @apply flex gap-2;
-}
 
 .template-header {
   @apply flex items-center gap-3 mb-4;
