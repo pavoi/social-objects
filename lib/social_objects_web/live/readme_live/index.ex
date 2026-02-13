@@ -376,6 +376,7 @@ defmodule SocialObjectsWeb.ReadmeLive.Index do
   end
 
   defp format_last_activity(_label, _datetime, false), do: "Not configured"
+  defp format_last_activity(_label, _datetime, nil), do: "Not configured"
   defp format_last_activity(_label, nil, true), do: "No activity yet"
 
   defp format_last_activity(label, datetime, true) do
