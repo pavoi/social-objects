@@ -106,7 +106,7 @@
                 class={[
                   "controller-color-btn",
                   "controller-color-btn--#{color}",
-                  @selected_color == color && "controller-color-btn--active"
+                  to_string(@selected_color) == color && "controller-color-btn--active"
                 ]}
                 phx-click="select_color"
                 phx-value-color={color}
