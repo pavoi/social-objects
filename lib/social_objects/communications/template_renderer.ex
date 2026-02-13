@@ -85,11 +85,16 @@ defmodule SocialObjects.Communications.TemplateRenderer do
 
   @doc """
   Renders a template for preview (no URL replacement).
+  Disables link clicks to prevent navigation to unsubstituted template URLs.
 
   Returns {subject, html_body}
   """
   def render_preview(%EmailTemplate{} = template) do
-    {template.subject, template.html_body}
+    # Inject CSS to disable link clicks in preview
+    html_with_disabled_links =
+      "<style>a { pointer-events: none; cursor: default; }</style>" <> (template.html_body || "")
+
+    {template.subject, html_with_disabled_links}
   end
 
   defp generate_join_url(%Brand{} = brand, creator_id, lark_preset) do

@@ -362,12 +362,14 @@ defmodule SocialObjectsWeb.ViewHelpers do
       )
 
     # Wrap with minimal reset styles for iframe rendering
+    # Disable link clicks in preview to prevent navigation to unsubstituted template URLs
     """
     <!DOCTYPE html>
     <html>
     <head>
       <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
+        a { pointer-events: none; cursor: default; }
       </style>
     </head>
     <body>#{html_with_form}</body>
