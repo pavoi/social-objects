@@ -249,7 +249,7 @@ defmodule SocialObjectsWeb.CreatorTableComponents do
               current={@sort_by}
               dir={@sort_dir}
               on_sort={@on_sort}
-              tooltip="Total sales since tracking started. Accumulates net new sales from TikTok's 90-day rolling window."
+              tooltip="Creator's total TikTok Shop GMV (all brands) since tracking started. Accumulates net new sales from TikTok's 30-day rolling window."
               time_filtered={@time_filter_active}
             />
             <%!-- 8. Avg Views --%>
@@ -432,28 +432,36 @@ defmodule SocialObjectsWeb.CreatorTableComponents do
       <span class="cumulative-gmv-cell__value">{format_gmv(@value)}</span>
       <%= if @tracking_started_at do %>
         <span class="cumulative-gmv-cell__since">
-          since {format_short_date(@tracking_started_at)}
+          since {format_gmv_start_date_short(@tracking_started_at)}
         </span>
       <% end %>
     </div>
     """
   end
 
-  defp format_short_date(nil), do: ""
+  # The tracking_started_at is when we began accumulating, but the initial value
+  # includes TikTok's 30-day rolling window. So the effective GMV start date
+  # is 30 days before tracking started.
+  defp gmv_effective_start_date(%Date{} = date), do: Date.add(date, -30)
+  defp gmv_effective_start_date(_), do: nil
 
-  defp format_short_date(%Date{} = date) do
-    # Format as "Jan '26"
+  defp format_gmv_start_date_short(nil), do: ""
+
+  defp format_gmv_start_date_short(%Date{} = tracking_date) do
+    # Format effective start date as "Jan '26"
+    date = gmv_effective_start_date(tracking_date)
     month = Calendar.strftime(date, "%b")
     year = date.year |> Integer.to_string() |> String.slice(-2, 2)
     "#{month} '#{year}"
   end
 
-  defp format_short_date(_), do: ""
+  defp format_gmv_start_date_short(_), do: ""
 
   defp format_tracking_date(nil), do: ""
 
-  defp format_tracking_date(%Date{} = date) do
-    # Format as "Jan 5, 2026" for modal display
+  defp format_tracking_date(%Date{} = tracking_date) do
+    # Format effective start date as "Jan 5, 2026" for modal display
+    date = gmv_effective_start_date(tracking_date)
     Calendar.strftime(date, "%b %-d, %Y")
   end
 
@@ -993,7 +1001,7 @@ defmodule SocialObjectsWeb.CreatorTableComponents do
               </span>
             </div>
             <div class="creator-modal-stat">
-              <span class="creator-modal-stat__label">90-Day GMV</span>
+              <span class="creator-modal-stat__label">30-Day GMV</span>
               <span class="creator-modal-stat__value">{format_gmv(@creator.total_gmv_cents)}</span>
             </div>
             <div class="creator-modal-stat">

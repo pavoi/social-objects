@@ -58,7 +58,7 @@ defmodule SocialObjects.Creators.Creator do
     field :video_count, :integer, default: 0
     field :live_count, :integer, default: 0
 
-    # Cumulative GMV tracking (accumulates deltas to handle 90-day rolling window)
+    # Cumulative GMV tracking (accumulates deltas to handle TikTok's 30-day rolling window)
     field :cumulative_gmv_cents, :integer, default: 0
     field :cumulative_video_gmv_cents, :integer, default: 0
     field :cumulative_live_gmv_cents, :integer, default: 0
