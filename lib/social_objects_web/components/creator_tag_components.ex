@@ -143,7 +143,7 @@ defmodule SocialObjectsWeb.CreatorTagComponents do
                   type="button"
                   class={[
                     "tag-picker__quick-color",
-                    "color-accent--#{color}",
+                    "tag-picker__quick-color--#{color}",
                     @new_tag_color == color && "tag-picker__quick-color--selected"
                   ]}
                   phx-click="select_new_tag_color"
@@ -154,7 +154,7 @@ defmodule SocialObjectsWeb.CreatorTagComponents do
             </div>
             <button
               type="button"
-              class={["tag-picker__quick-create-btn", "color-accent--#{@new_tag_color}"]}
+              class={["tag-picker__quick-create-btn", "tag-picker__quick-create-btn--#{@new_tag_color}"]}
               phx-click="quick_create_tag"
               phx-value-creator-id={@creator_id}
               phx-value-name={@search_query}
@@ -179,22 +179,7 @@ defmodule SocialObjectsWeb.CreatorTagComponents do
               phx-value-creator-id={@creator_id}
               phx-value-tag-id={tag.id}
             >
-              <div class="tag-picker__item-check">
-                <%= if tag.id in @selected_tag_ids do %>
-                  <svg
-                    class="size-4"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="2"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                  >
-                    <path d="m4.5 12.75 6 6 9-13.5" />
-                  </svg>
-                <% end %>
-              </div>
-              <div class={"tag-picker__item-color color-accent--#{tag.color}"}></div>
+              <div class={"tag-picker__item-color tag-picker__item-color--#{tag.color}"}></div>
               <span class="tag-picker__item-name">{tag.name}</span>
               <%= if tag.id in @selected_tag_ids do %>
                 <button
@@ -277,12 +262,12 @@ defmodule SocialObjectsWeb.CreatorTagComponents do
                     phx-click="toggle_filter_tag"
                     phx-value-tag-id={tag.id}
                   />
-                  <div class={"tag-filter__item-color color-accent--#{tag.color}"}></div>
+                  <div class={"tag-filter__item-color tag-filter__item-color--#{tag.color}"}></div>
                   <span class="tag-filter__item-name">{tag.name}</span>
                 </label>
                 <button
                   type="button"
-                  class="tag-picker__item-delete"
+                  class="tag-filter__item-delete"
                   phx-click="delete_tag"
                   phx-value-tag-id={tag.id}
                   title="Delete tag"
@@ -332,7 +317,7 @@ defmodule SocialObjectsWeb.CreatorTagComponents do
                   phx-click="toggle_batch_tag"
                   phx-value-tag-id={tag.id}
                 />
-                <div class={"tag-picker__item-color color-accent--#{tag.color}"}></div>
+                <div class={"tag-picker__item-color tag-picker__item-color--#{tag.color}"}></div>
                 <span class="batch-tag-picker__item-name">{tag.name}</span>
               </label>
             <% end %>

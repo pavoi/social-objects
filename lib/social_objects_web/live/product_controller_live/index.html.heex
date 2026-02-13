@@ -105,7 +105,7 @@
                 type="button"
                 class={[
                   "controller-color-btn",
-                  "color-accent--#{color}",
+                  "controller-color-btn--#{color}",
                   @selected_color == color && "controller-color-btn--active"
                 ]}
                 phx-click="select_color"
@@ -224,7 +224,7 @@
                   phx-click="select_preset"
                   phx-value-id={preset.id}
                 >
-                  <div class={"preset-item__color color-accent--#{preset.color}"}></div>
+                  <div class={"preset-item__color preset-item__color--#{preset.color}"}></div>
                   <div class="preset-item__text">{preset.message_text}</div>
                 </button>
                 <button
@@ -270,7 +270,7 @@
                       required
                       checked={color == "amber"}
                     />
-                    <div class={"color-swatch color-accent--#{color}"}></div>
+                    <div class={"color-swatch color-swatch--#{color}"}></div>
                     <span class="color-label">{String.capitalize(color)}</span>
                   </label>
                 <% end %>

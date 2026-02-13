@@ -76,7 +76,7 @@ const TagPickerPosition = {
     const selected = this.el.querySelector('.tag-picker__quick-color--selected')
     if (!selected) return
 
-    const currentColor = this.colors.find(c => selected.classList.contains(`color-accent--${c}`))
+    const currentColor = this.colors.find(c => selected.classList.contains(`tag-picker__quick-color--${c}`))
     if (!currentColor) return
 
     const currentIndex = this.colors.indexOf(currentColor)
