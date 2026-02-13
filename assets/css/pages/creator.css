@@ -1011,9 +1011,8 @@
   @apply py-2 px-3;
   @apply bg-surface-primary border border-border-primary rounded-md;
   @apply text-xs font-normal text-text-secondary whitespace-nowrap;
-  @apply opacity-0 invisible pointer-events-none z-[1000];
+  @apply hidden pointer-events-none z-[1000];
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-  transition: opacity 0.15s ease, visibility 0.15s ease;
 }
 
 .sortable-header__tooltip::after {
@@ -1034,13 +1033,12 @@
 }
 
 .sortable-header:hover:not(.is-resizing) .sortable-header__tooltip {
-  @apply opacity-100 visible;
+  @apply block;
 }
 
 .creator-table.is-resizing .sortable-header__tooltip,
 .creator-table.is-resizing .sortable-header:hover .sortable-header__tooltip {
-  opacity: 0;
-  visibility: hidden;
+  display: none;
 }
 
 .sortable-header__tooltip-filter {
