@@ -476,7 +476,7 @@ body:has(.controller-container) .app-navbar {
 }
 
 body:has(.controller-container) .app-content {
-  @apply pt-0;
+  @apply !pt-0;
 }
 
 /* ===========================================================================

@@ -626,7 +626,7 @@ body:has(.host-container) .app-navbar {
 }
 
 body:has(.host-container) .app-content {
-  @apply pt-0;
+  @apply !pt-0;
 }
 
 /* ==========================================================================
