@@ -9,17 +9,21 @@ defmodule SocialObjects.Accounts do
   alias SocialObjects.Accounts.{User, UserBrand, UserToken}
   alias SocialObjects.Catalog.Brand
 
+  @type role :: :owner | :admin | :viewer
+
   ## Platform Admin
 
   @doc """
   Returns true if the user is a platform admin.
   """
+  @spec platform_admin?(User.t() | nil) :: boolean()
   def platform_admin?(%User{is_admin: true}), do: true
   def platform_admin?(_), do: false
 
   @doc """
   Lists all users with their brand memberships preloaded.
   """
+  @spec list_all_users() :: [User.t()]
   def list_all_users do
     User
     |> preload(user_brands: :brand)
@@ -30,6 +34,7 @@ defmodule SocialObjects.Accounts do
   @doc """
   Gets a user with their brand memberships preloaded.
   """
+  @spec get_user_with_brands!(pos_integer()) :: User.t() | no_return()
   def get_user_with_brands!(id) do
     User
     |> preload(user_brands: :brand)
@@ -39,6 +44,7 @@ defmodule SocialObjects.Accounts do
   @doc """
   Gets the most recent session timestamp for a user.
   """
+  @spec get_last_session_at(User.t()) :: DateTime.t() | nil
   def get_last_session_at(%User{id: user_id}) do
     from(t in UserToken,
       where: t.user_id == ^user_id and t.context == "session",
@@ -50,6 +56,7 @@ defmodule SocialObjects.Accounts do
   @doc """
   Updates a user's admin status.
   """
+  @spec set_admin_status(User.t(), boolean()) :: {:ok, User.t()} | {:error, Ecto.Changeset.t()}
   def set_admin_status(%User{} = user, is_admin) when is_boolean(is_admin) do
     user
     |> Ecto.Changeset.change(is_admin: is_admin)
@@ -59,6 +66,7 @@ defmodule SocialObjects.Accounts do
   @doc """
   Removes a user from a brand.
   """
+  @spec remove_user_from_brand(User.t(), Brand.t()) :: {non_neg_integer(), nil | [term()]}
   def remove_user_from_brand(%User{} = user, %Brand{} = brand) do
     from(ub in UserBrand,
       where: ub.user_id == ^user.id and ub.brand_id == ^brand.id
@@ -69,6 +77,7 @@ defmodule SocialObjects.Accounts do
   @doc """
   Updates the role for an existing user-brand membership.
   """
+  @spec update_user_brand_role(User.t(), Brand.t(), role()) :: :ok | {:error, :not_found}
   def update_user_brand_role(%User{} = user, %Brand{} = brand, new_role)
       when new_role in [:viewer, :admin, :owner] do
     from(ub in UserBrand,
@@ -84,6 +93,7 @@ defmodule SocialObjects.Accounts do
   @doc """
   Deletes a user and all associated data (tokens, brand memberships).
   """
+  @spec delete_user(User.t()) :: {:ok, User.t()} | {:error, Ecto.Changeset.t()}
   def delete_user(%User{} = user) do
     Repo.transaction(fn ->
       # Delete all user tokens
@@ -105,6 +115,8 @@ defmodule SocialObjects.Accounts do
   Invalidates all existing sessions.
   Returns {:ok, user, temp_password} on success.
   """
+  @spec reset_user_password(User.t()) ::
+          {:ok, User.t(), String.t()} | {:error, Ecto.Changeset.t()}
   def reset_user_password(%User{} = user) do
     temp_password = generate_temp_password()
 
@@ -133,6 +145,7 @@ defmodule SocialObjects.Accounts do
   @doc """
   Counts the number of platform admins.
   """
+  @spec count_admins() :: non_neg_integer()
   def count_admins do
     from(u in User, where: u.is_admin == true, select: count(u.id))
     |> Repo.one()
@@ -141,6 +154,7 @@ defmodule SocialObjects.Accounts do
   @doc """
   Returns true if the user is the only platform admin.
   """
+  @spec only_admin?(User.t()) :: boolean()
   def only_admin?(%User{is_admin: false}), do: false
 
   def only_admin?(%User{is_admin: true}) do
@@ -161,6 +175,7 @@ defmodule SocialObjects.Accounts do
       nil
 
   """
+  @spec get_user_by_email(String.t()) :: User.t() | nil
   def get_user_by_email(email) when is_binary(email) do
     Repo.get_by(User, email: email)
   end
@@ -168,6 +183,7 @@ defmodule SocialObjects.Accounts do
   @doc """
   Returns true if any user exists.
   """
+  @spec any_users?() :: boolean()
   def any_users? do
     Repo.exists?(from(u in User, select: 1, limit: 1))
   end
@@ -184,6 +200,7 @@ defmodule SocialObjects.Accounts do
       nil
 
   """
+  @spec get_user_by_email_and_password(String.t(), String.t()) :: User.t() | nil
   def get_user_by_email_and_password(email, password)
       when is_binary(email) and is_binary(password) do
     user = Repo.get_by(User, email: email)
@@ -204,6 +221,7 @@ defmodule SocialObjects.Accounts do
       ** (Ecto.NoResultsError)
 
   """
+  @spec get_user!(pos_integer()) :: User.t() | no_return()
   def get_user!(id), do: Repo.get!(User, id)
 
   ## User registration
@@ -220,6 +238,7 @@ defmodule SocialObjects.Accounts do
       {:error, %Ecto.Changeset{}}
 
   """
+  @spec register_user(map()) :: {:ok, User.t()} | {:error, Ecto.Changeset.t()}
   def register_user(attrs) do
     %User{}
     |> User.email_changeset(attrs)
@@ -229,6 +248,8 @@ defmodule SocialObjects.Accounts do
   @doc """
   Registers a user and assigns them to a brand with a role.
   """
+  @spec register_user_for_brand(map(), Brand.t(), role()) ::
+          {:ok, User.t()} | {:error, Ecto.Changeset.t()}
   def register_user_for_brand(attrs, %Brand{} = brand, role \\ :viewer) do
     Repo.transaction(fn ->
       with {:ok, user} <- register_user(attrs),
@@ -246,6 +267,8 @@ defmodule SocialObjects.Accounts do
   The user will be required to change their password on first login.
   Returns {:ok, user, temp_password} on success.
   """
+  @spec create_user_with_temp_password(String.t()) ::
+          {:ok, User.t(), String.t()} | {:error, Ecto.Changeset.t()}
   def create_user_with_temp_password(email) when is_binary(email) do
     temp_password = generate_temp_password()
 
@@ -273,6 +296,7 @@ defmodule SocialObjects.Accounts do
   Lists brand memberships for a user with brand preloaded.
   For admin users, returns all brands in the system.
   """
+  @spec list_user_brands(User.t()) :: [UserBrand.t()] | [%{brand: Brand.t()}]
   def list_user_brands(%User{is_admin: true}) do
     # Admins have access to all brands
     SocialObjects.Catalog.list_brands()
@@ -292,6 +316,7 @@ defmodule SocialObjects.Accounts do
   Returns true if the user has access to the brand.
   Admin users have access to all brands.
   """
+  @spec user_has_brand_access?(User.t(), Brand.t()) :: boolean()
   def user_has_brand_access?(%User{is_admin: true}, %Brand{}), do: true
 
   def user_has_brand_access?(%User{} = user, %Brand{} = brand) do
@@ -309,6 +334,7 @@ defmodule SocialObjects.Accounts do
   Platform admins are treated as owners for all brands.
   Returns :owner, :admin, :viewer, or nil if no access.
   """
+  @spec get_user_brand_role(User.t(), Brand.t()) :: role() | nil
   def get_user_brand_role(%User{is_admin: true}, %Brand{}), do: :owner
 
   def get_user_brand_role(%User{} = user, %Brand{} = brand) do
@@ -323,6 +349,7 @@ defmodule SocialObjects.Accounts do
   Checks if a user has at least the specified role for a brand.
   Platform admins always return true.
   """
+  @spec user_has_role?(User.t(), Brand.t(), role()) :: boolean()
   def user_has_role?(%User{is_admin: true}, %Brand{}, _min_role), do: true
 
   def user_has_role?(%User{} = user, %Brand{} = brand, min_role) do
@@ -342,6 +369,7 @@ defmodule SocialObjects.Accounts do
   @doc """
   Gets the default brand for a user.
   """
+  @spec get_default_brand_for_user(User.t()) :: Brand.t() | nil
   def get_default_brand_for_user(%User{} = user) do
     from(ub in UserBrand,
       where: ub.user_id == ^user.id,
@@ -356,6 +384,8 @@ defmodule SocialObjects.Accounts do
   @doc """
   Creates a user-brand relationship.
   """
+  @spec create_user_brand(User.t(), Brand.t(), role()) ::
+          {:ok, UserBrand.t()} | {:error, Ecto.Changeset.t()}
   def create_user_brand(%User{} = user, %Brand{} = brand, role \\ :viewer) do
     %UserBrand{user_id: user.id, brand_id: brand.id}
     |> UserBrand.changeset(%{role: role})
@@ -375,6 +405,7 @@ defmodule SocialObjects.Accounts do
       %Ecto.Changeset{data: %User{}}
 
   """
+  @spec change_user_email(User.t(), map(), keyword()) :: Ecto.Changeset.t()
   def change_user_email(user, attrs \\ %{}, opts \\ []) do
     User.email_changeset(user, attrs, opts)
   end
@@ -382,6 +413,7 @@ defmodule SocialObjects.Accounts do
   @doc """
   Updates the user email directly.
   """
+  @spec update_user_email(User.t(), map()) :: {:ok, User.t()} | {:error, Ecto.Changeset.t()}
   def update_user_email(user, attrs) do
     user
     |> User.email_changeset(attrs)
@@ -399,6 +431,7 @@ defmodule SocialObjects.Accounts do
       %Ecto.Changeset{data: %User{}}
 
   """
+  @spec change_user_password(User.t(), map(), keyword()) :: Ecto.Changeset.t()
   def change_user_password(user, attrs \\ %{}, opts \\ []) do
     User.password_changeset(user, attrs, opts)
   end
@@ -417,6 +450,8 @@ defmodule SocialObjects.Accounts do
       {:error, %Ecto.Changeset{}}
 
   """
+  @spec update_user_password(User.t(), map()) ::
+          {:ok, {User.t(), [UserToken.t()]}} | {:error, Ecto.Changeset.t()}
   def update_user_password(user, attrs) do
     user
     |> User.password_changeset(attrs)
@@ -439,6 +474,8 @@ defmodule SocialObjects.Accounts do
       {:error, %Ecto.Changeset{}}
 
   """
+  @spec update_user_password_keep_session(User.t(), map()) ::
+          {:ok, User.t()} | {:error, Ecto.Changeset.t()}
   def update_user_password_keep_session(user, attrs) do
     user
     |> User.password_changeset(attrs)
@@ -451,6 +488,7 @@ defmodule SocialObjects.Accounts do
   @doc """
   Generates a session token.
   """
+  @spec generate_user_session_token(User.t()) :: binary()
   def generate_user_session_token(user) do
     {token, user_token} = UserToken.build_session_token(user)
     Repo.insert!(user_token)
@@ -462,6 +500,7 @@ defmodule SocialObjects.Accounts do
 
   If the token is valid `{user, token_inserted_at}` is returned, otherwise `nil` is returned.
   """
+  @spec get_user_by_session_token(binary()) :: {User.t(), DateTime.t()} | nil
   def get_user_by_session_token(token) do
     {:ok, query} = UserToken.verify_session_token_query(token)
     Repo.one(query)
@@ -470,6 +509,7 @@ defmodule SocialObjects.Accounts do
   @doc """
   Deletes the signed token with the given context.
   """
+  @spec delete_user_session_token(binary()) :: :ok
   def delete_user_session_token(token) do
     Repo.delete_all(from(UserToken, where: [token: ^token, context: "session"]))
     :ok

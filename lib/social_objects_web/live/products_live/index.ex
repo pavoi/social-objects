@@ -72,6 +72,7 @@ defmodule SocialObjectsWeb.ProductsLive.Index do
 
   import SocialObjectsWeb.AIComponents
   import SocialObjectsWeb.BrandPermissions
+  import SocialObjectsWeb.ParamHelpers
   import SocialObjectsWeb.ProductComponents
   import SocialObjectsWeb.ViewHelpers
 
@@ -81,12 +82,13 @@ defmodule SocialObjectsWeb.ProductsLive.Index do
     brand_id = brand.id
 
     # Subscribe to session list changes for real-time updates across tabs
-    if connected?(socket) do
-      Phoenix.PubSub.subscribe(SocialObjects.PubSub, "product_sets:#{brand_id}:list")
-      Phoenix.PubSub.subscribe(SocialObjects.PubSub, "shopify:sync:#{brand_id}")
-      Phoenix.PubSub.subscribe(SocialObjects.PubSub, "tiktok:sync:#{brand_id}")
-      Phoenix.PubSub.subscribe(SocialObjects.PubSub, "ai:talking_points:#{brand_id}")
-    end
+    _ =
+      if connected?(socket) do
+        _ = Phoenix.PubSub.subscribe(SocialObjects.PubSub, "product_sets:#{brand_id}:list")
+        _ = Phoenix.PubSub.subscribe(SocialObjects.PubSub, "shopify:sync:#{brand_id}")
+        _ = Phoenix.PubSub.subscribe(SocialObjects.PubSub, "tiktok:sync:#{brand_id}")
+        _ = Phoenix.PubSub.subscribe(SocialObjects.PubSub, "ai:talking_points:#{brand_id}")
+      end
 
     # Load user brands for the brand switcher (on_mount assigns don't flow from layouts)
     user = socket.assigns.current_scope.user
@@ -1383,25 +1385,30 @@ defmodule SocialObjectsWeb.ProductsLive.Index do
   end
 
   @impl true
-  def handle_event("generate_product_talking_points", %{"product-id" => product_id}, socket) do
+  def handle_event("generate_product_talking_points", %{"product-id" => product_id_param}, socket) do
     authorize socket, :admin do
-      product_id = String.to_integer(product_id)
-      brand_id = socket.assigns.brand_id
+      case parse_id(product_id_param) do
+        {:ok, product_id} ->
+          brand_id = socket.assigns.brand_id
 
-      case AI.generate_talking_points_async(brand_id, product_id) do
-        {:ok, _generation} ->
-          socket =
-            socket
-            |> assign(:generating_in_modal, true)
+          case AI.generate_talking_points_async(brand_id, product_id) do
+            {:ok, _generation} ->
+              socket =
+                socket
+                |> assign(:generating_in_modal, true)
 
-          {:noreply, socket}
+              {:noreply, socket}
 
-        {:error, reason} ->
-          socket =
-            socket
-            |> put_flash(:error, "Failed to start generation: #{reason}")
+            {:error, reason} ->
+              socket =
+                socket
+                |> put_flash(:error, "Failed to start generation: #{reason}")
 
-          {:noreply, socket}
+              {:noreply, socket}
+          end
+
+        :error ->
+          {:noreply, put_flash(socket, :error, "Invalid product ID")}
       end
     end
   end
@@ -1688,7 +1695,8 @@ defmodule SocialObjectsWeb.ProductsLive.Index do
   end
 
   defp normalize_id(id) when is_integer(id), do: id
-  defp normalize_id(id) when is_binary(id), do: String.to_integer(id)
+  defp normalize_id(id) when is_binary(id), do: parse_id_or_nil(id)
+  defp normalize_id(_), do: nil
 
   defp apply_url_params(socket, params) do
     socket
@@ -2026,8 +2034,6 @@ defmodule SocialObjectsWeb.ProductsLive.Index do
             "#{newly_selected} new product(s) selected (#{total_displayed - newly_selected} already selected)"
           )
       end
-
-      socket
     end
   end
 
@@ -2156,23 +2162,27 @@ defmodule SocialObjectsWeb.ProductsLive.Index do
   end
 
   defp maybe_open_browse_product_modal(socket, product_id_str) do
-    product_id = String.to_integer(product_id_str)
-    product = Catalog.get_product_with_images!(socket.assigns.brand_id, product_id)
+    case parse_id(product_id_str) do
+      {:ok, product_id} ->
+        product = Catalog.get_product_with_images!(socket.assigns.brand_id, product_id)
 
-    changes = %{
-      "original_price_cents" => format_cents_to_dollars(product.original_price_cents),
-      "sale_price_cents" => format_cents_to_dollars(product.sale_price_cents)
-    }
+        changes = %{
+          "original_price_cents" => format_cents_to_dollars(product.original_price_cents),
+          "sale_price_cents" => format_cents_to_dollars(product.sale_price_cents)
+        }
 
-    changeset = Product.changeset(product, changes)
+        changeset = Product.changeset(product, changes)
 
-    socket
-    |> assign(:editing_product, product)
-    |> assign(:product_edit_form, to_form(changeset))
-    |> assign(:current_image_index, 0)
+        socket
+        |> assign(:editing_product, product)
+        |> assign(:product_edit_form, to_form(changeset))
+        |> assign(:current_image_index, 0)
+
+      :error ->
+        socket
+    end
   rescue
     Ecto.NoResultsError -> socket
-    ArgumentError -> socket
   end
 
   defp load_products_for_browse(socket, opts \\ [append: false]) do

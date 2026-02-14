@@ -152,7 +152,8 @@ defmodule SocialObjects.AI.OpenAIClient do
         {:error, "OpenAI API call failed: #{inspect(reason)}"}
     end
   rescue
-    e ->
+    # Only catch expected HTTP/parsing exceptions, not system errors
+    e in [Req.TransportError, Jason.DecodeError, ArgumentError, KeyError, Mint.TransportError] ->
       {:error, "Exception during OpenAI API call: #{Exception.message(e)}"}
   end
 
@@ -242,7 +243,8 @@ defmodule SocialObjects.AI.OpenAIClient do
         {:error, "OpenAI API call failed: #{inspect(reason)}"}
     end
   rescue
-    e ->
+    # Only catch expected HTTP/parsing exceptions, not system errors
+    e in [Req.TransportError, Jason.DecodeError, ArgumentError, KeyError, Mint.TransportError] ->
       {:error, "Exception during OpenAI API call: #{Exception.message(e)}"}
   end
 

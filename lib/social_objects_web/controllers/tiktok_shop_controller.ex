@@ -5,6 +5,7 @@ defmodule SocialObjectsWeb.TiktokShopController do
   use SocialObjectsWeb, :controller
 
   alias SocialObjects.TiktokShop
+  import SocialObjectsWeb.ParamHelpers
 
   require Logger
 
@@ -12,15 +13,24 @@ defmodule SocialObjectsWeb.TiktokShopController do
   Initiates OAuth flow by storing brand_id in session and redirecting to TikTok.
   This is needed because TikTok Shop doesn't return the `state` parameter in callbacks.
   """
-  def authorize(conn, %{"brand_id" => brand_id, "region" => region}) do
-    brand_id = String.to_integer(brand_id)
-    auth_url = TiktokShop.generate_authorization_url(brand_id, region)
+  def authorize(conn, %{"brand_id" => brand_id_param, "region" => region}) do
+    case parse_id(brand_id_param) do
+      {:ok, brand_id} ->
+        auth_url = TiktokShop.generate_authorization_url(brand_id, region)
 
-    Logger.info("[TikTok OAuth] Starting OAuth flow for brand_id: #{brand_id}, region: #{region}")
+        Logger.info(
+          "[TikTok OAuth] Starting OAuth flow for brand_id: #{brand_id}, region: #{region}"
+        )
 
-    conn
-    |> put_session(:tiktok_oauth_brand_id, brand_id)
-    |> redirect(external: auth_url)
+        conn
+        |> put_session(:tiktok_oauth_brand_id, brand_id)
+        |> redirect(external: auth_url)
+
+      :error ->
+        conn
+        |> put_flash(:error, "Invalid brand ID")
+        |> redirect(to: "/admin/brands")
+    end
   end
 
   @doc """

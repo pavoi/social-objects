@@ -31,7 +31,7 @@ defmodule SocialObjects.Workers.CreatorPurchaseSyncWorker do
   def perform(%Oban.Job{args: %{"brand_id" => brand_id}}) do
     brand_id = normalize_brand_id(brand_id)
     Logger.info("[CreatorPurchaseSync] Starting sync...")
-    broadcast(brand_id, {:creator_purchase_sync_started})
+    _ = broadcast(brand_id, {:creator_purchase_sync_started})
 
     # Build user_id -> creator_id lookup
     creator_lookup = build_creator_lookup(brand_id)
@@ -39,8 +39,14 @@ defmodule SocialObjects.Workers.CreatorPurchaseSyncWorker do
 
     if creator_count == 0 do
       Logger.info("[CreatorPurchaseSync] No creators with tiktok_user_id found, skipping")
-      Settings.update_creator_purchase_last_sync_at(brand_id)
-      broadcast(brand_id, {:creator_purchase_sync_completed, %{synced: 0, skipped: 0, errors: 0}})
+      _ = Settings.update_creator_purchase_last_sync_at(brand_id)
+
+      _ =
+        broadcast(
+          brand_id,
+          {:creator_purchase_sync_completed, %{synced: 0, skipped: 0, errors: 0}}
+        )
+
       :ok
     else
       Logger.info("[CreatorPurchaseSync] Found #{creator_count} creators with tiktok_user_id")
@@ -50,18 +56,18 @@ defmodule SocialObjects.Workers.CreatorPurchaseSyncWorker do
 
       case sync_orders(brand_id, creator_lookup, existing_order_ids) do
         {:ok, stats} ->
-          Settings.update_creator_purchase_last_sync_at(brand_id)
+          _ = Settings.update_creator_purchase_last_sync_at(brand_id)
 
           Logger.info(
             "[CreatorPurchaseSync] Complete - synced: #{stats.synced}, skipped: #{stats.skipped}, errors: #{stats.errors}"
           )
 
-          broadcast(brand_id, {:creator_purchase_sync_completed, stats})
+          _ = broadcast(brand_id, {:creator_purchase_sync_completed, stats})
           :ok
 
         {:error, reason} ->
           Logger.error("[CreatorPurchaseSync] Sync failed: #{inspect(reason)}")
-          broadcast(brand_id, {:creator_purchase_sync_failed, reason})
+          _ = broadcast(brand_id, {:creator_purchase_sync_failed, reason})
           {:error, reason}
       end
     end

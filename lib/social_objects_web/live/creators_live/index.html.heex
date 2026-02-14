@@ -862,17 +862,17 @@
       <h2 class="modal__title">Preview: {@preview_template.name}</h2>
     </div>
     <div class="modal__body">
-      <%= if @preview_template.type == "email" do %>
+      <%= if @preview_template.type == :email do %>
         <div class="preview-subject">
           <strong>Subject:</strong> {@preview_subject}
         </div>
       <% end %>
-      <div class={"preview-email #{if @preview_template.type == "page", do: "preview-email--page"}"}>
+      <div class={"preview-email #{if @preview_template.type == :page, do: "preview-email--page"}"}>
         <iframe
           srcdoc={@preview_html}
           class="preview-email__frame"
           sandbox="allow-same-origin"
-          title={"#{if @preview_template.type == "page", do: "Page", else: "Email"} preview"}
+          title={"#{if @preview_template.type == :page, do: "Page", else: "Email"} preview"}
         />
       </div>
     </div>

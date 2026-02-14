@@ -84,10 +84,10 @@ defmodule SocialObjectsWeb.SendgridWebhookController do
     case Outreach.create_email_event(attrs) do
       {:ok, _event} ->
         # Update outreach log engagement timestamps and status
-        update_outreach_log_engagement(outreach_log, event_type, timestamp)
+        _ = update_outreach_log_engagement(outreach_log, event_type, timestamp)
 
         # Auto opt-out creators on negative events
-        maybe_opt_out_creator(event_type, email, event)
+        _ = maybe_opt_out_creator(event_type, email, event)
 
       {:error, changeset} ->
         Logger.warning("[SendGrid Webhook] Failed to create event: #{inspect(changeset.errors)}")

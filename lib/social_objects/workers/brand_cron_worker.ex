@@ -11,6 +11,7 @@ defmodule SocialObjects.Workers.BrandCronWorker do
 
   alias SocialObjects.Workers.{
     BigQueryOrderSyncWorker,
+    BrandGmvSyncWorker,
     CreatorEnrichmentWorker,
     ProductPerformanceSyncWorker,
     ShopifySyncWorker,
@@ -117,6 +118,17 @@ defmodule SocialObjects.Workers.BrandCronWorker do
     if TiktokShop.get_auth(brand_id) do
       %{"brand_id" => brand_id}
       |> ProductPerformanceSyncWorker.new()
+      |> Oban.insert()
+    else
+      :ok
+    end
+  end
+
+  defp enqueue_for_brand("brand_gmv_sync", brand_id) do
+    # Only enqueue if brand has TikTok Shop auth configured
+    if TiktokShop.get_auth(brand_id) do
+      %{"brand_id" => brand_id}
+      |> BrandGmvSyncWorker.new()
       |> Oban.insert()
     else
       :ok

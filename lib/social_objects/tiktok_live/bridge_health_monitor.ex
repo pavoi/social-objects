@@ -93,7 +93,7 @@ defmodule SocialObjects.TiktokLive.BridgeHealthMonitor do
 
   @impl GenServer
   def terminate(_reason, state) do
-    if state.timer_ref, do: Process.cancel_timer(state.timer_ref)
+    _ = if state.timer_ref, do: Process.cancel_timer(state.timer_ref)
     :ok
   end
 

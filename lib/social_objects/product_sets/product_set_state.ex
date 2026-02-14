@@ -9,6 +9,20 @@ defmodule SocialObjects.ProductSets.ProductSetState do
   use Ecto.Schema
   import Ecto.Changeset
 
+  @type message_color :: :amber | :blue | :green | :red | :purple | :gray
+
+  @type t :: %__MODULE__{
+          id: pos_integer() | nil,
+          current_image_index: integer(),
+          current_host_message_text: String.t() | nil,
+          current_host_message_id: String.t() | nil,
+          current_host_message_timestamp: DateTime.t() | nil,
+          current_host_message_color: message_color() | nil,
+          updated_at: DateTime.t() | nil,
+          product_set_id: pos_integer() | nil,
+          current_product_set_product_id: pos_integer() | nil
+        }
+
   @valid_colors ~w(amber blue green red purple gray)a
 
   schema "product_set_states" do

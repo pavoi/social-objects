@@ -35,11 +35,12 @@ defmodule SocialObjects.Workers.TiktokLiveMonitorWorker do
 
     case resolve_brand_id(Map.get(args, "brand_id")) do
       {:ok, brand_id} ->
-        Phoenix.PubSub.broadcast(
-          SocialObjects.PubSub,
-          "tiktok_live:scan:#{brand_id}",
-          {:scan_started, source}
-        )
+        _ =
+          Phoenix.PubSub.broadcast(
+            SocialObjects.PubSub,
+            "tiktok_live:scan:#{brand_id}",
+            {:scan_started, source}
+          )
 
         accounts = monitored_accounts(brand_id)
 
@@ -47,13 +48,14 @@ defmodule SocialObjects.Workers.TiktokLiveMonitorWorker do
 
         Enum.each(accounts, &check_account(&1, brand_id))
 
-        Settings.update_tiktok_live_last_scan_at(brand_id)
+        _ = Settings.update_tiktok_live_last_scan_at(brand_id)
 
-        Phoenix.PubSub.broadcast(
-          SocialObjects.PubSub,
-          "tiktok_live:scan:#{brand_id}",
-          {:scan_completed, source}
-        )
+        _ =
+          Phoenix.PubSub.broadcast(
+            SocialObjects.PubSub,
+            "tiktok_live:scan:#{brand_id}",
+            {:scan_completed, source}
+          )
 
         :ok
 
@@ -174,16 +176,18 @@ defmodule SocialObjects.Workers.TiktokLiveMonitorWorker do
         Logger.info("Created stream record #{stream.id} for @#{unique_id}")
 
         # Enqueue the stream worker to handle the actual capture
-        %{stream_id: stream.id, unique_id: unique_id, brand_id: brand_id}
-        |> TiktokLiveStreamWorker.new()
-        |> Oban.insert()
+        _ =
+          %{stream_id: stream.id, unique_id: unique_id, brand_id: brand_id}
+          |> TiktokLiveStreamWorker.new()
+          |> Oban.insert()
 
         # Broadcast that capture has started
-        Phoenix.PubSub.broadcast(
-          SocialObjects.PubSub,
-          "tiktok_live:monitor:#{brand_id}",
-          {:capture_started, stream}
-        )
+        _ =
+          Phoenix.PubSub.broadcast(
+            SocialObjects.PubSub,
+            "tiktok_live:monitor:#{brand_id}",
+            {:capture_started, stream}
+          )
 
       {:error, %{errors: [room_id: {"has already been taken", _}]}} ->
         # Race condition: another process created a capturing stream for this room
@@ -248,16 +252,18 @@ defmodule SocialObjects.Workers.TiktokLiveMonitorWorker do
          |> Repo.update() do
       {:ok, updated_stream} ->
         # Enqueue the stream worker to resume capture
-        %{stream_id: updated_stream.id, unique_id: unique_id, brand_id: brand_id}
-        |> TiktokLiveStreamWorker.new()
-        |> Oban.insert()
+        _ =
+          %{stream_id: updated_stream.id, unique_id: unique_id, brand_id: brand_id}
+          |> TiktokLiveStreamWorker.new()
+          |> Oban.insert()
 
         # Broadcast that capture has resumed
-        Phoenix.PubSub.broadcast(
-          SocialObjects.PubSub,
-          "tiktok_live:monitor:#{brand_id}",
-          {:capture_resumed, updated_stream}
-        )
+        _ =
+          Phoenix.PubSub.broadcast(
+            SocialObjects.PubSub,
+            "tiktok_live:monitor:#{brand_id}",
+            {:capture_resumed, updated_stream}
+          )
 
         Logger.info("Successfully resumed stream #{stream.id}")
 
@@ -308,9 +314,10 @@ defmodule SocialObjects.Workers.TiktokLiveMonitorWorker do
     |> Repo.update_all(set: [state: "cancelled", cancelled_at: DateTime.utc_now()])
 
     # Enqueue a fresh worker
-    %{stream_id: stream.id, unique_id: unique_id, brand_id: brand_id}
-    |> TiktokLiveStreamWorker.new()
-    |> Oban.insert()
+    _ =
+      %{stream_id: stream.id, unique_id: unique_id, brand_id: brand_id}
+      |> TiktokLiveStreamWorker.new()
+      |> Oban.insert()
 
     Logger.info("Restarted capture worker for stream #{stream.id}")
   end

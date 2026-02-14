@@ -5,6 +5,14 @@ defmodule SocialObjects.Creators.CreatorTagAssignment do
   use Ecto.Schema
   import Ecto.Changeset
 
+  @type t :: %__MODULE__{
+          id: binary() | nil,
+          creator_id: pos_integer() | nil,
+          creator_tag_id: binary() | nil,
+          inserted_at: DateTime.t() | nil,
+          updated_at: DateTime.t() | nil
+        }
+
   @primary_key {:id, :binary_id, autogenerate: true}
   @foreign_key_type :binary_id
 

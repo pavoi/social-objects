@@ -61,9 +61,10 @@ defmodule SocialObjects.Workers.TalkingPointsWorker do
       generation = AI.get_generation!(generation.id)
 
       # Apply the generated talking points to the products
-      if generation.completed_count > 0 do
-        AI.apply_generated_talking_points(generation)
-      end
+      _ =
+        if generation.completed_count > 0 do
+          AI.apply_generated_talking_points(generation)
+        end
 
       # Broadcast completion
       AI.broadcast_generation_event({:generation_completed, generation})

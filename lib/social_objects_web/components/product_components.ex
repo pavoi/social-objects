@@ -842,11 +842,15 @@ defmodule SocialObjectsWeb.ProductComponents do
 
     @impl true
     def handle_event("goto_image", %{"index" => index_str}, socket) when is_binary(index_str) do
-      index = String.to_integer(index_str)
-      max_index = length(socket.assigns.product.product_images) - 1
-      safe_index = max(0, min(index, max_index))
+      case Integer.parse(index_str) do
+        {index, ""} when index >= 0 ->
+          max_index = length(socket.assigns.product.product_images) - 1
+          safe_index = max(0, min(index, max_index))
+          {:noreply, assign(socket, current_image_index: safe_index)}
 
-      {:noreply, assign(socket, current_image_index: safe_index)}
+        _ ->
+          {:noreply, socket}
+      end
     end
 
     @impl true

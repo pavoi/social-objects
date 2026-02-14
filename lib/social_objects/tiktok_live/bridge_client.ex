@@ -94,8 +94,22 @@ defmodule SocialObjects.TiktokLive.BridgeClient do
             {:ok, pid}
 
           {:error, reason} ->
-            Logger.warning("TikTok Bridge connection failed: #{inspect(reason)}, will retry")
+            # Log at error level for visibility - this means the process itself couldn't start
+            # (not just a connection failure, which is handled by handle_disconnect with retries)
+            Logger.error(
+              "TikTok Bridge client failed to start: #{inspect(reason)}. " <>
+                "Bridge features will be unavailable. Check bridge URL: #{bridge_url}"
+            )
+
+            # Emit telemetry for monitoring/alerting
+            :telemetry.execute(
+              [:social_objects, :tiktok_bridge, :start_failure],
+              %{count: 1},
+              %{reason: reason, bridge_url: bridge_url}
+            )
+
             # Return :ignore to not crash the supervisor - bridge is optional
+            # The supervisor will not attempt to restart this child
             :ignore
         end
     end
@@ -193,7 +207,7 @@ defmodule SocialObjects.TiktokLive.BridgeClient do
     Logger.info("Connected to TikTok Bridge WebSocket")
 
     # Cancel any existing heartbeat timer
-    cancel_heartbeat(state.heartbeat_ref)
+    _ = cancel_heartbeat(state.heartbeat_ref)
 
     # Start heartbeat timer
     heartbeat_ref = Process.send_after(self(), :heartbeat, @heartbeat_interval_ms)
@@ -213,7 +227,7 @@ defmodule SocialObjects.TiktokLive.BridgeClient do
   def handle_frame({:text, data}, state) do
     case Jason.decode(data) do
       {:ok, event} ->
-        handle_bridge_event(event)
+        _ = handle_bridge_event(event)
         {:ok, %{state | last_event_at: DateTime.utc_now()}}
 
       {:error, reason} ->
@@ -259,7 +273,7 @@ defmodule SocialObjects.TiktokLive.BridgeClient do
 
   @impl WebSockex
   def handle_disconnect(disconnect_map, state) do
-    cancel_heartbeat(state.heartbeat_ref)
+    _ = cancel_heartbeat(state.heartbeat_ref)
 
     reason = Map.get(disconnect_map, :reason)
     Logger.warning("Disconnected from TikTok Bridge: #{inspect(reason)}")
@@ -282,7 +296,7 @@ defmodule SocialObjects.TiktokLive.BridgeClient do
 
   @impl WebSockex
   def terminate(reason, state) do
-    cancel_heartbeat(state.heartbeat_ref)
+    _ = cancel_heartbeat(state.heartbeat_ref)
     Logger.info("TikTok Bridge client terminated: #{inspect(reason)}")
     :ok
   end

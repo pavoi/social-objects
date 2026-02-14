@@ -12,6 +12,7 @@ defmodule SocialObjectsWeb.AdminLive.Dashboard do
   use SocialObjectsWeb, :live_view
 
   import SocialObjectsWeb.AdminComponents
+  import SocialObjectsWeb.ParamHelpers
 
   alias SocialObjects.Catalog
   alias SocialObjects.Monitoring
@@ -30,10 +31,11 @@ defmodule SocialObjectsWeb.AdminLive.Dashboard do
     selected_brand_id = nil
 
     # Subscribe to PubSub topics for real-time updates
-    if connected?(socket) do
-      subscribe_to_sync_topics(brands)
-      schedule_monitoring_refresh()
-    end
+    _ =
+      if connected?(socket) do
+        _ = subscribe_to_sync_topics(brands)
+        schedule_monitoring_refresh()
+      end
 
     socket =
       socket
@@ -55,7 +57,7 @@ defmodule SocialObjectsWeb.AdminLive.Dashboard do
   @impl true
   def handle_event("toggle_flag", %{"flag" => flag_name}, socket) do
     current = Map.get(socket.assigns.feature_flags, flag_name, true)
-    SocialObjects.FeatureFlags.set_flag(flag_name, !current)
+    _ = SocialObjects.FeatureFlags.set_flag(flag_name, !current)
 
     {:noreply,
      socket
@@ -64,12 +66,12 @@ defmodule SocialObjectsWeb.AdminLive.Dashboard do
   end
 
   @impl true
-  def handle_event("filter_brand", %{"brand_id" => brand_id}, socket) do
+  def handle_event("filter_brand", %{"brand_id" => brand_id_param}, socket) do
     brand_id =
-      case brand_id do
+      case brand_id_param do
         "" -> nil
         "all" -> nil
-        id -> String.to_integer(id)
+        id -> parse_id_or_nil(id)
       end
 
     {:noreply,
@@ -105,18 +107,22 @@ defmodule SocialObjectsWeb.AdminLive.Dashboard do
   end
 
   @impl true
-  def handle_event("retry_job", %{"job_id" => job_id}, socket) do
-    job_id = String.to_integer(job_id)
+  def handle_event("retry_job", %{"job_id" => job_id_param}, socket) do
+    case parse_id(job_id_param) do
+      {:ok, job_id} ->
+        case Monitoring.retry_job(job_id) do
+          :ok ->
+            {:noreply,
+             socket
+             |> put_flash(:info, "Job queued for retry")
+             |> load_monitoring_data()}
 
-    case Monitoring.retry_job(job_id) do
-      :ok ->
-        {:noreply,
-         socket
-         |> put_flash(:info, "Job queued for retry")
-         |> load_monitoring_data()}
+          {:error, _reason} ->
+            {:noreply, put_flash(socket, :error, "Failed to retry job")}
+        end
 
-      {:error, _reason} ->
-        {:noreply, put_flash(socket, :error, "Failed to retry job")}
+      :error ->
+        {:noreply, put_flash(socket, :error, "Invalid job ID")}
     end
   end
 
@@ -183,18 +189,18 @@ defmodule SocialObjectsWeb.AdminLive.Dashboard do
 
   defp subscribe_to_sync_topics(brands) do
     for brand <- brands do
-      Phoenix.PubSub.subscribe(SocialObjects.PubSub, "shopify:sync:#{brand.id}")
-      Phoenix.PubSub.subscribe(SocialObjects.PubSub, "tiktok:sync:#{brand.id}")
-      Phoenix.PubSub.subscribe(SocialObjects.PubSub, "bigquery:sync:#{brand.id}")
-      Phoenix.PubSub.subscribe(SocialObjects.PubSub, "creator:enrichment:#{brand.id}")
-      Phoenix.PubSub.subscribe(SocialObjects.PubSub, "video:sync:#{brand.id}")
-      Phoenix.PubSub.subscribe(SocialObjects.PubSub, "tiktok_live:scan:#{brand.id}")
-      Phoenix.PubSub.subscribe(SocialObjects.PubSub, "product_performance:sync:#{brand.id}")
-      Phoenix.PubSub.subscribe(SocialObjects.PubSub, "creator_purchase:sync:#{brand.id}")
-      Phoenix.PubSub.subscribe(SocialObjects.PubSub, "stream_analytics:sync:#{brand.id}")
-      Phoenix.PubSub.subscribe(SocialObjects.PubSub, "weekly_recap:sync:#{brand.id}")
-      Phoenix.PubSub.subscribe(SocialObjects.PubSub, "tiktok_token_refresh:sync:#{brand.id}")
-      Phoenix.PubSub.subscribe(SocialObjects.PubSub, "gmv_backfill:sync:#{brand.id}")
+      _ = Phoenix.PubSub.subscribe(SocialObjects.PubSub, "shopify:sync:#{brand.id}")
+      _ = Phoenix.PubSub.subscribe(SocialObjects.PubSub, "tiktok:sync:#{brand.id}")
+      _ = Phoenix.PubSub.subscribe(SocialObjects.PubSub, "bigquery:sync:#{brand.id}")
+      _ = Phoenix.PubSub.subscribe(SocialObjects.PubSub, "creator:enrichment:#{brand.id}")
+      _ = Phoenix.PubSub.subscribe(SocialObjects.PubSub, "video:sync:#{brand.id}")
+      _ = Phoenix.PubSub.subscribe(SocialObjects.PubSub, "tiktok_live:scan:#{brand.id}")
+      _ = Phoenix.PubSub.subscribe(SocialObjects.PubSub, "product_performance:sync:#{brand.id}")
+      _ = Phoenix.PubSub.subscribe(SocialObjects.PubSub, "creator_purchase:sync:#{brand.id}")
+      _ = Phoenix.PubSub.subscribe(SocialObjects.PubSub, "stream_analytics:sync:#{brand.id}")
+      _ = Phoenix.PubSub.subscribe(SocialObjects.PubSub, "weekly_recap:sync:#{brand.id}")
+      _ = Phoenix.PubSub.subscribe(SocialObjects.PubSub, "tiktok_token_refresh:sync:#{brand.id}")
+      _ = Phoenix.PubSub.subscribe(SocialObjects.PubSub, "gmv_backfill:sync:#{brand.id}")
     end
   end
 
@@ -262,7 +268,7 @@ defmodule SocialObjectsWeb.AdminLive.Dashboard do
 
   defp parse_brand_id(nil), do: nil
   defp parse_brand_id(""), do: nil
-  defp parse_brand_id(id) when is_binary(id), do: String.to_integer(id)
+  defp parse_brand_id(id) when is_binary(id), do: parse_id_or_nil(id)
   defp parse_brand_id(id) when is_integer(id), do: id
 
   defp missing_tiktok_auth_for_worker?(worker, brand_id) do

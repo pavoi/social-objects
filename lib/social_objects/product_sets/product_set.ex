@@ -8,6 +8,17 @@ defmodule SocialObjects.ProductSets.ProductSet do
   use Ecto.Schema
   import Ecto.Changeset
 
+  @type t :: %__MODULE__{
+          id: pos_integer() | nil,
+          name: String.t() | nil,
+          slug: String.t() | nil,
+          notes: String.t() | nil,
+          notes_image_url: String.t() | nil,
+          brand_id: pos_integer() | nil,
+          inserted_at: NaiveDateTime.t() | nil,
+          updated_at: NaiveDateTime.t() | nil
+        }
+
   schema "product_sets" do
     field :name, :string
     field :slug, :string

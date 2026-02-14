@@ -34,31 +34,34 @@ defmodule SocialObjects.Workers.WeeklyStreamRecapWorker do
 
   @impl Oban.Worker
   def perform(%Oban.Job{args: %{"brand_id" => brand_id}}) do
-    broadcast(brand_id, {:weekly_recap_sync_started})
+    _ = broadcast(brand_id, {:weekly_recap_sync_started})
     {start_time, end_time} = get_week_time_range()
     streams = get_week_streams(brand_id, start_time, end_time)
 
     if Enum.empty?(streams) do
       Logger.info("No streams for weekly recap (brand #{brand_id})")
 
-      broadcast(
-        brand_id,
-        {:weekly_recap_sync_completed, %{streams_count: 0, status: :no_streams}}
-      )
+      _ =
+        broadcast(
+          brand_id,
+          {:weekly_recap_sync_completed, %{streams_count: 0, status: :no_streams}}
+        )
 
       :ok
     else
       case send_weekly_recap(brand_id, streams, start_time, end_time) do
         :ok ->
-          broadcast(brand_id, {:weekly_recap_sync_completed, %{streams_count: length(streams)}})
+          _ =
+            broadcast(brand_id, {:weekly_recap_sync_completed, %{streams_count: length(streams)}})
+
           :ok
 
         {:cancel, reason} ->
-          broadcast(brand_id, {:weekly_recap_sync_failed, reason})
+          _ = broadcast(brand_id, {:weekly_recap_sync_failed, reason})
           {:cancel, reason}
 
         {:error, reason} ->
-          broadcast(brand_id, {:weekly_recap_sync_failed, reason})
+          _ = broadcast(brand_id, {:weekly_recap_sync_failed, reason})
           {:error, reason}
       end
     end
@@ -109,7 +112,7 @@ defmodule SocialObjects.Workers.WeeklyStreamRecapWorker do
 
     case Slack.send_message(blocks, brand_id: brand_id, text: "Weekly Stream Recap") do
       {:ok, :sent} ->
-        Settings.update_weekly_recap_last_sent_at(brand_id)
+        _ = Settings.update_weekly_recap_last_sent_at(brand_id)
         Logger.info("Weekly stream recap sent for brand #{brand_id}")
         :ok
 

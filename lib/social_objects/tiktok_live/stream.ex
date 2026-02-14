@@ -8,6 +8,50 @@ defmodule SocialObjects.TiktokLive.Stream do
   use Ecto.Schema
   import Ecto.Changeset
 
+  @type status :: :capturing | :ended | :failed
+
+  @type t :: %__MODULE__{
+          id: pos_integer() | nil,
+          room_id: String.t() | nil,
+          unique_id: String.t() | nil,
+          title: String.t() | nil,
+          started_at: DateTime.t() | nil,
+          ended_at: DateTime.t() | nil,
+          status: status(),
+          viewer_count_current: integer(),
+          viewer_count_peak: integer(),
+          total_likes: integer(),
+          total_comments: integer(),
+          total_gifts_value: integer(),
+          total_follows: integer(),
+          total_shares: integer(),
+          raw_metadata: map(),
+          cover_image_key: String.t() | nil,
+          gmv_cents: integer() | nil,
+          gmv_order_count: integer() | nil,
+          gmv_hourly: map() | nil,
+          report_sent_at: DateTime.t() | nil,
+          sentiment_analysis: String.t() | nil,
+          tiktok_live_id: String.t() | nil,
+          official_gmv_cents: integer() | nil,
+          gmv_24h_cents: integer() | nil,
+          avg_view_duration_seconds: integer() | nil,
+          product_impressions: integer() | nil,
+          product_clicks: integer() | nil,
+          unique_customers: integer() | nil,
+          conversion_rate: Decimal.t() | nil,
+          analytics_synced_at: DateTime.t() | nil,
+          analytics_per_minute: map() | nil,
+          total_views: integer() | nil,
+          items_sold: integer() | nil,
+          click_through_rate: Decimal.t() | nil,
+          product_performance: map() | nil,
+          brand_id: pos_integer() | nil,
+          product_set_id: pos_integer() | nil,
+          inserted_at: NaiveDateTime.t() | nil,
+          updated_at: NaiveDateTime.t() | nil
+        }
+
   @statuses ~w(capturing ended failed)a
 
   schema "tiktok_streams" do

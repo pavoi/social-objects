@@ -38,6 +38,7 @@ defmodule SocialObjects.TiktokLive do
 
   ## Streams
 
+  @spec list_streams(pos_integer()) :: [Stream.t()]
   @doc """
   Returns a list of all captured streams, most recent first.
   """
@@ -48,6 +49,7 @@ defmodule SocialObjects.TiktokLive do
     |> Repo.all()
   end
 
+  @spec list_streams(pos_integer(), keyword()) :: [Stream.t()]
   @doc """
   Returns a list of streams with optional filtering.
 
@@ -69,6 +71,7 @@ defmodule SocialObjects.TiktokLive do
     |> Repo.all()
   end
 
+  @spec count_streams(pos_integer(), keyword()) :: non_neg_integer()
   @doc """
   Counts streams with optional filtering.
 
@@ -84,6 +87,7 @@ defmodule SocialObjects.TiktokLive do
     |> Repo.aggregate(:count)
   end
 
+  @spec get_stream(pos_integer(), pos_integer()) :: Stream.t() | nil
   @doc """
   Gets a single stream by ID.
 
@@ -93,6 +97,7 @@ defmodule SocialObjects.TiktokLive do
     Repo.get_by(Stream, id: id, brand_id: brand_id)
   end
 
+  @spec get_stream!(pos_integer(), pos_integer()) :: Stream.t() | no_return()
   @doc """
   Gets a single stream by ID.
 
@@ -102,6 +107,7 @@ defmodule SocialObjects.TiktokLive do
     Repo.get_by!(Stream, id: id, brand_id: brand_id)
   end
 
+  @spec get_active_stream(pos_integer()) :: Stream.t() | nil
   @doc """
   Gets the currently active (capturing) stream, if any.
   """
@@ -114,6 +120,7 @@ defmodule SocialObjects.TiktokLive do
     |> Repo.one()
   end
 
+  @spec get_latest_stream(pos_integer(), String.t()) :: Stream.t() | nil
   @doc """
   Gets the most recent stream for a given account.
   """
@@ -126,6 +133,8 @@ defmodule SocialObjects.TiktokLive do
     |> Repo.one()
   end
 
+  @spec mark_stream_ended(pos_integer(), pos_integer()) ::
+          {:ok, :ended} | {:error, :already_ended}
   @doc """
   Marks a stream as ended if it hasn't been ended already.
 
@@ -147,6 +156,7 @@ defmodule SocialObjects.TiktokLive do
     end
   end
 
+  @spec mark_report_sent(pos_integer(), pos_integer()) :: {:ok, :marked} | {:error, :already_sent}
   @doc """
   Marks a stream's report as sent. Returns {:ok, :marked} or {:error, :already_sent}.
 
@@ -168,6 +178,8 @@ defmodule SocialObjects.TiktokLive do
     end
   end
 
+  @spec update_stream_gmv(pos_integer(), pos_integer(), map()) ::
+          {:ok, Stream.t()} | {:error, Ecto.Changeset.t()}
   @doc """
   Updates a stream's GMV data.
 
@@ -206,6 +218,13 @@ defmodule SocialObjects.TiktokLive do
 
   ## Comments
 
+  @spec list_stream_comments(pos_integer(), pos_integer(), keyword()) :: %{
+          comments: [Comment.t()],
+          page: pos_integer(),
+          per_page: pos_integer(),
+          total: non_neg_integer(),
+          has_more: boolean()
+        }
   @doc """
   Returns comments for a stream with pagination.
 
@@ -245,6 +264,7 @@ defmodule SocialObjects.TiktokLive do
     }
   end
 
+  @spec count_stream_comments(pos_integer(), pos_integer()) :: non_neg_integer()
   @doc """
   Counts total comments for a stream.
   """
@@ -253,6 +273,7 @@ defmodule SocialObjects.TiktokLive do
     |> Repo.aggregate(:count)
   end
 
+  @spec search_comments(pos_integer(), pos_integer(), String.t(), keyword()) :: [Comment.t()]
   @doc """
   Searches comments by text content.
   """
@@ -272,6 +293,7 @@ defmodule SocialObjects.TiktokLive do
 
   ## Comment Classification Aggregations
 
+  @spec get_sentiment_breakdown(pos_integer(), pos_integer()) :: map() | nil
   @doc """
   Returns sentiment breakdown for classified comments in a stream.
 
@@ -317,6 +339,7 @@ defmodule SocialObjects.TiktokLive do
     %{count: count, percent: round(count / total * 100)}
   end
 
+  @spec get_category_breakdown(pos_integer(), pos_integer()) :: [map()]
   @doc """
   Returns category breakdown for classified comments in a stream.
 
@@ -389,6 +412,7 @@ defmodule SocialObjects.TiktokLive do
     |> Repo.all()
   end
 
+  @spec count_classified_comments(pos_integer(), pos_integer()) :: non_neg_integer()
   @doc """
   Returns the count of comments that have been classified for a stream.
   """
@@ -401,6 +425,7 @@ defmodule SocialObjects.TiktokLive do
     |> Repo.one()
   end
 
+  @spec get_aggregate_sentiment_breakdown(pos_integer(), keyword()) :: map() | nil
   @doc """
   Returns aggregate sentiment breakdown across all streams or a specific stream.
 
@@ -446,6 +471,7 @@ defmodule SocialObjects.TiktokLive do
     end
   end
 
+  @spec get_aggregate_category_breakdown(pos_integer(), keyword()) :: [map()]
   @doc """
   Returns aggregate category breakdown across all streams or a specific stream.
 
@@ -510,6 +536,7 @@ defmodule SocialObjects.TiktokLive do
     end
   end
 
+  @spec list_classified_comments(pos_integer(), keyword()) :: map()
   @doc """
   Lists classified comments with filtering and pagination.
 
@@ -571,6 +598,7 @@ defmodule SocialObjects.TiktokLive do
     }
   end
 
+  @spec get_streams_sentiment_summary(pos_integer(), [pos_integer()]) :: map()
   @doc """
   Returns sentiment summary for multiple streams.
 
@@ -617,6 +645,7 @@ defmodule SocialObjects.TiktokLive do
 
   ## Statistics
 
+  @spec list_stream_stats(pos_integer(), pos_integer()) :: [StreamStat.t()]
   @doc """
   Returns time-series statistics for a stream.
   """
@@ -628,6 +657,16 @@ defmodule SocialObjects.TiktokLive do
     |> Repo.all()
   end
 
+  @spec get_stream_summary(pos_integer(), pos_integer()) :: %{
+          stream: Stream.t(),
+          duration_seconds: integer(),
+          total_comments: non_neg_integer(),
+          unique_commenters: non_neg_integer(),
+          comments_per_minute: number(),
+          viewer_count_peak: integer(),
+          total_likes: integer(),
+          total_gifts_value: integer()
+        }
   @doc """
   Returns aggregate statistics for a stream.
   """
@@ -689,6 +728,7 @@ defmodule SocialObjects.TiktokLive do
 
   ## Manual Control
 
+  @spec check_live_status_now(pos_integer(), String.t()) :: {:ok, Oban.Job.t()} | {:error, term()}
   @doc """
   Manually triggers a check for live status.
 
@@ -699,6 +739,7 @@ defmodule SocialObjects.TiktokLive do
     |> Oban.insert()
   end
 
+  @spec start_capture(pos_integer(), String.t()) :: {:ok, Stream.t()} | {:error, term()}
   @doc """
   Manually starts capture for a stream if the account is live.
 
@@ -724,6 +765,8 @@ defmodule SocialObjects.TiktokLive do
     end
   end
 
+  @spec stop_capture(pos_integer(), pos_integer()) ::
+          {:ok, Stream.t()} | {:error, Ecto.Changeset.t()}
   @doc """
   Stops capture for a stream.
 
@@ -741,6 +784,7 @@ defmodule SocialObjects.TiktokLive do
     |> Repo.update()
   end
 
+  @spec delete_stream(pos_integer(), pos_integer()) :: {:ok, Stream.t()} | {:error, term()}
   @doc """
   Deletes a stream and all associated data (comments, stats).
 
@@ -760,6 +804,8 @@ defmodule SocialObjects.TiktokLive do
     end
   end
 
+  @spec merge_streams(pos_integer(), pos_integer(), pos_integer()) ::
+          {:ok, Stream.t()} | {:error, term()}
   @doc """
   Merges duplicate streams for the same room into a single stream.
 
@@ -847,10 +893,10 @@ defmodule SocialObjects.TiktokLive do
     Stream.changeset(target, %{
       started_at: earlier_datetime(target.started_at, source.started_at),
       ended_at: later_datetime(target.ended_at, source.ended_at),
-      viewer_count_peak: max(target.viewer_count_peak || 0, source.viewer_count_peak || 0),
-      total_likes: max(target.total_likes || 0, source.total_likes || 0),
-      total_comments: (target.total_comments || 0) + (source.total_comments || 0),
-      total_gifts_value: (target.total_gifts_value || 0) + (source.total_gifts_value || 0)
+      viewer_count_peak: max(target.viewer_count_peak, source.viewer_count_peak),
+      total_likes: max(target.total_likes, source.total_likes),
+      total_comments: target.total_comments + source.total_comments,
+      total_gifts_value: target.total_gifts_value + source.total_gifts_value
     })
   end
 
@@ -979,9 +1025,10 @@ defmodule SocialObjects.TiktokLive do
     case %Stream{brand_id: brand_id} |> Stream.changeset(stream_attrs) |> Repo.insert() do
       {:ok, stream} ->
         # Enqueue the stream worker
-        %{stream_id: stream.id, unique_id: unique_id, brand_id: brand_id}
-        |> TiktokLiveStreamWorker.new()
-        |> Oban.insert()
+        _ =
+          %{stream_id: stream.id, unique_id: unique_id, brand_id: brand_id}
+          |> TiktokLiveStreamWorker.new()
+          |> Oban.insert()
 
         {:ok, stream}
 
@@ -992,6 +1039,8 @@ defmodule SocialObjects.TiktokLive do
 
   ## Product Set-Stream Linking
 
+  @spec link_stream_to_product_set(pos_integer(), pos_integer(), pos_integer(), keyword()) ::
+          {:ok, Stream.t()} | {:error, term()}
   @doc """
   Links a stream to a product set.
 
@@ -1025,18 +1074,20 @@ defmodule SocialObjects.TiktokLive do
     |> case do
       {:ok, updated_stream} ->
         # Also insert into legacy join table for compatibility
-        %ProductSetStream{}
-        |> ProductSetStream.changeset(%{
-          stream_id: stream_id,
-          product_set_id: product_set_id,
-          linked_at: DateTime.utc_now() |> DateTime.truncate(:second),
-          linked_by: linked_by
-        })
-        |> Repo.insert(on_conflict: :nothing)
+        _ =
+          %ProductSetStream{}
+          |> ProductSetStream.changeset(%{
+            stream_id: stream_id,
+            product_set_id: product_set_id,
+            linked_at: DateTime.utc_now() |> DateTime.truncate(:second),
+            linked_by: linked_by
+          })
+          |> Repo.insert(on_conflict: :nothing)
 
-        if parse_comments do
-          parse_comments_for_product_set(brand_id, stream_id, product_set_id)
-        end
+        _ =
+          if parse_comments do
+            parse_comments_for_product_set(brand_id, stream_id, product_set_id)
+          end
 
         {:ok, updated_stream}
 
@@ -1045,6 +1096,7 @@ defmodule SocialObjects.TiktokLive do
     end
   end
 
+  @spec unlink_stream_from_product_set(pos_integer(), pos_integer(), pos_integer()) :: :ok
   @doc """
   Unlinks a stream from a product set.
 
@@ -1072,6 +1124,7 @@ defmodule SocialObjects.TiktokLive do
     :ok
   end
 
+  @spec get_linked_product_sets(pos_integer(), pos_integer()) :: [ProductSet.t()]
   @doc """
   Gets the product set linked to a stream (if any).
 
@@ -1092,6 +1145,7 @@ defmodule SocialObjects.TiktokLive do
     end
   end
 
+  @spec get_linked_streams(pos_integer()) :: [Stream.t()]
   @doc """
   Gets all streams linked to a product set.
   """
@@ -1106,6 +1160,7 @@ defmodule SocialObjects.TiktokLive do
     |> Enum.map(& &1.stream)
   end
 
+  @spec detect_active_product_set(pos_integer(), pos_integer()) :: {:ok, ProductSet.t()} | :none
   @doc """
   Detects which product set was actively used during a stream based on product_set_state updates.
 
@@ -1142,6 +1197,8 @@ defmodule SocialObjects.TiktokLive do
     end
   end
 
+  @spec auto_link_stream_to_product_set(pos_integer(), pos_integer()) ::
+          {:ok, Stream.t()} | {:already_linked, ProductSet.t()} | :none | {:error, term()}
   @doc """
   Attempts to auto-link a stream to a product set based on controller activity.
 
@@ -1174,6 +1231,8 @@ defmodule SocialObjects.TiktokLive do
 
   ## Comment Parsing
 
+  @spec parse_comments_for_product_set(pos_integer(), pos_integer(), pos_integer()) ::
+          {:ok, non_neg_integer()}
   @doc """
   Parses product numbers from comments and links them to product set products.
 
@@ -1231,6 +1290,7 @@ defmodule SocialObjects.TiktokLive do
     {:ok, parsed_count}
   end
 
+  @spec parse_product_number(String.t(), non_neg_integer()) :: {:ok, pos_integer()} | :no_match
   @doc """
   Parses a product number from comment text.
 
@@ -1283,6 +1343,7 @@ defmodule SocialObjects.TiktokLive do
 
   ## Product Interest Analytics
 
+  @spec get_product_interest_summary(pos_integer(), pos_integer(), pos_integer()) :: [map()]
   @doc """
   Gets product interest summary for a stream.
 

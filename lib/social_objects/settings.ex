@@ -7,6 +7,7 @@ defmodule SocialObjects.Settings do
   alias SocialObjects.Repo
   alias SocialObjects.Settings.SystemSetting
 
+  @spec app_name() :: String.t()
   @doc """
   Returns the configured application name.
   """
@@ -14,6 +15,7 @@ defmodule SocialObjects.Settings do
     Application.get_env(:social_objects, :app_name, "App")
   end
 
+  @spec auth_from_name() :: String.t()
   @doc """
   Returns the configured auth "from" name, falling back to app name.
   """
@@ -21,6 +23,7 @@ defmodule SocialObjects.Settings do
     env_or_default(:auth_from_name, app_name())
   end
 
+  @spec auth_from_email() :: String.t()
   @doc """
   Returns the configured auth "from" email, falling back to noreply.
   """
@@ -28,6 +31,7 @@ defmodule SocialObjects.Settings do
     env_or_default(:auth_from_email, "noreply@example.com")
   end
 
+  @spec get_shopify_last_sync_at(pos_integer()) :: DateTime.t() | nil
   @doc """
   Gets the last Shopify sync timestamp.
 
@@ -37,6 +41,8 @@ defmodule SocialObjects.Settings do
     get_datetime_setting(brand_id, "shopify_last_sync_at")
   end
 
+  @spec update_shopify_last_sync_at(pos_integer()) ::
+          {:ok, SystemSetting.t()} | {:error, Ecto.Changeset.t()}
   @doc """
   Updates the last Shopify sync timestamp to the current time.
   """
@@ -44,6 +50,7 @@ defmodule SocialObjects.Settings do
     upsert_setting(brand_id, "shopify_last_sync_at", now_iso(), "datetime")
   end
 
+  @spec get_tiktok_last_sync_at(pos_integer()) :: DateTime.t() | nil
   @doc """
   Gets the last TikTok Shop sync timestamp.
 
@@ -53,6 +60,8 @@ defmodule SocialObjects.Settings do
     get_datetime_setting(brand_id, "tiktok_last_sync_at")
   end
 
+  @spec update_tiktok_last_sync_at(pos_integer()) ::
+          {:ok, SystemSetting.t()} | {:error, Ecto.Changeset.t()}
   @doc """
   Updates the last TikTok Shop sync timestamp to the current time.
   """
@@ -60,6 +69,7 @@ defmodule SocialObjects.Settings do
     upsert_setting(brand_id, "tiktok_last_sync_at", now_iso(), "datetime")
   end
 
+  @spec get_tiktok_live_last_scan_at(pos_integer()) :: DateTime.t() | nil
   @doc """
   Gets the last TikTok Live scan timestamp.
 
@@ -69,6 +79,8 @@ defmodule SocialObjects.Settings do
     get_datetime_setting(brand_id, "tiktok_live_last_scan_at")
   end
 
+  @spec update_tiktok_live_last_scan_at(pos_integer()) ::
+          {:ok, SystemSetting.t()} | {:error, Ecto.Changeset.t()}
   @doc """
   Updates the last TikTok Live scan timestamp to the current time.
   """
@@ -76,6 +88,7 @@ defmodule SocialObjects.Settings do
     upsert_setting(brand_id, "tiktok_live_last_scan_at", now_iso(), "datetime")
   end
 
+  @spec get_bigquery_last_sync_at(pos_integer()) :: DateTime.t() | nil
   @doc """
   Gets the last BigQuery orders sync timestamp.
 
@@ -85,6 +98,8 @@ defmodule SocialObjects.Settings do
     get_datetime_setting(brand_id, "bigquery_last_sync_at")
   end
 
+  @spec update_bigquery_last_sync_at(pos_integer()) ::
+          {:ok, SystemSetting.t()} | {:error, Ecto.Changeset.t()}
   @doc """
   Updates the last BigQuery orders sync timestamp to the current time.
   """
@@ -92,6 +107,7 @@ defmodule SocialObjects.Settings do
     upsert_setting(brand_id, "bigquery_last_sync_at", now_iso(), "datetime")
   end
 
+  @spec get_enrichment_last_sync_at(pos_integer()) :: DateTime.t() | nil
   @doc """
   Gets the last creator enrichment sync timestamp.
 
@@ -101,6 +117,8 @@ defmodule SocialObjects.Settings do
     get_datetime_setting(brand_id, "enrichment_last_sync_at")
   end
 
+  @spec update_enrichment_last_sync_at(pos_integer()) ::
+          {:ok, SystemSetting.t()} | {:error, Ecto.Changeset.t()}
   @doc """
   Updates the last creator enrichment sync timestamp to the current time.
   """
@@ -108,6 +126,7 @@ defmodule SocialObjects.Settings do
     upsert_setting(brand_id, "enrichment_last_sync_at", now_iso(), "datetime")
   end
 
+  @spec get_videos_last_import_at(pos_integer()) :: DateTime.t() | nil
   @doc """
   Gets the last creator videos import timestamp.
 
@@ -117,6 +136,8 @@ defmodule SocialObjects.Settings do
     get_datetime_setting(brand_id, "videos_last_import_at")
   end
 
+  @spec update_videos_last_import_at(pos_integer()) ::
+          {:ok, SystemSetting.t()} | {:error, Ecto.Changeset.t()}
   @doc """
   Updates the last creator videos import timestamp to the current time.
   """
@@ -124,6 +145,7 @@ defmodule SocialObjects.Settings do
     upsert_setting(brand_id, "videos_last_import_at", now_iso(), "datetime")
   end
 
+  @spec get_product_performance_last_sync_at(pos_integer()) :: DateTime.t() | nil
   @doc """
   Gets the last product performance sync timestamp.
 
@@ -133,6 +155,8 @@ defmodule SocialObjects.Settings do
     get_datetime_setting(brand_id, "product_performance_last_sync_at")
   end
 
+  @spec update_product_performance_last_sync_at(pos_integer()) ::
+          {:ok, SystemSetting.t()} | {:error, Ecto.Changeset.t()}
   @doc """
   Updates the last product performance sync timestamp to the current time.
   """
@@ -140,6 +164,7 @@ defmodule SocialObjects.Settings do
     upsert_setting(brand_id, "product_performance_last_sync_at", now_iso(), "datetime")
   end
 
+  @spec get_creator_purchase_last_sync_at(pos_integer()) :: DateTime.t() | nil
   @doc """
   Gets the last creator purchase sync timestamp.
 
@@ -149,6 +174,8 @@ defmodule SocialObjects.Settings do
     get_datetime_setting(brand_id, "creator_purchase_last_sync_at")
   end
 
+  @spec update_creator_purchase_last_sync_at(pos_integer()) ::
+          {:ok, SystemSetting.t()} | {:error, Ecto.Changeset.t()}
   @doc """
   Updates the last creator purchase sync timestamp to the current time.
   """
@@ -156,6 +183,7 @@ defmodule SocialObjects.Settings do
     upsert_setting(brand_id, "creator_purchase_last_sync_at", now_iso(), "datetime")
   end
 
+  @spec get_stream_analytics_last_sync_at(pos_integer()) :: DateTime.t() | nil
   @doc """
   Gets the last stream analytics sync timestamp.
 
@@ -165,6 +193,8 @@ defmodule SocialObjects.Settings do
     get_datetime_setting(brand_id, "stream_analytics_last_sync_at")
   end
 
+  @spec update_stream_analytics_last_sync_at(pos_integer()) ::
+          {:ok, SystemSetting.t()} | {:error, Ecto.Changeset.t()}
   @doc """
   Updates the last stream analytics sync timestamp to the current time.
   """
@@ -172,6 +202,7 @@ defmodule SocialObjects.Settings do
     upsert_setting(brand_id, "stream_analytics_last_sync_at", now_iso(), "datetime")
   end
 
+  @spec get_weekly_recap_last_sent_at(pos_integer()) :: DateTime.t() | nil
   @doc """
   Gets the last weekly recap sent timestamp.
 
@@ -181,6 +212,8 @@ defmodule SocialObjects.Settings do
     get_datetime_setting(brand_id, "weekly_recap_last_sent_at")
   end
 
+  @spec update_weekly_recap_last_sent_at(pos_integer()) ::
+          {:ok, SystemSetting.t()} | {:error, Ecto.Changeset.t()}
   @doc """
   Updates the last weekly recap sent timestamp to the current time.
   """
@@ -188,6 +221,7 @@ defmodule SocialObjects.Settings do
     upsert_setting(brand_id, "weekly_recap_last_sent_at", now_iso(), "datetime")
   end
 
+  @spec get_setting(pos_integer(), String.t()) :: String.t() | nil
   @doc """
   Gets a generic string setting by key.
 
@@ -200,6 +234,8 @@ defmodule SocialObjects.Settings do
     end
   end
 
+  @spec set_setting(pos_integer(), String.t(), String.t()) ::
+          {:ok, SystemSetting.t()} | {:error, Ecto.Changeset.t()}
   @doc """
   Sets a generic string setting.
 
@@ -209,6 +245,8 @@ defmodule SocialObjects.Settings do
     upsert_setting(brand_id, key, value, "string")
   end
 
+  @spec put_setting(pos_integer(), String.t(), String.t() | nil) ::
+          {:ok, SystemSetting.t()} | {:error, Ecto.Changeset.t()} | :ok
   @doc """
   Sets or clears a string setting.
   """
@@ -220,6 +258,7 @@ defmodule SocialObjects.Settings do
     end
   end
 
+  @spec delete_setting(pos_integer(), String.t()) :: :ok
   @doc """
   Deletes a setting.
   """
@@ -228,6 +267,7 @@ defmodule SocialObjects.Settings do
     :ok
   end
 
+  @spec get_sendgrid_from_name(pos_integer() | nil) :: String.t() | nil
   @doc """
   Returns the SendGrid from name for a brand.
 
@@ -236,6 +276,7 @@ defmodule SocialObjects.Settings do
   def get_sendgrid_from_name(nil), do: nil
   def get_sendgrid_from_name(brand_id), do: get_setting_value(brand_id, "sendgrid_from_name")
 
+  @spec get_sendgrid_from_email(pos_integer() | nil) :: String.t() | nil
   @doc """
   Returns the SendGrid from email for a brand.
 
@@ -251,6 +292,7 @@ defmodule SocialObjects.Settings do
     end
   end
 
+  @spec get_slack_bot_token(pos_integer() | nil) :: String.t() | nil
   @doc """
   Returns Slack bot token for a brand.
 
@@ -259,6 +301,7 @@ defmodule SocialObjects.Settings do
   def get_slack_bot_token(nil), do: nil
   def get_slack_bot_token(brand_id), do: get_setting_value(brand_id, "slack_bot_token")
 
+  @spec get_slack_channel(pos_integer() | nil) :: String.t() | nil
   @doc """
   Returns Slack channel for a brand.
 
@@ -267,6 +310,7 @@ defmodule SocialObjects.Settings do
   def get_slack_channel(nil), do: nil
   def get_slack_channel(brand_id), do: get_setting_value(brand_id, "slack_channel")
 
+  @spec get_slack_dev_user_id(pos_integer() | nil) :: String.t() | nil
   @doc """
   Returns Slack dev user id for a brand.
 
@@ -275,6 +319,7 @@ defmodule SocialObjects.Settings do
   def get_slack_dev_user_id(nil), do: nil
   def get_slack_dev_user_id(brand_id), do: get_setting_value(brand_id, "slack_dev_user_id")
 
+  @spec get_shopify_store_name(pos_integer() | nil) :: String.t() | nil
   @doc """
   Returns Shopify store name for a brand.
 
@@ -283,6 +328,7 @@ defmodule SocialObjects.Settings do
   def get_shopify_store_name(nil), do: nil
   def get_shopify_store_name(brand_id), do: get_setting_value(brand_id, "shopify_store_name")
 
+  @spec get_shopify_client_id(pos_integer() | nil) :: String.t() | nil
   @doc """
   Returns Shopify client id for a brand.
 
@@ -291,6 +337,7 @@ defmodule SocialObjects.Settings do
   def get_shopify_client_id(nil), do: nil
   def get_shopify_client_id(brand_id), do: get_setting_value(brand_id, "shopify_client_id")
 
+  @spec get_shopify_client_secret(pos_integer() | nil) :: String.t() | nil
   @doc """
   Returns Shopify client secret for a brand.
 
@@ -301,6 +348,7 @@ defmodule SocialObjects.Settings do
   def get_shopify_client_secret(brand_id),
     do: get_setting_value(brand_id, "shopify_client_secret")
 
+  @spec shopify_configured?(pos_integer()) :: boolean()
   @doc """
   Returns true when all required Shopify credentials are configured for the brand.
   """
@@ -310,6 +358,7 @@ defmodule SocialObjects.Settings do
       present?(get_shopify_client_secret(brand_id))
   end
 
+  @spec get_shopify_include_tags(pos_integer()) :: [String.t()]
   @doc """
   Returns Shopify include tags for a brand.
 
@@ -320,6 +369,8 @@ defmodule SocialObjects.Settings do
     parse_csv_setting(get_setting(brand_id, "shopify_include_tags"))
   end
 
+  @spec set_shopify_include_tags(pos_integer(), [String.t()] | String.t()) ::
+          {:ok, SystemSetting.t()} | {:error, Ecto.Changeset.t()} | :ok
   @doc """
   Sets Shopify include tags for a brand.
 
@@ -329,6 +380,7 @@ defmodule SocialObjects.Settings do
     set_csv_setting(brand_id, "shopify_include_tags", tags)
   end
 
+  @spec get_shopify_exclude_tags(pos_integer()) :: [String.t()]
   @doc """
   Returns Shopify exclude tags for a brand.
 
@@ -339,6 +391,8 @@ defmodule SocialObjects.Settings do
     parse_csv_setting(get_setting(brand_id, "shopify_exclude_tags"))
   end
 
+  @spec set_shopify_exclude_tags(pos_integer(), [String.t()] | String.t()) ::
+          {:ok, SystemSetting.t()} | {:error, Ecto.Changeset.t()} | :ok
   @doc """
   Sets Shopify exclude tags for a brand.
 
@@ -348,6 +402,7 @@ defmodule SocialObjects.Settings do
     set_csv_setting(brand_id, "shopify_exclude_tags", tags)
   end
 
+  @spec get_bigquery_project_id(pos_integer() | nil) :: String.t() | nil
   @doc """
   Returns BigQuery project id for a brand.
 
@@ -356,6 +411,7 @@ defmodule SocialObjects.Settings do
   def get_bigquery_project_id(nil), do: nil
   def get_bigquery_project_id(brand_id), do: get_setting_value(brand_id, "bigquery_project_id")
 
+  @spec get_bigquery_dataset(pos_integer() | nil) :: String.t() | nil
   @doc """
   Returns BigQuery dataset identifier for a brand.
 
@@ -364,6 +420,7 @@ defmodule SocialObjects.Settings do
   def get_bigquery_dataset(nil), do: nil
   def get_bigquery_dataset(brand_id), do: get_setting_value(brand_id, "bigquery_dataset")
 
+  @spec get_bigquery_service_account_email(pos_integer() | nil) :: String.t() | nil
   @doc """
   Returns BigQuery service account email for a brand.
 
@@ -374,6 +431,7 @@ defmodule SocialObjects.Settings do
   def get_bigquery_service_account_email(brand_id),
     do: get_setting_value(brand_id, "bigquery_service_account_email")
 
+  @spec get_bigquery_private_key(pos_integer() | nil) :: String.t() | nil
   @doc """
   Returns BigQuery private key for a brand.
 
@@ -382,6 +440,7 @@ defmodule SocialObjects.Settings do
   def get_bigquery_private_key(nil), do: nil
   def get_bigquery_private_key(brand_id), do: get_setting_value(brand_id, "bigquery_private_key")
 
+  @spec bigquery_configured?(pos_integer()) :: boolean()
   @doc """
   Returns true when all required BigQuery credentials are configured for the brand.
   """
@@ -392,12 +451,16 @@ defmodule SocialObjects.Settings do
       present?(get_bigquery_private_key(brand_id))
   end
 
+  @spec get_tiktok_live_accounts(pos_integer() | nil) :: [String.t()]
   @doc """
   Returns the TikTok Live accounts to monitor for a brand.
 
   Returns an empty list if not configured.
   """
-  def get_tiktok_live_accounts(nil), do: []
+  def get_tiktok_live_accounts(nil) do
+    Application.get_env(:social_objects, :tiktok_live_monitor, [])
+    |> Keyword.get(:accounts, [])
+  end
 
   def get_tiktok_live_accounts(brand_id) do
     case get_setting(brand_id, "tiktok_live_accounts") do
@@ -412,6 +475,8 @@ defmodule SocialObjects.Settings do
     end
   end
 
+  @spec set_tiktok_live_accounts(pos_integer(), [String.t()]) ::
+          {:ok, SystemSetting.t()} | {:error, Ecto.Changeset.t()}
   @doc """
   Stores the TikTok Live accounts to monitor for a brand.
   """
@@ -429,6 +494,7 @@ defmodule SocialObjects.Settings do
   # Enrichment Rate Limit Tracking
   # =============================================================================
 
+  @spec get_enrichment_last_rate_limited_at(pos_integer()) :: DateTime.t() | nil
   @doc """
   Gets the last time enrichment was rate limited.
   Returns nil if never rate limited.
@@ -437,6 +503,7 @@ defmodule SocialObjects.Settings do
     get_datetime_setting(brand_id, "enrichment_last_rate_limited_at")
   end
 
+  @spec get_enrichment_rate_limit_streak(pos_integer()) :: non_neg_integer()
   @doc """
   Gets the current rate limit streak (consecutive rate limits).
   Returns 0 if no streak.
@@ -448,6 +515,7 @@ defmodule SocialObjects.Settings do
     end
   end
 
+  @spec record_enrichment_rate_limit(pos_integer()) :: pos_integer()
   @doc """
   Records a rate limit event. Increments the streak counter.
   """
@@ -461,6 +529,8 @@ defmodule SocialObjects.Settings do
     streak
   end
 
+  @spec reset_enrichment_rate_limit_streak(pos_integer()) ::
+          {:ok, SystemSetting.t()} | {:error, Ecto.Changeset.t()}
   @doc """
   Resets the rate limit streak after a successful enrichment run.
   """

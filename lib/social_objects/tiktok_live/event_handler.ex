@@ -89,7 +89,7 @@ defmodule SocialObjects.TiktokLive.EventHandler do
     brand_id = brand_id || stream.brand_id
 
     # Subscribe to TikTok live events
-    Phoenix.PubSub.subscribe(SocialObjects.PubSub, "tiktok_live:events:#{brand_id}")
+    _ = Phoenix.PubSub.subscribe(SocialObjects.PubSub, "tiktok_live:events:#{brand_id}")
 
     state = %State{
       brand_id: brand_id,
@@ -149,8 +149,8 @@ defmodule SocialObjects.TiktokLive.EventHandler do
     state = save_stats_snapshot(state)
 
     # Cancel timers
-    cancel_timer(state.flush_timer_ref)
-    cancel_timer(state.stats_timer_ref)
+    _ = cancel_timer(state.flush_timer_ref)
+    _ = cancel_timer(state.stats_timer_ref)
 
     {:stop, :normal, state}
   end
@@ -167,8 +167,8 @@ defmodule SocialObjects.TiktokLive.EventHandler do
     state = save_stats_snapshot(state)
 
     # Cancel timers
-    cancel_timer(state.flush_timer_ref)
-    cancel_timer(state.stats_timer_ref)
+    _ = cancel_timer(state.flush_timer_ref)
+    _ = cancel_timer(state.stats_timer_ref)
 
     {:stop, :normal, :ok, state}
   end
@@ -181,8 +181,8 @@ defmodule SocialObjects.TiktokLive.EventHandler do
   @impl GenServer
   def terminate(_reason, state) do
     # Final flush on termination
-    flush_comment_batch(state)
-    save_stats_snapshot(state)
+    _ = flush_comment_batch(state)
+    _ = save_stats_snapshot(state)
     :ok
   end
 
@@ -214,7 +214,7 @@ defmodule SocialObjects.TiktokLive.EventHandler do
       new_seen = update_seen_msg_ids(state.seen_msg_ids, msg_id)
 
       # Broadcast to UI
-      broadcast_to_stream(state.stream_id, {:comment, event})
+      _ = broadcast_to_stream(state.stream_id, {:comment, event})
 
       # Flush if batch is full
       new_state = %{state | comment_batch: new_batch, stats: new_stats, seen_msg_ids: new_seen}
@@ -238,7 +238,7 @@ defmodule SocialObjects.TiktokLive.EventHandler do
     }
 
     # Always broadcast to UI for real-time display
-    broadcast_to_stream(state.stream_id, {:viewer_count, viewer_count})
+    _ = broadcast_to_stream(state.stream_id, {:viewer_count, viewer_count})
 
     # Only persist to DB periodically (reduces query spam significantly)
     now = System.monotonic_time(:millisecond)
@@ -266,7 +266,7 @@ defmodule SocialObjects.TiktokLive.EventHandler do
     total = event.total_count || state.stats.like_count + (event.count || 1)
     new_stats = %{state.stats | like_count: total}
 
-    broadcast_to_stream(state.stream_id, {:like, event})
+    _ = broadcast_to_stream(state.stream_id, {:like, event})
 
     %{state | stats: new_stats}
   end
@@ -280,46 +280,47 @@ defmodule SocialObjects.TiktokLive.EventHandler do
         gift_value: state.stats.gift_value + diamond_count
     }
 
-    broadcast_to_stream(state.stream_id, {:gift, event})
+    _ = broadcast_to_stream(state.stream_id, {:gift, event})
 
     %{state | stats: new_stats}
   end
 
   defp process_event(%{type: :join} = event, state) do
-    broadcast_to_stream(state.stream_id, {:join, event})
+    _ = broadcast_to_stream(state.stream_id, {:join, event})
     state
   end
 
   defp process_event(%{type: :follow} = event, state) do
     new_stats = %{state.stats | follow_count: state.stats.follow_count + 1}
-    broadcast_to_stream(state.stream_id, {:follow, event})
+    _ = broadcast_to_stream(state.stream_id, {:follow, event})
     %{state | stats: new_stats}
   end
 
   defp process_event(%{type: :share} = event, state) do
     new_stats = %{state.stats | share_count: state.stats.share_count + 1}
-    broadcast_to_stream(state.stream_id, {:share, event})
+    _ = broadcast_to_stream(state.stream_id, {:share, event})
     %{state | stats: new_stats}
   end
 
   defp process_event(%{type: :stream_ended}, state) do
     Logger.info("Stream #{state.stream_id} ended")
-    broadcast_to_stream(state.stream_id, {:stream_ended})
+    _ = broadcast_to_stream(state.stream_id, {:stream_ended})
 
     # Flush any remaining comments before enqueueing report
     state = flush_comment_batch(state)
 
-    case SocialObjects.TiktokLive.mark_stream_ended(state.brand_id, state.stream_id) do
-      {:ok, :ended} ->
-        # Auto-link to session if one was active during the stream
-        auto_link_stream(state.brand_id, state.stream_id)
+    _ =
+      case SocialObjects.TiktokLive.mark_stream_ended(state.brand_id, state.stream_id) do
+        {:ok, :ended} ->
+          # Auto-link to session if one was active during the stream
+          _ = auto_link_stream(state.brand_id, state.stream_id)
 
-        # Enqueue Slack report job for the completed stream
-        enqueue_stream_report(state.brand_id, state.stream_id)
+          # Enqueue Slack report job for the completed stream
+          enqueue_stream_report(state.brand_id, state.stream_id)
 
-      {:error, :already_ended} ->
-        Logger.debug("Stream #{state.stream_id} already ended, skipping report enqueue")
-    end
+        {:error, :already_ended} ->
+          Logger.debug("Stream #{state.stream_id} already ended, skipping report enqueue")
+      end
 
     # Schedule self-termination after a brief delay to allow cleanup
     Process.send_after(self(), :terminate_after_end, 100)
@@ -328,51 +329,54 @@ defmodule SocialObjects.TiktokLive.EventHandler do
   end
 
   defp process_event(%{type: :connected}, state) do
-    broadcast_to_stream(state.stream_id, {:connected})
+    _ = broadcast_to_stream(state.stream_id, {:connected})
     state
   end
 
   defp process_event(%{type: :thumbnail, thumbnail_base64: base64}, state) do
     # Decode and upload thumbnail to storage
-    Task.start(fn ->
-      case upload_thumbnail(state.stream_id, base64) do
-        {:ok, key} ->
-          Logger.info("Thumbnail uploaded for stream #{state.stream_id}: #{key}")
+    _ =
+      Task.start(fn ->
+        case upload_thumbnail(state.stream_id, base64) do
+          {:ok, key} ->
+            Logger.info("Thumbnail uploaded for stream #{state.stream_id}: #{key}")
 
-          # Update stream with the storage key
-          state.stream
-          |> Stream.changeset(%{cover_image_key: key})
-          |> Repo.update()
+            # Update stream with the storage key
+            _ =
+              state.stream
+              |> Stream.changeset(%{cover_image_key: key})
+              |> Repo.update()
 
-        {:error, reason} ->
-          Logger.warning(
-            "Failed to upload thumbnail for stream #{state.stream_id}: #{inspect(reason)}"
-          )
-      end
-    end)
+          {:error, reason} ->
+            Logger.warning(
+              "Failed to upload thumbnail for stream #{state.stream_id}: #{inspect(reason)}"
+            )
+        end
+      end)
 
     state
   end
 
   defp process_event(%{type: :disconnected} = event, state) do
     Logger.info("Stream #{state.stream_id} disconnected: #{inspect(event[:reason])}")
-    broadcast_to_stream(state.stream_id, {:disconnected, event[:reason]})
+    _ = broadcast_to_stream(state.stream_id, {:disconnected, event[:reason]})
 
     # Flush any remaining comments before enqueueing report
     state = flush_comment_batch(state)
 
     # Mark stream as ended on disconnect (the worker will also handle cleanup)
-    case SocialObjects.TiktokLive.mark_stream_ended(state.brand_id, state.stream_id) do
-      {:ok, :ended} ->
-        # Auto-link to session if one was active during the stream
-        auto_link_stream(state.brand_id, state.stream_id)
+    _ =
+      case SocialObjects.TiktokLive.mark_stream_ended(state.brand_id, state.stream_id) do
+        {:ok, :ended} ->
+          # Auto-link to session if one was active during the stream
+          _ = auto_link_stream(state.brand_id, state.stream_id)
 
-        # Enqueue Slack report job for the completed stream
-        enqueue_stream_report(state.brand_id, state.stream_id, 600)
+          # Enqueue Slack report job for the completed stream
+          enqueue_stream_report(state.brand_id, state.stream_id, 600)
 
-      {:error, :already_ended} ->
-        Logger.debug("Stream #{state.stream_id} already ended, skipping report enqueue")
-    end
+        {:error, :already_ended} ->
+          Logger.debug("Stream #{state.stream_id} already ended, skipping report enqueue")
+      end
 
     # Schedule self-termination after a brief delay to allow cleanup
     Process.send_after(self(), :terminate_after_end, 100)
@@ -382,10 +386,10 @@ defmodule SocialObjects.TiktokLive.EventHandler do
 
   defp process_event(%{type: :connection_failed}, state) do
     Logger.error("Connection failed for stream #{state.stream_id}")
-    broadcast_to_stream(state.stream_id, {:connection_failed})
+    _ = broadcast_to_stream(state.stream_id, {:connection_failed})
 
     # Mark stream as failed
-    update_stream_field(state.stream, :status, :failed)
+    _ = update_stream_field(state.stream, :status, :failed)
 
     state
   end
@@ -401,36 +405,36 @@ defmodule SocialObjects.TiktokLive.EventHandler do
     end)
 
     Logger.info("Saved #{length(products)} products for stream #{state.stream_id}")
-    broadcast_to_stream(state.stream_id, {:shopping, products})
+    _ = broadcast_to_stream(state.stream_id, {:shopping, products})
     state
   end
 
   defp process_event(%{type: :shopping} = event, state) do
     Logger.debug("Shopping event with no products for stream #{state.stream_id}")
-    broadcast_to_stream(state.stream_id, {:shopping, event})
+    _ = broadcast_to_stream(state.stream_id, {:shopping, event})
     state
   end
 
   defp process_event(%{type: :live_intro} = event, state) do
     Logger.info("Live intro for stream #{state.stream_id}: #{inspect(event[:description])}")
-    broadcast_to_stream(state.stream_id, {:live_intro, event})
+    _ = broadcast_to_stream(state.stream_id, {:live_intro, event})
     state
   end
 
   defp process_event(%{type: :envelope} = event, state) do
-    broadcast_to_stream(state.stream_id, {:envelope, event})
+    _ = broadcast_to_stream(state.stream_id, {:envelope, event})
     state
   end
 
   defp process_event(%{type: :raw_shopping} = event, state) do
     Logger.info("Raw shopping (#{event.message_type}) for stream #{state.stream_id}")
-    broadcast_to_stream(state.stream_id, {:raw_shopping, event})
+    _ = broadcast_to_stream(state.stream_id, {:raw_shopping, event})
     state
   end
 
   defp process_event(%{type: type} = event, state) do
     # Silently broadcast unhandled event types (social, etc.)
-    broadcast_to_stream(state.stream_id, {type, event})
+    _ = broadcast_to_stream(state.stream_id, {type, event})
     state
   end
 

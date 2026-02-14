@@ -14,12 +14,14 @@ defmodule SocialObjects.Communications.Email do
   alias SocialObjects.Mailer
   alias SocialObjects.Settings
 
+  @spec send_templated_email(Creator.t(), EmailTemplate.t()) ::
+          {:ok, binary()} | {:error, binary()}
   @doc """
   Sends an email to a creator using a database-stored template.
 
   Returns {:ok, message_id} on success, {:error, reason} on failure.
   """
-  def send_templated_email(creator, %EmailTemplate{} = template) do
+  def send_templated_email(%Creator{} = creator, %EmailTemplate{} = template) do
     brand = Catalog.get_brand!(template.brand_id)
     features = get_features()
     original_email = creator.email

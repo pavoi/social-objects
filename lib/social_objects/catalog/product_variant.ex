@@ -8,6 +8,27 @@ defmodule SocialObjects.Catalog.ProductVariant do
   use Ecto.Schema
   import Ecto.Changeset
 
+  @type t :: %__MODULE__{
+          id: pos_integer() | nil,
+          shopify_variant_id: String.t() | nil,
+          title: String.t() | nil,
+          sku: String.t() | nil,
+          price_cents: integer() | nil,
+          compare_at_price_cents: integer() | nil,
+          barcode: String.t() | nil,
+          position: integer() | nil,
+          selected_options: map() | nil,
+          tiktok_sku_id: String.t() | nil,
+          tiktok_price_cents: integer() | nil,
+          tiktok_compare_at_price_cents: integer() | nil,
+          size: String.t() | nil,
+          size_type: String.t() | nil,
+          size_source: String.t() | nil,
+          product_id: pos_integer() | nil,
+          inserted_at: NaiveDateTime.t() | nil,
+          updated_at: NaiveDateTime.t() | nil
+        }
+
   schema "product_variants" do
     field :shopify_variant_id, :string
     field :title, :string

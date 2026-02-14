@@ -318,7 +318,7 @@ defmodule SocialObjectsWeb.ViewHelpers do
   For email templates, returns the HTML body directly.
   For page templates, injects the consent form and wraps with minimal styles.
   """
-  def template_preview_html(%{type: "page"} = template) do
+  def template_preview_html(%{type: :page} = template) do
     template_preview_html(template, SocialObjects.Settings.app_name())
   end
 
@@ -326,7 +326,7 @@ defmodule SocialObjectsWeb.ViewHelpers do
     template.html_body
   end
 
-  def template_preview_html(%{type: "page"} = template, brand_name) do
+  def template_preview_html(%{type: :page} = template, brand_name) do
     form_config = template.form_config || %{}
     button_text = form_config["button_text"] || "JOIN THE PROGRAM"
     email_label = form_config["email_label"] || "Email"
@@ -355,11 +355,11 @@ defmodule SocialObjectsWeb.ViewHelpers do
     """
 
     html_with_form =
-      Regex.replace(
-        ~r/<div[^>]*data-form-type="consent"[^>]*>[\s\S]*?<\/div>/i,
-        template.html_body || "",
-        form_html
+      (template.html_body || "")
+      |> then(
+        &Regex.replace(~r/<div[^>]*data-form-type="consent"[^>]*>[\s\S]*?<\/div>/i, &1, form_html)
       )
+      |> absolutize_preview_urls()
 
     # Wrap with minimal reset styles for iframe rendering
     # Disable link clicks in preview to prevent navigation to unsubstituted template URLs
@@ -378,6 +378,17 @@ defmodule SocialObjectsWeb.ViewHelpers do
   end
 
   def template_preview_html(template, _brand_name) do
-    template.html_body
+    absolutize_preview_urls(template.html_body)
+  end
+
+  # Absolutizes relative URLs in preview HTML so they work in iframe srcdoc
+  defp absolutize_preview_urls(nil), do: nil
+
+  defp absolutize_preview_urls(content) when is_binary(content) do
+    base_url = SocialObjectsWeb.Endpoint.url()
+
+    content
+    |> String.replace(~r/src=(["'])\/(?!\/)/, "src=\\1#{base_url}/")
+    |> String.replace(~r/href=(["'])\/(?!\/)/, "href=\\1#{base_url}/")
   end
 end

@@ -52,6 +52,8 @@ config :social_objects, Oban,
        # Sync product performance data daily at 5am UTC (after video sync)
        {"0 5 * * *", SocialObjects.Workers.BrandCronWorker,
         args: %{task: "product_performance_sync"}},
+       # Sync brand-specific content GMV daily at 6am UTC (after product performance sync)
+       {"0 6 * * *", SocialObjects.Workers.BrandCronWorker, args: %{task: "brand_gmv_sync"}},
        # Weekly stream recap every Monday at 9 AM PST (5 PM UTC)
        # Covers previous week (Mon-Sun) - all streams will be 2+ days old and synced
        {"0 17 * * 1", SocialObjects.Workers.BrandCronWorker, args: %{task: "weekly_stream_recap"}}

@@ -26,27 +26,27 @@ defmodule SocialObjects.Workers.TiktokTokenRefreshWorker do
   def perform(%Oban.Job{args: args}) do
     case resolve_brand_id(Map.get(args, "brand_id")) do
       {:ok, brand_id} ->
-        broadcast(brand_id, {:tiktok_token_refresh_started})
+        _ = broadcast(brand_id, {:tiktok_token_refresh_started})
 
         case TiktokShop.maybe_refresh_token_if_expiring(brand_id) do
           {:ok, :no_refresh_needed} ->
             Logger.debug("TikTok token still valid, no refresh needed")
-            broadcast(brand_id, {:tiktok_token_refresh_completed, :no_refresh_needed})
+            _ = broadcast(brand_id, {:tiktok_token_refresh_completed, :no_refresh_needed})
             :ok
 
           {:ok, :refreshed} ->
             Logger.info("TikTok access token refreshed successfully")
-            broadcast(brand_id, {:tiktok_token_refresh_completed, :refreshed})
+            _ = broadcast(brand_id, {:tiktok_token_refresh_completed, :refreshed})
             :ok
 
           {:error, :no_auth_record} ->
             Logger.debug("No TikTok auth record found, skipping token refresh")
-            broadcast(brand_id, {:tiktok_token_refresh_completed, :no_auth_record})
+            _ = broadcast(brand_id, {:tiktok_token_refresh_completed, :no_auth_record})
             :ok
 
           {:error, reason} ->
             Logger.error("Failed to refresh TikTok token: #{inspect(reason)}")
-            broadcast(brand_id, {:tiktok_token_refresh_failed, reason})
+            _ = broadcast(brand_id, {:tiktok_token_refresh_failed, reason})
             {:error, reason}
         end
 

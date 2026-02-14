@@ -16,10 +16,23 @@ defmodule SocialObjectsWeb.ProductHostLive.Index do
   alias SocialObjects.ProductSets
   alias SocialObjectsWeb.BrandRoutes
   import SocialObjectsWeb.BrandPermissions
+  import SocialObjectsWeb.ParamHelpers
 
   @impl true
-  def mount(%{"id" => product_set_id}, _session, socket) do
-    product_set_id = String.to_integer(product_set_id)
+  def mount(%{"id" => product_set_id_param}, _session, socket) do
+    case parse_id(product_set_id_param) do
+      {:ok, product_set_id} ->
+        mount_with_product_set(socket, product_set_id)
+
+      :error ->
+        {:ok,
+         socket
+         |> put_flash(:error, "Invalid product set ID")
+         |> push_navigate(to: ~p"/products")}
+    end
+  end
+
+  defp mount_with_product_set(socket, product_set_id) do
     brand_id = socket.assigns.current_brand.id
     product_set = ProductSets.get_product_set!(brand_id, product_set_id)
 
@@ -43,7 +56,7 @@ defmodule SocialObjectsWeb.ProductHostLive.Index do
     # Subscribe to PubSub ONLY after WebSocket connection
     socket =
       if connected?(socket) do
-        subscribe_to_product_set(product_set_id)
+        _ = subscribe_to_product_set(product_set_id)
         load_initial_state(socket)
       else
         socket
@@ -60,11 +73,12 @@ defmodule SocialObjectsWeb.ProductHostLive.Index do
     socket =
       case params do
         %{"sp" => sp_id, "img" => img_idx} ->
-          load_by_product_set_product_id(
-            socket,
-            String.to_integer(sp_id),
-            String.to_integer(img_idx)
-          )
+          with {:ok, sp_id_int} <- parse_id(sp_id),
+               {:ok, img_idx_int} <- parse_integer(img_idx) do
+            load_by_product_set_product_id(socket, sp_id_int, img_idx_int)
+          else
+            :error -> socket
+          end
 
         _ ->
           socket
@@ -81,26 +95,30 @@ defmodule SocialObjectsWeb.ProductHostLive.Index do
 
   # PRIMARY NAVIGATION: Direct jump to product by number
   @impl true
-  def handle_event("jump_to_product", %{"position" => position}, socket) do
+  def handle_event("jump_to_product", %{"position" => position_param}, socket) do
     authorize socket, :admin do
-      position = String.to_integer(position)
-
-      case ProductSets.jump_to_product(socket.assigns.product_set_id, position) do
-        {:ok, new_state} ->
-          socket =
-            push_patch(socket,
-              to:
-                BrandRoutes.brand_path(
-                  socket.assigns.current_brand,
-                  "/products/#{socket.assigns.product_set_id}/host?sp=#{new_state.current_product_set_product_id}&img=0",
-                  socket.assigns.current_host
+      case parse_integer(position_param) do
+        {:ok, position} ->
+          case ProductSets.jump_to_product(socket.assigns.product_set_id, position) do
+            {:ok, new_state} ->
+              socket =
+                push_patch(socket,
+                  to:
+                    BrandRoutes.brand_path(
+                      socket.assigns.current_brand,
+                      "/products/#{socket.assigns.product_set_id}/host?sp=#{new_state.current_product_set_product_id}&img=0",
+                      socket.assigns.current_host
+                    )
                 )
-            )
 
-          {:noreply, socket}
+              {:noreply, socket}
 
-        {:error, :invalid_position} ->
-          {:noreply, put_flash(socket, :error, "Invalid product number")}
+            {:error, :invalid_position} ->
+              {:noreply, put_flash(socket, :error, "Invalid product number")}
+          end
+
+        :error ->
+          {:noreply, put_flash(socket, :error, "Invalid position")}
       end
     end
   end
@@ -173,13 +191,17 @@ defmodule SocialObjectsWeb.ProductHostLive.Index do
   end
 
   @impl true
-  def handle_event("goto_image", %{"index" => index_str}, socket) do
+  def handle_event("goto_image", %{"index" => index_param}, socket) do
     authorize socket, :admin do
-      index = String.to_integer(index_str)
+      case parse_integer(index_param) do
+        {:ok, index} ->
+          case ProductSets.set_image_index(socket.assigns.product_set_id, index) do
+            {:ok, _state} -> {:noreply, socket}
+            {:error, _} -> {:noreply, socket}
+          end
 
-      case ProductSets.set_image_index(socket.assigns.product_set_id, index) do
-        {:ok, _state} -> {:noreply, socket}
-        {:error, _} -> {:noreply, socket}
+        :error ->
+          {:noreply, socket}
       end
     end
   end
@@ -195,38 +217,43 @@ defmodule SocialObjectsWeb.ProductHostLive.Index do
       new_collapsed = !socket.assigns.product_set_panel_collapsed
 
       # Broadcast to controller so toggle stays in sync
-      Phoenix.PubSub.broadcast(
-        SocialObjects.PubSub,
-        "product_set:#{socket.assigns.product_set_id}:ui",
-        {:product_set_notes_toggle, !new_collapsed}
-      )
+      _ =
+        Phoenix.PubSub.broadcast(
+          SocialObjects.PubSub,
+          "product_set:#{socket.assigns.product_set_id}:ui",
+          {:product_set_notes_toggle, !new_collapsed}
+        )
 
       {:noreply, assign(socket, :product_set_panel_collapsed, new_collapsed)}
     end
   end
 
   @impl true
-  def handle_event("select_product_from_panel", %{"position" => position}, socket) do
+  def handle_event("select_product_from_panel", %{"position" => position_param}, socket) do
     authorize socket, :admin do
-      position = String.to_integer(position)
-
-      case ProductSets.jump_to_product(socket.assigns.product_set_id, position) do
-        {:ok, new_state} ->
-          socket =
-            socket
-            |> assign(:products_panel_collapsed, true)
-            |> push_patch(
-              to:
-                BrandRoutes.brand_path(
-                  socket.assigns.current_brand,
-                  "/products/#{socket.assigns.product_set_id}/host?sp=#{new_state.current_product_set_product_id}&img=0",
-                  socket.assigns.current_host
+      case parse_integer(position_param) do
+        {:ok, position} ->
+          case ProductSets.jump_to_product(socket.assigns.product_set_id, position) do
+            {:ok, new_state} ->
+              socket =
+                socket
+                |> assign(:products_panel_collapsed, true)
+                |> push_patch(
+                  to:
+                    BrandRoutes.brand_path(
+                      socket.assigns.current_brand,
+                      "/products/#{socket.assigns.product_set_id}/host?sp=#{new_state.current_product_set_product_id}&img=0",
+                      socket.assigns.current_host
+                    )
                 )
-            )
 
-          {:noreply, socket}
+              {:noreply, socket}
 
-        {:error, _} ->
+            {:error, _} ->
+              {:noreply, socket}
+          end
+
+        :error ->
           {:noreply, socket}
       end
     end
@@ -298,8 +325,8 @@ defmodule SocialObjectsWeb.ProductHostLive.Index do
   ## Private Helpers
 
   defp subscribe_to_product_set(product_set_id) do
-    Phoenix.PubSub.subscribe(SocialObjects.PubSub, "product_set:#{product_set_id}:state")
-    Phoenix.PubSub.subscribe(SocialObjects.PubSub, "product_set:#{product_set_id}:ui")
+    _ = Phoenix.PubSub.subscribe(SocialObjects.PubSub, "product_set:#{product_set_id}:state")
+    _ = Phoenix.PubSub.subscribe(SocialObjects.PubSub, "product_set:#{product_set_id}:ui")
   end
 
   defp load_initial_state(socket) do

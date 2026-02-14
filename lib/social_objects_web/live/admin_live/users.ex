@@ -87,15 +87,17 @@ defmodule SocialObjectsWeb.AdminLive.Users do
     case Accounts.create_user_with_temp_password(email) do
       {:ok, user, temp_password} ->
         # Set admin status if requested
-        if is_admin do
-          Accounts.set_admin_status(user, true)
-        end
+        _ =
+          if is_admin do
+            Accounts.set_admin_status(user, true)
+          end
 
         # Assign to selected brands
-        for {brand_id, role} <- brand_assignments do
-          brand = Catalog.get_brand!(brand_id)
-          Accounts.create_user_brand(user, brand, role)
-        end
+        _ =
+          for {brand_id, role} <- brand_assignments do
+            brand = Catalog.get_brand!(brand_id)
+            _ = Accounts.create_user_brand(user, brand, role)
+          end
 
         # Reload users list
         users = reload_users()

@@ -16,6 +16,7 @@ defmodule SocialObjects.FeatureFlags do
     "outreach_email" => true
   }
 
+  @spec enabled?(String.t()) :: boolean()
   @doc "Returns true if a feature flag is enabled."
   def enabled?(flag_name) when is_binary(flag_name) do
     case get_flag(flag_name) do
@@ -24,6 +25,7 @@ defmodule SocialObjects.FeatureFlags do
     end
   end
 
+  @spec get_flag(String.t()) :: boolean() | nil
   @doc "Gets a feature flag value from the database."
   def get_flag(flag_name) do
     query =
@@ -39,6 +41,7 @@ defmodule SocialObjects.FeatureFlags do
 
   @topic "feature_flags"
 
+  @spec set_flag(String.t(), boolean()) :: {:ok, SystemSetting.t()} | {:error, Ecto.Changeset.t()}
   @doc "Sets a feature flag value."
   def set_flag(flag_name, value) when is_boolean(value) do
     value_string = to_string(value)
@@ -65,14 +68,16 @@ defmodule SocialObjects.FeatureFlags do
           |> Repo.update()
       end
 
-    case result do
-      {:ok, _} -> broadcast_change()
-      _ -> :ok
-    end
+    _ =
+      case result do
+        {:ok, _} -> broadcast_change()
+        _ -> :ok
+      end
 
     result
   end
 
+  @spec subscribe() :: :ok
   @doc "Subscribe to feature flag changes."
   def subscribe do
     Phoenix.PubSub.subscribe(SocialObjects.PubSub, @topic)
@@ -82,6 +87,7 @@ defmodule SocialObjects.FeatureFlags do
     Phoenix.PubSub.broadcast(SocialObjects.PubSub, @topic, :feature_flags_changed)
   end
 
+  @spec list_all() :: %{String.t() => boolean()}
   @doc "Returns all feature flags with current values (DB merged with defaults)."
   def list_all do
     db_flags =
@@ -95,6 +101,7 @@ defmodule SocialObjects.FeatureFlags do
     Map.merge(@flags, db_flags)
   end
 
+  @spec defined_flags() :: [%{key: String.t(), label: String.t(), description: String.t()}]
   @doc "Returns defined flags with labels for UI."
   def defined_flags do
     [

@@ -45,7 +45,8 @@ defmodule SocialObjects.Workers.CreatorImportWorker do
     brand_id = args["brand_id"]
     Logger.info("Starting creator import from #{source}: #{file_path}")
 
-    Phoenix.PubSub.broadcast(SocialObjects.PubSub, "creators:import", {:import_started, source})
+    _ =
+      Phoenix.PubSub.broadcast(SocialObjects.PubSub, "creators:import", {:import_started, source})
 
     result =
       case source do
@@ -62,26 +63,29 @@ defmodule SocialObjects.Workers.CreatorImportWorker do
         Logger.info("✅ Import completed: #{inspect(counts)}")
 
         # Update timestamp for video imports
-        if source == "videos" do
-          Settings.update_videos_last_import_at(brand_id)
-        end
+        _ =
+          if source == "videos" do
+            Settings.update_videos_last_import_at(brand_id)
+          end
 
-        Phoenix.PubSub.broadcast(
-          SocialObjects.PubSub,
-          "creators:import",
-          {:import_completed, source, counts}
-        )
+        _ =
+          Phoenix.PubSub.broadcast(
+            SocialObjects.PubSub,
+            "creators:import",
+            {:import_completed, source, counts}
+          )
 
         :ok
 
       {:error, reason} ->
         Logger.error("Import failed: #{inspect(reason)}")
 
-        Phoenix.PubSub.broadcast(
-          SocialObjects.PubSub,
-          "creators:import",
-          {:import_failed, source, reason}
-        )
+        _ =
+          Phoenix.PubSub.broadcast(
+            SocialObjects.PubSub,
+            "creators:import",
+            {:import_failed, source, reason}
+          )
 
         {:error, reason}
     end
@@ -278,7 +282,7 @@ defmodule SocialObjects.Workers.CreatorImportWorker do
       case creator_result do
         {:ok, creator, created?} ->
           # Associate creator with brand
-          Creators.add_creator_to_brand(creator.id, brand_id)
+          _ = Creators.add_creator_to_brand(creator.id, brand_id)
 
           # Create sample record
           sample_attrs = %{
@@ -496,7 +500,7 @@ defmodule SocialObjects.Workers.CreatorImportWorker do
             engagement_count: parse_int(row["engagement"])
           }
 
-          Creators.create_performance_snapshot(brand_id, snapshot_attrs)
+          _ = Creators.create_performance_snapshot(brand_id, snapshot_attrs)
 
           {:ok, %{action => 1}}
       end

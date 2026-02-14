@@ -49,11 +49,12 @@ defmodule SocialObjects.Workers.ShopifySyncWorker do
         Logger.info("Starting Shopify product sync...")
 
         # Broadcast sync start event
-        Phoenix.PubSub.broadcast(
-          SocialObjects.PubSub,
-          "shopify:sync:#{brand_id}",
-          {:sync_started}
-        )
+        _ =
+          Phoenix.PubSub.broadcast(
+            SocialObjects.PubSub,
+            "shopify:sync:#{brand_id}",
+            {:sync_started}
+          )
 
         case sync_all_products(brand_id) do
           {:ok, counts} ->
@@ -66,36 +67,39 @@ defmodule SocialObjects.Workers.ShopifySyncWorker do
             """)
 
             # Update last sync timestamp
-            Settings.update_shopify_last_sync_at(brand_id)
+            _ = Settings.update_shopify_last_sync_at(brand_id)
 
             # Broadcast sync complete event
-            Phoenix.PubSub.broadcast(
-              SocialObjects.PubSub,
-              "shopify:sync:#{brand_id}",
-              {:sync_completed, counts}
-            )
+            _ =
+              Phoenix.PubSub.broadcast(
+                SocialObjects.PubSub,
+                "shopify:sync:#{brand_id}",
+                {:sync_completed, counts}
+              )
 
             :ok
 
           {:error, :rate_limited} ->
             Logger.warning("Rate limited by Shopify API, will retry")
             # Broadcast sync failed event
-            Phoenix.PubSub.broadcast(
-              SocialObjects.PubSub,
-              "shopify:sync:#{brand_id}",
-              {:sync_failed, :rate_limited}
-            )
+            _ =
+              Phoenix.PubSub.broadcast(
+                SocialObjects.PubSub,
+                "shopify:sync:#{brand_id}",
+                {:sync_failed, :rate_limited}
+              )
 
             {:snooze, 60}
 
           {:error, reason} ->
             Logger.error("Shopify sync failed: #{inspect(reason)}")
             # Broadcast sync failed event
-            Phoenix.PubSub.broadcast(
-              SocialObjects.PubSub,
-              "shopify:sync:#{brand_id}",
-              {:sync_failed, reason}
-            )
+            _ =
+              Phoenix.PubSub.broadcast(
+                SocialObjects.PubSub,
+                "shopify:sync:#{brand_id}",
+                {:sync_failed, reason}
+              )
 
             {:error, reason}
         end
@@ -279,10 +283,10 @@ defmodule SocialObjects.Workers.ShopifySyncWorker do
       product = upsert_product(brand_id, product_attrs)
 
       # Sync images
-      sync_images(product, images)
+      _ = sync_images(product, images)
 
       # Sync variants
-      sync_variants(product, variants)
+      _ = sync_variants(product, variants)
 
       # Return image count
       length(images)
@@ -319,7 +323,7 @@ defmodule SocialObjects.Workers.ShopifySyncWorker do
 
   defp sync_images(product, shopify_images) do
     # Delete existing images
-    Catalog.delete_product_images(product.id)
+    _ = Catalog.delete_product_images(product.id)
 
     # Create new images
     Enum.with_index(shopify_images, fn image, index ->
@@ -345,7 +349,7 @@ defmodule SocialObjects.Workers.ShopifySyncWorker do
 
   defp sync_variants(product, shopify_variants) do
     # Delete existing variants
-    Catalog.delete_product_variants(product.id)
+    _ = Catalog.delete_product_variants(product.id)
 
     # Create new variants with size extraction
     variants =

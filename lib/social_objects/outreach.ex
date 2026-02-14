@@ -19,6 +19,7 @@ defmodule SocialObjects.Outreach do
   Marks a single creator as sent after outreach is delivered.
   Updates outreach_sent_at timestamp.
   """
+  @spec mark_creator_sent(Creator.t()) :: {:ok, Creator.t()} | {:error, Ecto.Changeset.t()}
   def mark_creator_sent(%Creator{} = creator) do
     creator
     |> Creator.changeset(%{
@@ -44,6 +45,8 @@ defmodule SocialObjects.Outreach do
 
   Returns {:ok, creator} or {:error, changeset}.
   """
+  @spec mark_email_opted_out(Creator.t(), String.t()) ::
+          {:ok, Creator.t()} | {:error, Ecto.Changeset.t()}
   def mark_email_opted_out(%Creator{} = creator, reason)
       when reason in ~w(unsubscribe spam_report hard_bounce) do
     # Only update if not already opted out
@@ -66,6 +69,8 @@ defmodule SocialObjects.Outreach do
 
   Returns {:ok, creator}, {:ok, nil} if no creator found, or {:error, changeset}.
   """
+  @spec mark_email_opted_out_by_email(String.t(), String.t()) ::
+          {:ok, Creator.t() | nil} | {:error, Ecto.Changeset.t()}
   def mark_email_opted_out_by_email(email, reason) when is_binary(email) do
     case find_creator_by_email(email) do
       nil -> {:ok, nil}
@@ -77,6 +82,7 @@ defmodule SocialObjects.Outreach do
   Finds a creator by email address.
   Returns nil if not found.
   """
+  @spec find_creator_by_email(String.t() | nil) :: Creator.t() | nil
   def find_creator_by_email(nil), do: nil
 
   def find_creator_by_email(email) when is_binary(email) do
@@ -91,6 +97,7 @@ defmodule SocialObjects.Outreach do
   Checks if a creator can receive email communications.
   Returns false if the creator has opted out.
   """
+  @spec can_contact_email?(Creator.t()) :: boolean()
   def can_contact_email?(%Creator{email_opted_out: true}), do: false
   def can_contact_email?(%Creator{email: nil}), do: false
   def can_contact_email?(%Creator{email: ""}), do: false
@@ -100,6 +107,7 @@ defmodule SocialObjects.Outreach do
   Generates a signed token for unsubscribe links.
   Token is valid for 90 days.
   """
+  @spec generate_unsubscribe_token(pos_integer(), pos_integer()) :: String.t()
   def generate_unsubscribe_token(brand_id, creator_id)
       when is_integer(brand_id) and is_integer(creator_id) do
     Phoenix.Token.sign(SocialObjectsWeb.Endpoint, "unsubscribe", %{
@@ -108,6 +116,7 @@ defmodule SocialObjects.Outreach do
     })
   end
 
+  @spec generate_unsubscribe_token(pos_integer()) :: String.t()
   def generate_unsubscribe_token(creator_id) when is_integer(creator_id) do
     Phoenix.Token.sign(SocialObjectsWeb.Endpoint, "unsubscribe", creator_id)
   end
@@ -116,6 +125,7 @@ defmodule SocialObjects.Outreach do
   Verifies an unsubscribe token and returns the creator_id.
   Token must be less than 90 days old.
   """
+  @spec verify_unsubscribe_token(String.t()) :: {:ok, pos_integer() | map()} | {:error, atom()}
   def verify_unsubscribe_token(token) do
     # 90 days in seconds
     max_age = 90 * 24 * 60 * 60
@@ -127,6 +137,7 @@ defmodule SocialObjects.Outreach do
   Token encodes both creator_id and lark_preset for redirect after form submission.
   Token is valid for 90 days.
   """
+  @spec generate_join_token(pos_integer(), pos_integer(), String.t()) :: String.t()
   def generate_join_token(brand_id, creator_id, lark_preset) do
     Phoenix.Token.sign(SocialObjectsWeb.Endpoint, "join", %{
       brand_id: brand_id,
@@ -139,6 +150,7 @@ defmodule SocialObjects.Outreach do
   Verifies a join token and returns the payload map with creator_id and lark_preset.
   Token must be less than 90 days old.
   """
+  @spec verify_join_token(String.t()) :: {:ok, map()} | {:error, atom()}
   def verify_join_token(token) do
     # 90 days in seconds
     max_age = 90 * 24 * 60 * 60
@@ -149,6 +161,8 @@ defmodule SocialObjects.Outreach do
   Updates SMS consent for a creator with full TCPA tracking.
   Records consent timestamp, IP address, and user agent for compliance.
   """
+  @spec update_sms_consent_with_tracking(Creator.t(), String.t(), String.t(), String.t()) ::
+          {:ok, Creator.t()} | {:error, Ecto.Changeset.t()}
   def update_sms_consent_with_tracking(%Creator{} = creator, phone, ip, user_agent) do
     creator
     |> Creator.changeset(%{
@@ -164,6 +178,8 @@ defmodule SocialObjects.Outreach do
   @doc """
   Updates SMS consent for a creator.
   """
+  @spec update_sms_consent(Creator.t(), boolean()) ::
+          {:ok, Creator.t()} | {:error, Ecto.Changeset.t()}
   def update_sms_consent(%Creator{} = creator, consent) when is_boolean(consent) do
     attrs =
       if consent do
@@ -191,6 +207,8 @@ defmodule SocialObjects.Outreach do
     - sent_at: Override send timestamp (defaults to now)
     - lark_preset: Which Lark preset was used (jewelry, active, top_creators)
   """
+  @spec log_outreach(pos_integer(), pos_integer(), atom(), atom(), keyword()) ::
+          {:ok, OutreachLog.t()} | {:error, Ecto.Changeset.t()}
   def log_outreach(brand_id, creator_id, channel, status, opts \\ []) do
     %OutreachLog{brand_id: brand_id}
     |> OutreachLog.changeset(%{
@@ -208,6 +226,7 @@ defmodule SocialObjects.Outreach do
   @doc """
   Lists outreach history for a creator, most recent first.
   """
+  @spec list_outreach_history(pos_integer(), pos_integer()) :: [OutreachLog.t()]
   def list_outreach_history(brand_id, creator_id) do
     from(ol in OutreachLog,
       where: ol.brand_id == ^brand_id and ol.creator_id == ^creator_id,
@@ -220,6 +239,7 @@ defmodule SocialObjects.Outreach do
   Gets the most recent email outreach log for a creator.
   Returns nil if no email has been sent.
   """
+  @spec get_latest_email_outreach_log(pos_integer(), pos_integer()) :: OutreachLog.t() | nil
   def get_latest_email_outreach_log(brand_id, creator_id) do
     from(ol in OutreachLog,
       where: ol.brand_id == ^brand_id and ol.creator_id == ^creator_id,
@@ -234,6 +254,9 @@ defmodule SocialObjects.Outreach do
   Gets the latest email outreach logs for multiple creators in a single query.
   Returns a map of creator_id => OutreachLog.
   """
+  @spec get_latest_email_outreach_logs(pos_integer(), [pos_integer()]) :: %{
+          pos_integer() => OutreachLog.t()
+        }
   def get_latest_email_outreach_logs(brand_id, creator_ids) when is_list(creator_ids) do
     # Use a window function to get the latest email log per creator
     from(ol in OutreachLog,
@@ -254,6 +277,7 @@ defmodule SocialObjects.Outreach do
   Returns a map like:
     %{never_contacted: 50, contacted: 100, opted_out: 5, total: 155}
   """
+  @spec get_outreach_stats(pos_integer()) :: map()
   def get_outreach_stats(brand_id) do
     opted_out_count =
       from(c in Creator,
@@ -298,6 +322,7 @@ defmodule SocialObjects.Outreach do
   Returns counts by engagement level:
     %{delivered: 80, opened: 45, clicked: 12, bounced: 3}
   """
+  @spec get_engagement_counts(pos_integer()) :: map()
   def get_engagement_counts(brand_id) do
     # Get the latest outreach log per creator and count by engagement level
     # This uses a subquery to get the max log ID per creator
@@ -333,6 +358,7 @@ defmodule SocialObjects.Outreach do
   @doc """
   Gets the count of messages sent today.
   """
+  @spec count_sent_today(pos_integer()) :: non_neg_integer()
   def count_sent_today(brand_id) do
     today_start =
       Date.utc_today()
@@ -351,6 +377,7 @@ defmodule SocialObjects.Outreach do
 
   Returns a map like: %{email: 150, sms: 75}
   """
+  @spec count_total_by_channel() :: map()
   def count_total_by_channel do
     from(ol in OutreachLog,
       where: ol.status == :sent,
@@ -364,6 +391,7 @@ defmodule SocialObjects.Outreach do
   @doc """
   Gets a single creator by ID with outreach logs preloaded.
   """
+  @spec get_creator_with_outreach!(pos_integer()) :: Creator.t() | no_return()
   def get_creator_with_outreach!(id) do
     from(c in Creator,
       where: c.id == ^id,
@@ -372,6 +400,7 @@ defmodule SocialObjects.Outreach do
     |> Repo.one!()
   end
 
+  @spec get_creator_with_outreach!(pos_integer(), pos_integer()) :: Creator.t() | no_return()
   def get_creator_with_outreach!(brand_id, id) do
     from(c in Creator,
       where: c.id == ^id,
@@ -391,6 +420,7 @@ defmodule SocialObjects.Outreach do
   @doc """
   Creates an email event from a SendGrid webhook payload.
   """
+  @spec create_email_event(map()) :: {:ok, EmailEvent.t()} | {:error, Ecto.Changeset.t()}
   def create_email_event(attrs) do
     %EmailEvent{}
     |> EmailEvent.changeset(attrs)
@@ -401,6 +431,7 @@ defmodule SocialObjects.Outreach do
   Finds an outreach log by its SendGrid message ID (provider_id).
   Returns nil if not found.
   """
+  @spec find_outreach_log_by_provider_id(String.t() | nil) :: OutreachLog.t() | nil
   def find_outreach_log_by_provider_id(nil), do: nil
 
   def find_outreach_log_by_provider_id(provider_id) do
@@ -410,6 +441,8 @@ defmodule SocialObjects.Outreach do
   @doc """
   Updates an outreach log's status.
   """
+  @spec update_outreach_log_status(OutreachLog.t(), atom()) ::
+          {:ok, OutreachLog.t()} | {:error, Ecto.Changeset.t()}
   def update_outreach_log_status(%OutreachLog{} = log, status) do
     log
     |> OutreachLog.changeset(%{status: status})
@@ -420,6 +453,8 @@ defmodule SocialObjects.Outreach do
   Updates an outreach log's engagement timestamps and/or status.
   Used by the SendGrid webhook to record delivery and engagement events.
   """
+  @spec update_outreach_log_engagement(OutreachLog.t(), map()) ::
+          {:ok, OutreachLog.t()} | {:error, Ecto.Changeset.t()}
   def update_outreach_log_engagement(%OutreachLog{} = log, updates) when is_map(updates) do
     log
     |> OutreachLog.changeset(updates)
@@ -429,6 +464,7 @@ defmodule SocialObjects.Outreach do
   @doc """
   Lists email events for an outreach log, most recent first.
   """
+  @spec list_email_events_for_log(pos_integer()) :: [EmailEvent.t()]
   def list_email_events_for_log(outreach_log_id) do
     from(e in EmailEvent,
       where: e.outreach_log_id == ^outreach_log_id,
@@ -442,6 +478,7 @@ defmodule SocialObjects.Outreach do
 
   Returns a map with counts for each event type and calculated rates.
   """
+  @spec get_engagement_stats(pos_integer()) :: map()
   def get_engagement_stats(brand_id) do
     # Count events by type
     event_counts =

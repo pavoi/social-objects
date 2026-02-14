@@ -7,6 +7,17 @@ defmodule SocialObjects.Catalog.Brand do
   use Ecto.Schema
   import Ecto.Changeset
 
+  @type t :: %__MODULE__{
+          id: pos_integer() | nil,
+          name: String.t() | nil,
+          slug: String.t() | nil,
+          notes: String.t() | nil,
+          primary_domain: String.t() | nil,
+          logo_url: String.t() | nil,
+          inserted_at: NaiveDateTime.t() | nil,
+          updated_at: NaiveDateTime.t() | nil
+        }
+
   schema "brands" do
     field :name, :string
     field :slug, :string

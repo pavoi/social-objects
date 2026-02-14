@@ -17,6 +17,60 @@ defmodule SocialObjects.Creators.Creator do
   use Ecto.Schema
   import Ecto.Changeset
 
+  @type badge_level ::
+          :bronze | :silver | :gold | :platinum | :ruby | :emerald | :sapphire | :diamond
+
+  @type t :: %__MODULE__{
+          id: pos_integer() | nil,
+          tiktok_username: String.t() | nil,
+          tiktok_user_id: String.t() | nil,
+          tiktok_profile_url: String.t() | nil,
+          previous_tiktok_usernames: [String.t()],
+          email: String.t() | nil,
+          phone: String.t() | nil,
+          phone_verified: boolean(),
+          first_name: String.t() | nil,
+          last_name: String.t() | nil,
+          address_line_1: String.t() | nil,
+          address_line_2: String.t() | nil,
+          city: String.t() | nil,
+          state: String.t() | nil,
+          zipcode: String.t() | nil,
+          country: String.t(),
+          tiktok_badge_level: badge_level() | nil,
+          is_whitelisted: boolean(),
+          notes: String.t() | nil,
+          follower_count: integer() | nil,
+          total_gmv_cents: integer(),
+          total_videos: integer(),
+          video_gmv_cents: integer(),
+          live_gmv_cents: integer(),
+          avg_video_views: integer() | nil,
+          video_count: integer(),
+          live_count: integer(),
+          cumulative_gmv_cents: integer(),
+          cumulative_video_gmv_cents: integer(),
+          cumulative_live_gmv_cents: integer(),
+          gmv_tracking_started_at: Date.t() | nil,
+          tiktok_nickname: String.t() | nil,
+          tiktok_avatar_url: String.t() | nil,
+          tiktok_avatar_storage_key: String.t() | nil,
+          tiktok_bio: String.t() | nil,
+          last_enriched_at: DateTime.t() | nil,
+          enrichment_source: String.t() | nil,
+          outreach_sent_at: DateTime.t() | nil,
+          sms_consent: boolean(),
+          sms_consent_at: DateTime.t() | nil,
+          sms_consent_ip: String.t() | nil,
+          sms_consent_user_agent: String.t() | nil,
+          email_opted_out: boolean(),
+          email_opted_out_at: DateTime.t() | nil,
+          email_opted_out_reason: String.t() | nil,
+          manually_edited_fields: [String.t()],
+          inserted_at: NaiveDateTime.t() | nil,
+          updated_at: NaiveDateTime.t() | nil
+        }
+
   @badge_levels ~w(bronze silver gold platinum ruby emerald sapphire diamond)a
 
   schema "creators" do

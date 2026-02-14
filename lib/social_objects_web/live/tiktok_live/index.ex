@@ -19,6 +19,7 @@ defmodule SocialObjectsWeb.TiktokLive.Index do
   alias SocialObjects.Workers.StreamReportWorker
   alias SocialObjectsWeb.BrandRoutes
 
+  import SocialObjectsWeb.ParamHelpers
   import SocialObjectsWeb.TiktokLiveComponents
   import SocialObjectsWeb.ViewHelpers
   import SocialObjectsWeb.BrandPermissions
@@ -32,10 +33,11 @@ defmodule SocialObjectsWeb.TiktokLive.Index do
     brand_id = socket.assigns.current_brand.id
 
     # Subscribe to global TikTok live events
-    if connected?(socket) do
-      Phoenix.PubSub.subscribe(SocialObjects.PubSub, "tiktok_live:events:#{brand_id}")
-      Phoenix.PubSub.subscribe(SocialObjects.PubSub, "tiktok_live:scan:#{brand_id}")
-    end
+    _ =
+      if connected?(socket) do
+        _ = Phoenix.PubSub.subscribe(SocialObjects.PubSub, "tiktok_live:events:#{brand_id}")
+        _ = Phoenix.PubSub.subscribe(SocialObjects.PubSub, "tiktok_live:scan:#{brand_id}")
+      end
 
     last_scan_at = Settings.get_tiktok_live_last_scan_at(brand_id)
 
@@ -195,29 +197,33 @@ defmodule SocialObjectsWeb.TiktokLive.Index do
   end
 
   @impl true
-  def handle_event("delete_stream", %{"id" => id}, socket) do
+  def handle_event("delete_stream", %{"id" => id_param}, socket) do
     authorize socket, :admin do
-      stream_id = String.to_integer(id)
+      case parse_id(id_param) do
+        {:ok, stream_id} ->
+          case TiktokLiveContext.delete_stream(socket.assigns.brand_id, stream_id) do
+            {:ok, _stream} ->
+              socket =
+                socket
+                |> maybe_unsubscribe_from_stream()
+                |> assign(:selected_stream, nil)
+                |> assign(:stream_summary, nil)
+                |> assign(:active_tab, "comments")
+                |> stream(:comments, [], reset: true)
+                |> assign(:has_comments, false)
+                |> assign(:comment_search_query, "")
+                |> assign(:stream_stats, [])
+                |> assign(:page, 1)
+                |> load_streams()
+                |> push_patch(to: streams_path(socket))
 
-      case TiktokLiveContext.delete_stream(socket.assigns.brand_id, stream_id) do
-        {:ok, _stream} ->
-          socket =
-            socket
-            |> maybe_unsubscribe_from_stream()
-            |> assign(:selected_stream, nil)
-            |> assign(:stream_summary, nil)
-            |> assign(:active_tab, "comments")
-            |> stream(:comments, [], reset: true)
-            |> assign(:has_comments, false)
-            |> assign(:comment_search_query, "")
-            |> assign(:stream_stats, [])
-            |> assign(:page, 1)
-            |> load_streams()
-            |> push_patch(to: streams_path(socket))
+              {:noreply, socket}
 
-          {:noreply, socket}
+            {:error, _reason} ->
+              {:noreply, socket}
+          end
 
-        {:error, _reason} ->
+        :error ->
           {:noreply, socket}
       end
     end
@@ -246,22 +252,62 @@ defmodule SocialObjectsWeb.TiktokLive.Index do
   end
 
   @impl true
-  def handle_event("link_product_set", %{"product-set-id" => session_id} = params, socket) do
+  def handle_event("link_product_set", %{"product-set-id" => session_id_param} = params, socket) do
     authorize socket, :admin do
-      stream_id = socket.assigns.selected_stream.id
-      session_id = String.to_integer(session_id)
+      case parse_id(session_id_param) do
+        {:ok, session_id} ->
+          stream_id = socket.assigns.selected_stream.id
 
-      # If linking from a suggestion, mark as "auto" linked
-      linked_by = if params["source"] == "suggestion", do: "auto", else: "manual"
+          # If linking from a suggestion, mark as "auto" linked
+          linked_by = if params["source"] == "suggestion", do: "auto", else: "manual"
 
-      case TiktokLiveContext.link_stream_to_product_set(
-             socket.assigns.brand_id,
-             stream_id,
-             session_id,
-             linked_by: linked_by
-           ) do
-        {:ok, _} ->
-          linked = TiktokLiveContext.get_linked_product_sets(socket.assigns.brand_id, stream_id)
+          case TiktokLiveContext.link_stream_to_product_set(
+                 socket.assigns.brand_id,
+                 stream_id,
+                 session_id,
+                 linked_by: linked_by
+               ) do
+            {:ok, _} ->
+              linked =
+                TiktokLiveContext.get_linked_product_sets(socket.assigns.brand_id, stream_id)
+
+              product_interest = load_product_interest(socket, stream_id, linked)
+
+              socket =
+                socket
+                |> assign(:linked_product_sets, linked)
+                |> assign(:product_interest, product_interest)
+                |> load_available_product_sets()
+                |> put_flash(:info, "Product set linked and comments parsed")
+
+              {:noreply, socket}
+
+            {:error, _} ->
+              {:noreply, put_flash(socket, :error, "Failed to link product set")}
+          end
+
+        :error ->
+          {:noreply, put_flash(socket, :error, "Invalid product set ID")}
+      end
+    end
+  end
+
+  @impl true
+  def handle_event("unlink_product_set", %{"product-set-id" => session_id_param}, socket) do
+    authorize socket, :admin do
+      case parse_id(session_id_param) do
+        {:ok, session_id} ->
+          stream_id = socket.assigns.selected_stream.id
+
+          TiktokLiveContext.unlink_stream_from_product_set(
+            socket.assigns.brand_id,
+            stream_id,
+            session_id
+          )
+
+          linked =
+            TiktokLiveContext.get_linked_product_sets(socket.assigns.brand_id, stream_id)
+
           product_interest = load_product_interest(socket, stream_id, linked)
 
           socket =
@@ -269,39 +315,13 @@ defmodule SocialObjectsWeb.TiktokLive.Index do
             |> assign(:linked_product_sets, linked)
             |> assign(:product_interest, product_interest)
             |> load_available_product_sets()
-            |> put_flash(:info, "Product set linked and comments parsed")
+            |> put_flash(:info, "Product set unlinked")
 
           {:noreply, socket}
 
-        {:error, _} ->
-          {:noreply, put_flash(socket, :error, "Failed to link product set")}
+        :error ->
+          {:noreply, socket}
       end
-    end
-  end
-
-  @impl true
-  def handle_event("unlink_product_set", %{"product-set-id" => session_id}, socket) do
-    authorize socket, :admin do
-      stream_id = socket.assigns.selected_stream.id
-      session_id = String.to_integer(session_id)
-
-      TiktokLiveContext.unlink_stream_from_product_set(
-        socket.assigns.brand_id,
-        stream_id,
-        session_id
-      )
-
-      linked = TiktokLiveContext.get_linked_product_sets(socket.assigns.brand_id, stream_id)
-      product_interest = load_product_interest(socket, stream_id, linked)
-
-      socket =
-        socket
-        |> assign(:linked_product_sets, linked)
-        |> assign(:product_interest, product_interest)
-        |> load_available_product_sets()
-        |> put_flash(:info, "Product set unlinked")
-
-      {:noreply, socket}
     end
   end
 
@@ -378,10 +398,11 @@ defmodule SocialObjectsWeb.TiktokLive.Index do
 
       pid = self()
 
-      Task.start(fn ->
-        result = TiktokLiveContext.start_capture(socket.assigns.brand_id, unique_id)
-        send(pid, {:capture_result, result})
-      end)
+      _ =
+        Task.start(fn ->
+          result = TiktokLiveContext.start_capture(socket.assigns.brand_id, unique_id)
+          send(pid, {:capture_result, result})
+        end)
 
       {:noreply, socket}
     end
@@ -714,7 +735,7 @@ defmodule SocialObjectsWeb.TiktokLive.Index do
   end
 
   defp parse_page(nil), do: 1
-  defp parse_page(page) when is_binary(page), do: String.to_integer(page)
+  defp parse_page(page) when is_binary(page), do: parse_id_or_default(page, 1)
   defp parse_page(page) when is_integer(page), do: page
 
   defp load_streams(socket, opts \\ [append: false]) do
@@ -818,31 +839,32 @@ defmodule SocialObjectsWeb.TiktokLive.Index do
         |> assign(:stream_report_last_error, nil)
         |> maybe_unsubscribe_from_stream()
 
-      stream_id ->
-        try do
-          stream_id = String.to_integer(stream_id)
-          stream = TiktokLiveContext.get_stream!(socket.assigns.brand_id, stream_id)
-          summary = TiktokLiveContext.get_stream_summary(socket.assigns.brand_id, stream_id)
-          tab = params["tab"] || "comments"
+      stream_id_param ->
+        case parse_id(stream_id_param) do
+          {:ok, stream_id} ->
+            load_selected_stream(socket, params, stream_id)
 
-          socket =
-            socket
-            |> assign(:selected_stream, stream)
-            |> assign(:stream_summary, summary)
-            |> assign(:active_tab, tab)
-            |> load_tab_data(tab, stream_id)
-            |> maybe_subscribe_to_stream(stream)
-            |> maybe_assign_stream_report_status(stream_id)
-
-          socket
-        rescue
-          Ecto.NoResultsError ->
-            push_patch(socket, to: streams_path(socket))
-
-          ArgumentError ->
+          :error ->
             push_patch(socket, to: streams_path(socket))
         end
     end
+  end
+
+  defp load_selected_stream(socket, params, stream_id) do
+    stream = TiktokLiveContext.get_stream!(socket.assigns.brand_id, stream_id)
+    summary = TiktokLiveContext.get_stream_summary(socket.assigns.brand_id, stream_id)
+    tab = params["tab"] || "comments"
+
+    socket
+    |> assign(:selected_stream, stream)
+    |> assign(:stream_summary, summary)
+    |> assign(:active_tab, tab)
+    |> load_tab_data(tab, stream_id)
+    |> maybe_subscribe_to_stream(stream)
+    |> maybe_assign_stream_report_status(stream_id)
+  rescue
+    Ecto.NoResultsError ->
+      push_patch(socket, to: streams_path(socket))
   end
 
   defp load_tab_data(socket, "comments", stream_id) do
@@ -911,7 +933,7 @@ defmodule SocialObjectsWeb.TiktokLive.Index do
       socket = maybe_unsubscribe_from_stream(socket)
 
       # Subscribe to new stream
-      Phoenix.PubSub.subscribe(SocialObjects.PubSub, "tiktok_live:stream:#{stream_id}")
+      _ = Phoenix.PubSub.subscribe(SocialObjects.PubSub, "tiktok_live:stream:#{stream_id}")
       assign(socket, :subscribed_stream_id, stream_id)
     else
       socket

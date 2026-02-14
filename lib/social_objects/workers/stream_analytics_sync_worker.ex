@@ -40,27 +40,27 @@ defmodule SocialObjects.Workers.StreamAnalyticsSyncWorker do
 
   @impl Oban.Worker
   def perform(%Oban.Job{args: %{"brand_id" => brand_id}}) do
-    broadcast(brand_id, {:stream_analytics_sync_started})
+    _ = broadcast(brand_id, {:stream_analytics_sync_started})
     streams = find_unsynced_streams(brand_id)
 
     if Enum.empty?(streams) do
       Logger.debug("No unsynced streams found for brand #{brand_id}")
-      Settings.update_stream_analytics_last_sync_at(brand_id)
-      broadcast(brand_id, {:stream_analytics_sync_completed, %{streams_processed: 0}})
+      _ = Settings.update_stream_analytics_last_sync_at(brand_id)
+      _ = broadcast(brand_id, {:stream_analytics_sync_completed, %{streams_processed: 0}})
       :ok
     else
       case sync_streams(brand_id, streams) do
         {:ok, stats} ->
-          Settings.update_stream_analytics_last_sync_at(brand_id)
-          broadcast(brand_id, {:stream_analytics_sync_completed, stats})
+          _ = Settings.update_stream_analytics_last_sync_at(brand_id)
+          _ = broadcast(brand_id, {:stream_analytics_sync_completed, stats})
           :ok
 
         {:snooze, seconds} ->
-          broadcast(brand_id, {:stream_analytics_sync_failed, :rate_limited})
+          _ = broadcast(brand_id, {:stream_analytics_sync_failed, :rate_limited})
           {:snooze, seconds}
 
         {:error, reason} ->
-          broadcast(brand_id, {:stream_analytics_sync_failed, reason})
+          _ = broadcast(brand_id, {:stream_analytics_sync_failed, reason})
           {:error, reason}
       end
     end

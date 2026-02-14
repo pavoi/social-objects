@@ -35,22 +35,24 @@ defmodule SocialObjects.Workers.ProductPerformanceSyncWorker do
   """
   @impl Oban.Worker
   def perform(%Oban.Job{args: %{"brand_id" => brand_id}}) do
-    Phoenix.PubSub.broadcast(
-      SocialObjects.PubSub,
-      "product_performance:sync:#{brand_id}",
-      {:product_performance_sync_started}
-    )
+    _ =
+      Phoenix.PubSub.broadcast(
+        SocialObjects.PubSub,
+        "product_performance:sync:#{brand_id}",
+        {:product_performance_sync_started}
+      )
 
     case sync_products(brand_id) do
       {:ok, stats} ->
         # Update the system_settings timestamp for the dashboard
-        Settings.update_product_performance_last_sync_at(brand_id)
+        _ = Settings.update_product_performance_last_sync_at(brand_id)
 
-        Phoenix.PubSub.broadcast(
-          SocialObjects.PubSub,
-          "product_performance:sync:#{brand_id}",
-          {:product_performance_sync_completed, stats}
-        )
+        _ =
+          Phoenix.PubSub.broadcast(
+            SocialObjects.PubSub,
+            "product_performance:sync:#{brand_id}",
+            {:product_performance_sync_completed, stats}
+          )
 
         Logger.info(
           "Product performance sync completed for brand #{brand_id}: " <>
@@ -64,11 +66,12 @@ defmodule SocialObjects.Workers.ProductPerformanceSyncWorker do
         {:snooze, seconds}
 
       {:error, reason} ->
-        Phoenix.PubSub.broadcast(
-          SocialObjects.PubSub,
-          "product_performance:sync:#{brand_id}",
-          {:product_performance_sync_failed, reason}
-        )
+        _ =
+          Phoenix.PubSub.broadcast(
+            SocialObjects.PubSub,
+            "product_performance:sync:#{brand_id}",
+            {:product_performance_sync_failed, reason}
+          )
 
         {:error, reason}
     end

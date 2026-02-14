@@ -13,6 +13,7 @@ defmodule SocialObjects.BigQuery do
   @token_cache_key :bigquery_access_token
   @token_ttl_seconds 3500
 
+  @spec query(String.t(), keyword()) :: {:ok, [map()]} | {:error, String.t()}
   @doc """
   Executes a BigQuery SQL query and returns results as a list of maps.
 
@@ -34,6 +35,7 @@ defmodule SocialObjects.BigQuery do
     end
   end
 
+  @spec test_connection(keyword()) :: {:ok, [map()]} | {:error, String.t()}
   @doc """
   Tests the BigQuery connection by running a simple query.
   """

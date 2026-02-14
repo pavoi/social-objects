@@ -5,6 +5,16 @@ defmodule SocialObjects.Settings.SystemSetting do
   use Ecto.Schema
   import Ecto.Changeset
 
+  @type t :: %__MODULE__{
+          id: pos_integer() | nil,
+          key: String.t() | nil,
+          value: String.t() | nil,
+          value_type: String.t(),
+          brand_id: pos_integer() | nil,
+          inserted_at: NaiveDateTime.t() | nil,
+          updated_at: NaiveDateTime.t() | nil
+        }
+
   schema "system_settings" do
     field :key, :string
     field :value, :string

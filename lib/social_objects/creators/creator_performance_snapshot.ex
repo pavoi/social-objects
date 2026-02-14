@@ -8,7 +8,32 @@ defmodule SocialObjects.Creators.CreatorPerformanceSnapshot do
   use Ecto.Schema
   import Ecto.Changeset
 
-  @sources ~w(refunnel tiktok_api tiktok_marketplace manual csv_import)
+  @type t :: %__MODULE__{
+          id: pos_integer() | nil,
+          brand_id: pos_integer() | nil,
+          creator_id: pos_integer() | nil,
+          snapshot_date: Date.t() | nil,
+          source: String.t() | nil,
+          follower_count: integer() | nil,
+          gmv_cents: integer() | nil,
+          video_gmv_cents: integer() | nil,
+          live_gmv_cents: integer() | nil,
+          avg_video_views: integer() | nil,
+          emv_cents: integer() | nil,
+          total_posts: integer() | nil,
+          total_likes: integer() | nil,
+          total_comments: integer() | nil,
+          total_shares: integer() | nil,
+          total_impressions: integer() | nil,
+          engagement_count: integer() | nil,
+          gmv_delta_cents: integer() | nil,
+          video_gmv_delta_cents: integer() | nil,
+          live_gmv_delta_cents: integer() | nil,
+          inserted_at: NaiveDateTime.t() | nil,
+          updated_at: NaiveDateTime.t() | nil
+        }
+
+  @sources ~w(refunnel tiktok_api tiktok_marketplace manual csv_import brand_gmv)
 
   schema "creator_performance_snapshots" do
     belongs_to :brand, SocialObjects.Catalog.Brand

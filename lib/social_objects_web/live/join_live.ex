@@ -89,7 +89,7 @@ defmodule SocialObjectsWeb.JoinLive do
 
       template ->
         # Merge template's form_config with defaults
-        config = Map.merge(@default_form_config, template.form_config || %{})
+        config = Map.merge(@default_form_config, template.form_config)
         {TemplateRenderer.render_page_html(template.html_body, brand), config}
     end
   end

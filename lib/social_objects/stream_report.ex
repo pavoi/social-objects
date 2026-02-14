@@ -38,7 +38,7 @@ defmodule SocialObjects.StreamReport do
     stream = TiktokLive.get_stream!(brand_id, stream_id)
 
     # Auto-link to session if not already linked
-    TiktokLive.auto_link_stream_to_product_set(brand_id, stream_id)
+    _ = TiktokLive.auto_link_stream_to_product_set(brand_id, stream_id)
 
     # Get basic stats
     stats = get_stats(brand_id, stream)
@@ -87,12 +87,12 @@ defmodule SocialObjects.StreamReport do
     %{
       duration: duration,
       duration_formatted: format_duration(duration),
-      peak_viewers: stream.viewer_count_peak || 0,
-      total_likes: stream.total_likes || 0,
-      total_gifts_value: stream.total_gifts_value || 0,
+      peak_viewers: stream.viewer_count_peak,
+      total_likes: stream.total_likes,
+      total_gifts_value: stream.total_gifts_value,
       total_comments: comment_count,
-      total_follows: stream.total_follows || 0,
-      total_shares: stream.total_shares || 0
+      total_follows: stream.total_follows,
+      total_shares: stream.total_shares
     }
   end
 

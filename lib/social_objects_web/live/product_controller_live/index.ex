@@ -12,11 +12,25 @@ defmodule SocialObjectsWeb.ProductControllerLive.Index do
 
   import SocialObjectsWeb.ViewHelpers
   import SocialObjectsWeb.BrandPermissions
+  import SocialObjectsWeb.ParamHelpers
 
   alias SocialObjects.ProductSets
 
   @impl true
-  def mount(%{"id" => product_set_id}, _session, socket) do
+  def mount(%{"id" => product_set_id_param}, _session, socket) do
+    case parse_id(product_set_id_param) do
+      {:ok, product_set_id} ->
+        mount_with_product_set(socket, product_set_id)
+
+      :error ->
+        {:ok,
+         socket
+         |> put_flash(:error, "Invalid product set ID")
+         |> push_navigate(to: ~p"/products")}
+    end
+  end
+
+  defp mount_with_product_set(socket, product_set_id) do
     brand_id = socket.assigns.current_brand.id
     product_set = ProductSets.get_product_set!(brand_id, product_set_id)
     message_presets = ProductSets.list_message_presets(brand_id)
@@ -35,7 +49,7 @@ defmodule SocialObjectsWeb.ProductControllerLive.Index do
       assign(socket,
         brand_id: brand_id,
         product_set: product_set,
-        product_set_id: String.to_integer(product_set_id),
+        product_set_id: product_set_id,
         page_title: "#{product_set.name} - Controller",
         current_product_set_product: nil,
         current_product: nil,
@@ -55,7 +69,7 @@ defmodule SocialObjectsWeb.ProductControllerLive.Index do
 
     socket =
       if connected?(socket) do
-        subscribe_to_product_set(product_set_id)
+        _ = subscribe_to_product_set(product_set_id)
         load_initial_state(socket)
       else
         socket
@@ -68,19 +82,20 @@ defmodule SocialObjectsWeb.ProductControllerLive.Index do
 
   # Product Navigation - Jump to product
   @impl true
-  def handle_event("jump_to_product", %{"position" => position}, socket) do
-    if has_role?(socket, :admin) do
-      position = String.to_integer(position)
-
-      case ProductSets.jump_to_product(socket.assigns.product_set_id, position) do
-        {:ok, _new_state} ->
-          {:reply, %{success: true, position: position}, socket}
-
-        {:error, :invalid_position} ->
-          {:reply, %{success: false, error: "Product #{position} not found"}, socket}
-      end
+  def handle_event("jump_to_product", %{"position" => position_param}, socket) do
+    with true <- has_role?(socket, :admin),
+         {:ok, position} <- parse_integer(position_param),
+         {:ok, _new_state} <- ProductSets.jump_to_product(socket.assigns.product_set_id, position) do
+      {:reply, %{success: true, position: position}, socket}
     else
-      {:reply, %{success: false, error: "Permission denied"}, socket}
+      false ->
+        {:reply, %{success: false, error: "Permission denied"}, socket}
+
+      :error ->
+        {:reply, %{success: false, error: "Invalid position"}, socket}
+
+      {:error, :invalid_position} ->
+        {:reply, %{success: false, error: "Product not found"}, socket}
     end
   end
 
@@ -98,7 +113,7 @@ defmodule SocialObjectsWeb.ProductControllerLive.Index do
           current + 1
         end
 
-      ProductSets.jump_to_product(socket.assigns.product_set_id, next_position)
+      _ = ProductSets.jump_to_product(socket.assigns.product_set_id, next_position)
       {:noreply, socket}
     end
   end
@@ -117,7 +132,7 @@ defmodule SocialObjectsWeb.ProductControllerLive.Index do
           current - 1
         end
 
-      ProductSets.jump_to_product(socket.assigns.product_set_id, prev_position)
+      _ = ProductSets.jump_to_product(socket.assigns.product_set_id, prev_position)
       {:noreply, socket}
     end
   end
@@ -129,11 +144,12 @@ defmodule SocialObjectsWeb.ProductControllerLive.Index do
       new_visible = !socket.assigns.product_set_notes_visible
 
       # Broadcast to host view
-      Phoenix.PubSub.broadcast(
-        SocialObjects.PubSub,
-        "product_set:#{socket.assigns.product_set_id}:ui",
-        {:product_set_notes_toggle, new_visible}
-      )
+      _ =
+        Phoenix.PubSub.broadcast(
+          SocialObjects.PubSub,
+          "product_set:#{socket.assigns.product_set_id}:ui",
+          {:product_set_notes_toggle, new_visible}
+        )
 
       {:noreply, assign(socket, :product_set_notes_visible, new_visible)}
     end
@@ -307,8 +323,8 @@ defmodule SocialObjectsWeb.ProductControllerLive.Index do
   ## Private Helpers
 
   defp subscribe_to_product_set(product_set_id) do
-    Phoenix.PubSub.subscribe(SocialObjects.PubSub, "product_set:#{product_set_id}:state")
-    Phoenix.PubSub.subscribe(SocialObjects.PubSub, "product_set:#{product_set_id}:ui")
+    _ = Phoenix.PubSub.subscribe(SocialObjects.PubSub, "product_set:#{product_set_id}:state")
+    _ = Phoenix.PubSub.subscribe(SocialObjects.PubSub, "product_set:#{product_set_id}:ui")
   end
 
   defp load_initial_state(socket) do

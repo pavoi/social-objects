@@ -8,6 +8,18 @@ defmodule SocialObjects.ProductSets.MessagePreset do
   use Ecto.Schema
   import Ecto.Changeset
 
+  @type message_color :: :amber | :blue | :green | :red | :purple | :gray
+
+  @type t :: %__MODULE__{
+          id: binary() | nil,
+          message_text: String.t() | nil,
+          color: message_color() | nil,
+          position: integer() | nil,
+          brand_id: pos_integer() | nil,
+          inserted_at: DateTime.t() | nil,
+          updated_at: DateTime.t() | nil
+        }
+
   @primary_key {:id, :binary_id, autogenerate: true}
   @foreign_key_type :binary_id
 

@@ -7,6 +7,16 @@ defmodule SocialObjects.Accounts.UserToken do
   import Ecto.Query
   alias SocialObjects.Accounts.UserToken
 
+  @type t :: %__MODULE__{
+          id: pos_integer() | nil,
+          token: binary() | nil,
+          context: String.t() | nil,
+          sent_to: String.t() | nil,
+          authenticated_at: DateTime.t() | nil,
+          user_id: pos_integer() | nil,
+          inserted_at: DateTime.t() | nil
+        }
+
   @rand_size 32
   @session_validity_in_days 60
 

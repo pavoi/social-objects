@@ -8,6 +8,15 @@ defmodule SocialObjects.Creators.CreatorVideoProduct do
   use Ecto.Schema
   import Ecto.Changeset
 
+  @type t :: %__MODULE__{
+          id: pos_integer() | nil,
+          creator_video_id: pos_integer() | nil,
+          product_id: pos_integer() | nil,
+          tiktok_product_id: String.t() | nil,
+          inserted_at: NaiveDateTime.t() | nil,
+          updated_at: NaiveDateTime.t() | nil
+        }
+
   schema "creator_video_products" do
     belongs_to :creator_video, SocialObjects.Creators.CreatorVideo
     belongs_to :product, SocialObjects.Catalog.Product

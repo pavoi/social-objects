@@ -12,6 +12,25 @@ defmodule SocialObjects.Communications.EmailTemplate do
   use Ecto.Schema
   import Ecto.Changeset
 
+  @type lark_preset :: :jewelry | :active | :top_creators
+  @type template_type :: :email | :page
+
+  @type t :: %__MODULE__{
+          id: pos_integer() | nil,
+          name: String.t() | nil,
+          subject: String.t() | nil,
+          html_body: String.t() | nil,
+          text_body: String.t() | nil,
+          is_active: boolean(),
+          is_default: boolean(),
+          lark_preset: lark_preset(),
+          type: template_type(),
+          form_config: map(),
+          brand_id: pos_integer() | nil,
+          inserted_at: NaiveDateTime.t() | nil,
+          updated_at: NaiveDateTime.t() | nil
+        }
+
   @lark_presets ~w(jewelry active top_creators)a
   @template_types ~w(email page)a
   @form_config_keys ~w(button_text email_label phone_label phone_placeholder)

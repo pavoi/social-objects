@@ -23,6 +23,7 @@ defmodule SocialObjects.Creators do
 
   ## Creators
 
+  @spec list_creators() :: [Creator.t()]
   @doc """
   Returns the list of creators.
   """
@@ -30,6 +31,13 @@ defmodule SocialObjects.Creators do
     Repo.all(Creator)
   end
 
+  @spec search_creators_paginated(keyword()) :: %{
+          creators: [Creator.t()],
+          total: non_neg_integer(),
+          page: pos_integer(),
+          per_page: pos_integer(),
+          has_more: boolean()
+        }
   @doc """
   Searches and paginates creators with optional filters.
 
@@ -76,6 +84,13 @@ defmodule SocialObjects.Creators do
     }
   end
 
+  @spec search_creators_unified(keyword()) :: %{
+          creators: [Creator.t()],
+          total: non_neg_integer(),
+          page: pos_integer(),
+          per_page: pos_integer(),
+          has_more: boolean()
+        }
   @doc """
   Unified search for creators with all filters from both CRM and Outreach modes.
 
@@ -448,12 +463,14 @@ defmodule SocialObjects.Creators do
   defp maybe_filter_brand(query, brand_id),
     do: where(query, [q], field(q, :brand_id) == ^brand_id)
 
+  @spec get_creator!(pos_integer()) :: Creator.t() | no_return()
   @doc """
   Gets a single creator.
   Raises `Ecto.NoResultsError` if the Creator does not exist.
   """
   def get_creator!(id), do: Repo.get!(Creator, id)
 
+  @spec get_creator!(pos_integer(), pos_integer()) :: Creator.t() | no_return()
   def get_creator!(brand_id, id) do
     Creator
     |> join(:inner, [c], bc in BrandCreator, on: bc.creator_id == c.id)
@@ -461,6 +478,7 @@ defmodule SocialObjects.Creators do
     |> Repo.one!()
   end
 
+  @spec get_creator_by_username(String.t()) :: Creator.t() | nil
   @doc """
   Gets a creator by TikTok username (case-insensitive).
   Returns nil if not found.
@@ -470,6 +488,7 @@ defmodule SocialObjects.Creators do
     Repo.get_by(Creator, tiktok_username: normalized)
   end
 
+  @spec get_creator_with_details!(pos_integer()) :: Creator.t() | no_return()
   @doc """
   Gets a creator with all associations preloaded.
   """
@@ -489,6 +508,7 @@ defmodule SocialObjects.Creators do
     |> Repo.one!()
   end
 
+  @spec get_creator_with_details!(pos_integer(), pos_integer()) :: Creator.t() | no_return()
   def get_creator_with_details!(brand_id, id) do
     videos_query =
       from(v in CreatorVideo, order_by: [desc: v.gmv_cents], preload: :video_products)
@@ -506,6 +526,7 @@ defmodule SocialObjects.Creators do
     |> Repo.one!()
   end
 
+  @spec get_creator_for_modal!(pos_integer()) :: Creator.t() | no_return()
   @doc """
   Gets a creator with minimal associations for modal header display.
   Only loads creator_tags, not samples/videos/performance data.
@@ -517,6 +538,7 @@ defmodule SocialObjects.Creators do
     |> Repo.one!()
   end
 
+  @spec get_creator_for_modal!(pos_integer(), pos_integer()) :: Creator.t() | no_return()
   def get_creator_for_modal!(brand_id, id) do
     Creator
     |> join(:inner, [c], bc in BrandCreator, on: bc.creator_id == c.id)
@@ -525,6 +547,7 @@ defmodule SocialObjects.Creators do
     |> Repo.one!()
   end
 
+  @spec get_samples_for_modal(pos_integer()) :: [CreatorSample.t()]
   @doc """
   Gets samples for a creator with full associations for display.
   """
@@ -537,6 +560,7 @@ defmodule SocialObjects.Creators do
     |> Repo.all()
   end
 
+  @spec get_samples_for_modal(pos_integer(), pos_integer()) :: [CreatorSample.t()]
   def get_samples_for_modal(brand_id, creator_id) do
     from(cs in CreatorSample,
       where: cs.brand_id == ^brand_id and cs.creator_id == ^creator_id,
@@ -546,6 +570,7 @@ defmodule SocialObjects.Creators do
     |> Repo.all()
   end
 
+  @spec get_videos_for_modal(pos_integer()) :: [CreatorVideo.t()]
   @doc """
   Gets videos for a creator with associations for display.
   """
@@ -558,6 +583,7 @@ defmodule SocialObjects.Creators do
     |> Repo.all()
   end
 
+  @spec get_videos_for_modal(pos_integer(), pos_integer()) :: [CreatorVideo.t()]
   def get_videos_for_modal(brand_id, creator_id) do
     from(cv in CreatorVideo,
       where: cv.brand_id == ^brand_id and cv.creator_id == ^creator_id,
@@ -567,6 +593,7 @@ defmodule SocialObjects.Creators do
     |> Repo.all()
   end
 
+  @spec get_performance_for_modal(pos_integer()) :: [CreatorPerformanceSnapshot.t()]
   @doc """
   Gets performance snapshots for a creator.
   """
@@ -578,6 +605,9 @@ defmodule SocialObjects.Creators do
     |> Repo.all()
   end
 
+  @spec get_performance_for_modal(pos_integer(), pos_integer()) :: [
+          CreatorPerformanceSnapshot.t()
+        ]
   def get_performance_for_modal(brand_id, creator_id) do
     from(ps in CreatorPerformanceSnapshot,
       where: ps.brand_id == ^brand_id and ps.creator_id == ^creator_id,
@@ -586,6 +616,7 @@ defmodule SocialObjects.Creators do
     |> Repo.all()
   end
 
+  @spec create_creator(map()) :: {:ok, Creator.t()} | {:error, Ecto.Changeset.t()}
   @doc """
   Creates a creator.
   """
@@ -595,6 +626,7 @@ defmodule SocialObjects.Creators do
     |> Repo.insert()
   end
 
+  @spec update_creator(Creator.t(), map()) :: {:ok, Creator.t()} | {:error, Ecto.Changeset.t()}
   @doc """
   Updates a creator.
   """
@@ -604,6 +636,8 @@ defmodule SocialObjects.Creators do
     |> Repo.update()
   end
 
+  @spec update_creator_contact(Creator.t(), map(), DateTime.t()) ::
+          {:ok, Creator.t()} | {:error, Ecto.Changeset.t()} | {:error, :stale_entry}
   @doc """
   Updates creator contact info with optimistic locking.
 
@@ -622,6 +656,7 @@ defmodule SocialObjects.Creators do
     end
   end
 
+  @spec delete_creator(Creator.t()) :: {:ok, Creator.t()} | {:error, Ecto.Changeset.t()}
   @doc """
   Deletes a creator.
   """
@@ -629,6 +664,7 @@ defmodule SocialObjects.Creators do
     Repo.delete(creator)
   end
 
+  @spec upsert_creator(map()) :: {:ok, Creator.t()} | {:error, Ecto.Changeset.t()}
   @doc """
   Upserts a creator by TikTok username.
 
@@ -690,6 +726,7 @@ defmodule SocialObjects.Creators do
   defp phone_masked?(nil), do: true
   defp phone_masked?(phone), do: String.contains?(phone, "*")
 
+  @spec normalize_phone(String.t() | nil) :: String.t() | nil
   @doc """
   Normalizes a phone number to a consistent format.
   Removes non-digit characters except leading +.
@@ -707,6 +744,7 @@ defmodule SocialObjects.Creators do
     end
   end
 
+  @spec count_creators() :: non_neg_integer()
   @doc """
   Returns the count of creators.
   """
@@ -714,6 +752,7 @@ defmodule SocialObjects.Creators do
     Repo.aggregate(Creator, :count)
   end
 
+  @spec count_creators_for_brand(pos_integer()) :: non_neg_integer()
   @doc """
   Returns the count of creators associated with a brand.
   """
@@ -727,6 +766,7 @@ defmodule SocialObjects.Creators do
 
   ## Brand-Creator Relationships
 
+  @spec list_brands_with_creators() :: [SocialObjects.Catalog.Brand.t()]
   @doc """
   Lists brands that have at least one creator associated.
   Returns Brand structs.
@@ -741,6 +781,8 @@ defmodule SocialObjects.Creators do
     |> Repo.all()
   end
 
+  @spec add_creator_to_brand(pos_integer(), pos_integer(), map()) ::
+          {:ok, BrandCreator.t()} | {:error, Ecto.Changeset.t()}
   @doc """
   Associates a creator with a brand.
   """
@@ -750,6 +792,7 @@ defmodule SocialObjects.Creators do
     |> Repo.insert(on_conflict: :nothing)
   end
 
+  @spec list_brands_for_creator(pos_integer()) :: [SocialObjects.Catalog.Brand.t()]
   @doc """
   Gets brands for a creator.
   """
@@ -764,6 +807,7 @@ defmodule SocialObjects.Creators do
 
   ## Creator Samples
 
+  @spec create_creator_sample(map()) :: {:ok, CreatorSample.t()} | {:error, Ecto.Changeset.t()}
   @doc """
   Creates a creator sample.
   """
@@ -773,6 +817,7 @@ defmodule SocialObjects.Creators do
     |> Repo.insert()
   end
 
+  @spec list_samples_for_creator(pos_integer()) :: [CreatorSample.t()]
   @doc """
   Lists samples for a creator.
   """
@@ -785,6 +830,7 @@ defmodule SocialObjects.Creators do
     |> Repo.all()
   end
 
+  @spec list_samples_for_creator(pos_integer(), pos_integer()) :: [CreatorSample.t()]
   def list_samples_for_creator(brand_id, creator_id) do
     from(cs in CreatorSample,
       where: cs.brand_id == ^brand_id and cs.creator_id == ^creator_id,
@@ -794,6 +840,7 @@ defmodule SocialObjects.Creators do
     |> Repo.all()
   end
 
+  @spec count_samples_for_creator(pos_integer()) :: non_neg_integer()
   @doc """
   Gets sample count for a creator.
   """
@@ -802,11 +849,13 @@ defmodule SocialObjects.Creators do
     |> Repo.aggregate(:count)
   end
 
+  @spec count_samples_for_creator(pos_integer(), pos_integer()) :: non_neg_integer()
   def count_samples_for_creator(brand_id, creator_id) do
     from(cs in CreatorSample, where: cs.brand_id == ^brand_id and cs.creator_id == ^creator_id)
     |> Repo.aggregate(:count)
   end
 
+  @spec count_sampled_creators() :: non_neg_integer()
   @doc """
   Counts unique creators who have received at least one sample.
   """
@@ -815,6 +864,7 @@ defmodule SocialObjects.Creators do
     |> Repo.one()
   end
 
+  @spec count_sampled_creators(pos_integer()) :: non_neg_integer()
   def count_sampled_creators(brand_id) do
     from(cs in CreatorSample,
       where: cs.brand_id == ^brand_id,
@@ -823,6 +873,7 @@ defmodule SocialObjects.Creators do
     |> Repo.one()
   end
 
+  @spec batch_count_samples([pos_integer()]) :: %{optional(pos_integer()) => non_neg_integer()}
   @doc """
   Batch gets sample counts for multiple creators.
   Returns a map of creator_id => count.
@@ -841,6 +892,9 @@ defmodule SocialObjects.Creators do
     end
   end
 
+  @spec batch_count_samples(pos_integer(), [pos_integer()]) :: %{
+          optional(pos_integer()) => non_neg_integer()
+        }
   def batch_count_samples(brand_id, creator_ids) when is_list(creator_ids) do
     if creator_ids == [] do
       %{}
@@ -855,6 +909,7 @@ defmodule SocialObjects.Creators do
     end
   end
 
+  @spec batch_get_last_sample_at([pos_integer()]) :: %{optional(pos_integer()) => DateTime.t()}
   @doc """
   Batch gets last sample date for multiple creators.
   Returns a map of creator_id => last_sample_at (DateTime or nil).
@@ -873,6 +928,9 @@ defmodule SocialObjects.Creators do
     end
   end
 
+  @spec batch_get_last_sample_at(pos_integer(), [pos_integer()]) :: %{
+          optional(pos_integer()) => DateTime.t()
+        }
   def batch_get_last_sample_at(brand_id, creator_ids) when is_list(creator_ids) do
     if creator_ids == [] do
       %{}
@@ -889,6 +947,8 @@ defmodule SocialObjects.Creators do
 
   ## Creator Videos
 
+  @spec create_creator_video(pos_integer(), map()) ::
+          {:ok, CreatorVideo.t()} | {:error, Ecto.Changeset.t()}
   @doc """
   Creates a creator video.
   """
@@ -898,6 +958,7 @@ defmodule SocialObjects.Creators do
     |> Repo.insert()
   end
 
+  @spec get_video_by_tiktok_id(String.t()) :: CreatorVideo.t() | nil
   @doc """
   Gets a video by TikTok video ID.
   """
@@ -905,6 +966,7 @@ defmodule SocialObjects.Creators do
     Repo.get_by(CreatorVideo, tiktok_video_id: tiktok_video_id)
   end
 
+  @spec list_videos_for_creator(pos_integer(), pos_integer()) :: [CreatorVideo.t()]
   @doc """
   Lists videos for a creator.
   """
@@ -916,6 +978,7 @@ defmodule SocialObjects.Creators do
     |> Repo.all()
   end
 
+  @spec count_videos_for_brand(pos_integer()) :: non_neg_integer()
   @doc """
   Returns the count of videos associated with a brand.
   """
@@ -924,6 +987,7 @@ defmodule SocialObjects.Creators do
     |> Repo.aggregate(:count)
   end
 
+  @spec count_videos_for_creator(pos_integer(), pos_integer()) :: non_neg_integer()
   @doc """
   Gets video count for a creator.
   """
@@ -932,6 +996,9 @@ defmodule SocialObjects.Creators do
     |> Repo.aggregate(:count)
   end
 
+  @spec batch_count_videos(pos_integer(), [pos_integer()]) :: %{
+          optional(pos_integer()) => non_neg_integer()
+        }
   @doc """
   Batch gets video counts for multiple creators.
   Returns a map of creator_id => count.
@@ -950,6 +1017,9 @@ defmodule SocialObjects.Creators do
     end
   end
 
+  @spec batch_sum_commission(pos_integer(), [pos_integer()]) :: %{
+          optional(pos_integer()) => non_neg_integer()
+        }
   @doc """
   Batch sums commission earned (est_commission_cents) for multiple creators.
   Returns a map of creator_id => total_commission_cents.
@@ -968,6 +1038,8 @@ defmodule SocialObjects.Creators do
     end
   end
 
+  @spec update_creator_video(CreatorVideo.t(), map()) ::
+          {:ok, CreatorVideo.t()} | {:error, Ecto.Changeset.t()}
   @doc """
   Updates an existing creator video record.
   """
@@ -977,6 +1049,8 @@ defmodule SocialObjects.Creators do
     |> Repo.update()
   end
 
+  @spec upsert_video_by_tiktok_id(pos_integer(), String.t(), map()) ::
+          {:ok, CreatorVideo.t()} | {:error, Ecto.Changeset.t()}
   @doc """
   Upserts a video by TikTok video ID.
 
@@ -1019,6 +1093,8 @@ defmodule SocialObjects.Creators do
     )
   end
 
+  @spec update_video_thumbnail(CreatorVideo.t(), String.t()) ::
+          {:ok, CreatorVideo.t()} | {:error, Ecto.Changeset.t()}
   @doc """
   Updates a video's thumbnail URL.
   """
@@ -1028,6 +1104,7 @@ defmodule SocialObjects.Creators do
     |> Repo.update()
   end
 
+  @spec list_videos_without_thumbnails(pos_integer(), pos_integer()) :: [CreatorVideo.t()]
   @doc """
   Lists videos that don't have thumbnails yet.
   Used by VideoSyncWorker to fetch missing thumbnails.
@@ -1043,6 +1120,9 @@ defmodule SocialObjects.Creators do
     |> Repo.all()
   end
 
+  @spec batch_get_last_video_at(pos_integer(), [pos_integer()]) :: %{
+          optional(pos_integer()) => DateTime.t()
+        }
   @doc """
   Batch gets last video posted_at for multiple creators.
   Returns a map of creator_id => last_video_at (DateTime or nil).
@@ -1061,6 +1141,13 @@ defmodule SocialObjects.Creators do
     end
   end
 
+  @spec search_videos_paginated(keyword()) :: %{
+          videos: [map()],
+          total: non_neg_integer(),
+          page: pos_integer(),
+          per_page: pos_integer(),
+          has_more: boolean()
+        }
   @doc """
   Searches and paginates videos with optional filters.
 
@@ -1177,6 +1264,9 @@ defmodule SocialObjects.Creators do
     }
   end
 
+  @spec list_creators_with_videos(pos_integer()) :: [
+          %{id: pos_integer(), tiktok_username: String.t()}
+        ]
   @doc """
   Lists creators who have at least one video for a brand.
   Returns list of maps with id and tiktok_username.
@@ -1283,6 +1373,15 @@ defmodule SocialObjects.Creators do
 
   defp apply_video_sort(query, _, _), do: order_by(query, [v], desc_nulls_last: v.gmv_cents)
 
+  @spec batch_load_snapshot_deltas([pos_integer()], pos_integer()) :: %{
+          optional(pos_integer()) => %{
+            gmv_delta: integer() | nil,
+            follower_delta: integer() | nil,
+            start_date: Date.t() | nil,
+            end_date: Date.t() | nil,
+            has_complete_data: boolean()
+          }
+        }
   @doc """
   Batch loads snapshot deltas for multiple creators over a date range.
 
@@ -1325,6 +1424,15 @@ defmodule SocialObjects.Creators do
     |> Map.new()
   end
 
+  @spec batch_load_snapshot_deltas(pos_integer(), [pos_integer()], pos_integer()) :: %{
+          optional(pos_integer()) => %{
+            gmv_delta: integer() | nil,
+            follower_delta: integer() | nil,
+            start_date: Date.t() | nil,
+            end_date: Date.t() | nil,
+            has_complete_data: boolean()
+          }
+        }
   def batch_load_snapshot_deltas(brand_id, creator_ids, days_back) when is_list(creator_ids) do
     end_date = Date.utc_today()
     start_date = Date.add(end_date, -days_back)
@@ -1398,6 +1506,8 @@ defmodule SocialObjects.Creators do
 
   ## Video Products
 
+  @spec add_product_to_video(pos_integer(), pos_integer(), String.t() | nil) ::
+          {:ok, CreatorVideoProduct.t()} | {:error, Ecto.Changeset.t()}
   @doc """
   Links a product to a video.
   """
@@ -1413,6 +1523,8 @@ defmodule SocialObjects.Creators do
 
   ## Sample Fulfillment
 
+  @spec mark_sample_fulfilled(CreatorSample.t(), CreatorVideo.t()) ::
+          {:ok, CreatorSample.t()} | {:error, Ecto.Changeset.t()}
   @doc """
   Marks a sample as fulfilled by a video.
   Uses strict product matching - only auto-attributes if exact product_id matches.
@@ -1431,6 +1543,8 @@ defmodule SocialObjects.Creators do
     |> Repo.update()
   end
 
+  @spec auto_attribute_video_to_sample(CreatorVideo.t()) ::
+          {:ok, CreatorSample.t()} | {:ok, nil} | {:error, Ecto.Changeset.t()}
   @doc """
   Attempts to auto-attribute a video to an unfulfilled sample using strict product matching.
   Only matches if the video's products include the sample's product_id.
@@ -1457,6 +1571,7 @@ defmodule SocialObjects.Creators do
     end
   end
 
+  @spec get_unfulfilled_samples_for_creator(pos_integer()) :: [CreatorSample.t()]
   @doc """
   Gets unfulfilled samples for a creator.
   """
@@ -1470,6 +1585,7 @@ defmodule SocialObjects.Creators do
     |> Repo.all()
   end
 
+  @spec get_unfulfilled_samples_for_creator(pos_integer(), pos_integer()) :: [CreatorSample.t()]
   def get_unfulfilled_samples_for_creator(brand_id, creator_id) do
     from(s in CreatorSample,
       where: s.brand_id == ^brand_id and s.creator_id == ^creator_id,
@@ -1480,6 +1596,7 @@ defmodule SocialObjects.Creators do
     |> Repo.all()
   end
 
+  @spec get_product_ids_for_video(pos_integer()) :: [pos_integer()]
   @doc """
   Gets product IDs linked to a video through video_products.
   """
@@ -1492,6 +1609,14 @@ defmodule SocialObjects.Creators do
     |> Repo.all()
   end
 
+  @spec get_fulfillment_stats(pos_integer()) ::
+          %{
+            total_samples: non_neg_integer(),
+            fulfilled: non_neg_integer(),
+            unfulfilled: non_neg_integer(),
+            fulfillment_rate: float()
+          }
+          | nil
   @doc """
   Gets fulfillment stats for a creator.
   Returns %{total_samples: n, fulfilled: n, unfulfilled: n, fulfillment_rate: float}
@@ -1523,6 +1648,14 @@ defmodule SocialObjects.Creators do
       nil
   end
 
+  @spec get_fulfillment_stats(pos_integer(), pos_integer()) ::
+          %{
+            total_samples: non_neg_integer(),
+            fulfilled: non_neg_integer(),
+            unfulfilled: non_neg_integer(),
+            fulfillment_rate: float()
+          }
+          | nil
   def get_fulfillment_stats(brand_id, creator_id) do
     total =
       from(s in CreatorSample,
@@ -1551,6 +1684,8 @@ defmodule SocialObjects.Creators do
 
   ## Performance Snapshots
 
+  @spec create_performance_snapshot(pos_integer(), map()) ::
+          {:ok, CreatorPerformanceSnapshot.t()} | {:error, Ecto.Changeset.t()}
   @doc """
   Creates a performance snapshot.
   """
@@ -1560,6 +1695,7 @@ defmodule SocialObjects.Creators do
     |> Repo.insert()
   end
 
+  @spec get_latest_snapshot(pos_integer(), pos_integer()) :: CreatorPerformanceSnapshot.t() | nil
   @doc """
   Gets the latest performance snapshot for a creator.
   """
@@ -1572,6 +1708,9 @@ defmodule SocialObjects.Creators do
     |> Repo.one()
   end
 
+  @spec list_snapshots_for_creator(pos_integer(), pos_integer()) :: [
+          CreatorPerformanceSnapshot.t()
+        ]
   @doc """
   Lists performance snapshots for a creator.
   """
@@ -1585,6 +1724,7 @@ defmodule SocialObjects.Creators do
 
   ## BigQuery Sync Helpers
 
+  @spec find_creators_by_handles(String.t() | any()) :: {[Creator.t()], [String.t()]}
   @doc """
   Finds creators by a list of TikTok handles in various formats.
 
@@ -1619,6 +1759,8 @@ defmodule SocialObjects.Creators do
 
   def find_creators_by_handles(_), do: {[], []}
 
+  @spec find_creators_by_handles(pos_integer(), String.t() | any()) ::
+          {[Creator.t()], [String.t()]}
   def find_creators_by_handles(brand_id, input) when is_binary(input) do
     handles =
       input
@@ -1743,6 +1885,7 @@ defmodule SocialObjects.Creators do
     {all_found, not_found_handles}
   end
 
+  @spec get_creator_by_tiktok_user_id(String.t() | nil) :: Creator.t() | nil
   @doc """
   Gets a creator by their TikTok user ID.
   Returns nil if not found or if user_id is nil/empty.
@@ -1755,6 +1898,7 @@ defmodule SocialObjects.Creators do
     |> Repo.one()
   end
 
+  @spec get_creator_by_previous_username(String.t() | nil) :: Creator.t() | nil
   @doc """
   Gets a creator by a previous TikTok username.
 
@@ -1778,6 +1922,7 @@ defmodule SocialObjects.Creators do
     |> Repo.one()
   end
 
+  @spec get_creator_by_any_username(String.t() | nil) :: Creator.t() | nil
   @doc """
   Finds a creator by username, checking both current and previous handles.
 
@@ -1794,6 +1939,7 @@ defmodule SocialObjects.Creators do
     get_creator_by_username(username) || get_creator_by_previous_username(username)
   end
 
+  @spec get_creator_by_phone(String.t() | nil) :: Creator.t() | nil
   @doc """
   Gets a creator by normalized phone number.
   Returns nil if not found or phone is nil/empty.
@@ -1813,6 +1959,7 @@ defmodule SocialObjects.Creators do
     end
   end
 
+  @spec get_creator_by_name(String.t() | nil, String.t() | nil) :: Creator.t() | nil
   @doc """
   Gets a creator by first and last name (case-insensitive).
   Returns nil if not found or names are empty.
@@ -1842,6 +1989,7 @@ defmodule SocialObjects.Creators do
     Repo.one(query)
   end
 
+  @spec list_existing_order_ids() :: MapSet.t(String.t())
   @doc """
   Gets all existing tiktok_order_ids for efficient filtering.
   Returns a MapSet for O(1) lookups.
@@ -1856,6 +2004,7 @@ defmodule SocialObjects.Creators do
     |> MapSet.new()
   end
 
+  @spec list_existing_order_ids(pos_integer()) :: MapSet.t(String.t())
   def list_existing_order_ids(brand_id) do
     from(cs in CreatorSample,
       where: cs.brand_id == ^brand_id and not is_nil(cs.tiktok_order_id),
@@ -1866,6 +2015,7 @@ defmodule SocialObjects.Creators do
     |> MapSet.new()
   end
 
+  @spec parse_name(String.t() | nil) :: {String.t() | nil, String.t() | nil}
   @doc """
   Parses a full name into first and last name components.
   Returns {first_name, last_name} tuple.
@@ -1885,6 +2035,7 @@ defmodule SocialObjects.Creators do
 
   ## Creator Tags
 
+  @spec list_tags_for_brand(pos_integer()) :: [CreatorTag.t()]
   @doc """
   Lists all tags for a brand, ordered by position.
   """
@@ -1896,21 +2047,26 @@ defmodule SocialObjects.Creators do
     |> Repo.all()
   end
 
+  @spec get_tag!(pos_integer()) :: CreatorTag.t() | no_return()
   @doc """
   Gets a single tag by ID.
   Raises `Ecto.NoResultsError` if not found.
   """
   def get_tag!(id), do: Repo.get!(CreatorTag, id)
 
+  @spec get_tag!(pos_integer(), pos_integer()) :: CreatorTag.t() | no_return()
   def get_tag!(brand_id, id), do: Repo.get_by!(CreatorTag, id: id, brand_id: brand_id)
 
+  @spec get_tag(pos_integer()) :: CreatorTag.t() | nil
   @doc """
   Gets a tag by ID, returns nil if not found.
   """
   def get_tag(id), do: Repo.get(CreatorTag, id)
 
+  @spec get_tag(pos_integer(), pos_integer()) :: CreatorTag.t() | nil
   def get_tag(brand_id, id), do: Repo.get_by(CreatorTag, id: id, brand_id: brand_id)
 
+  @spec get_tag_by_name(pos_integer(), String.t()) :: CreatorTag.t() | nil
   @doc """
   Gets a tag by name for a specific brand (case-insensitive).
   """
@@ -1923,6 +2079,7 @@ defmodule SocialObjects.Creators do
     |> Repo.one()
   end
 
+  @spec create_tag(map()) :: {:ok, CreatorTag.t()} | {:error, Ecto.Changeset.t()}
   @doc """
   Creates a new tag for a brand.
   Auto-assigns position if not provided.
@@ -1949,6 +2106,7 @@ defmodule SocialObjects.Creators do
     |> Repo.insert()
   end
 
+  @spec update_tag(CreatorTag.t(), map()) :: {:ok, CreatorTag.t()} | {:error, Ecto.Changeset.t()}
   @doc """
   Updates a tag.
   """
@@ -1958,6 +2116,7 @@ defmodule SocialObjects.Creators do
     |> Repo.update()
   end
 
+  @spec delete_tag(CreatorTag.t()) :: {:ok, CreatorTag.t()} | {:error, Ecto.Changeset.t()}
   @doc """
   Deletes a tag. Also removes all assignments.
   """
@@ -1965,6 +2124,7 @@ defmodule SocialObjects.Creators do
     Repo.delete(tag)
   end
 
+  @spec count_creators_for_tag(pos_integer()) :: non_neg_integer()
   @doc """
   Counts how many creators have a specific tag assigned.
   """
@@ -1975,6 +2135,7 @@ defmodule SocialObjects.Creators do
 
   ## Tag Assignments
 
+  @spec list_tags_for_creator(pos_integer(), pos_integer() | nil) :: [CreatorTag.t()]
   @doc """
   Gets all tags assigned to a creator, optionally filtered by brand.
   """
@@ -1997,6 +2158,9 @@ defmodule SocialObjects.Creators do
     Repo.all(query)
   end
 
+  @spec batch_list_tags_for_creators([pos_integer()], pos_integer() | nil) :: %{
+          optional(pos_integer()) => [CreatorTag.t()]
+        }
   @doc """
   Batch gets tags for multiple creators.
   Returns a map of creator_id => [tags].
@@ -2027,6 +2191,10 @@ defmodule SocialObjects.Creators do
     end
   end
 
+  @spec assign_tag_to_creator(pos_integer(), pos_integer()) ::
+          {:ok, CreatorTagAssignment.t()}
+          | {:ok, :already_assigned}
+          | {:error, Ecto.Changeset.t()}
   @doc """
   Assigns a tag to a creator. No-op if already assigned.
   Returns {:ok, assignment} or {:ok, :already_assigned}.
@@ -2043,6 +2211,7 @@ defmodule SocialObjects.Creators do
     end
   end
 
+  @spec remove_tag_from_creator(pos_integer(), pos_integer()) :: {:ok, non_neg_integer()}
   @doc """
   Removes a tag from a creator.
   Returns {:ok, count} where count is 0 or 1.
@@ -2057,6 +2226,8 @@ defmodule SocialObjects.Creators do
     {:ok, count}
   end
 
+  @spec set_creator_tags(pos_integer(), [pos_integer()]) ::
+          {:ok, non_neg_integer()} | {:error, any()}
   @doc """
   Sets the exact tags for a creator (replaces existing).
   """
@@ -2085,6 +2256,7 @@ defmodule SocialObjects.Creators do
     end)
   end
 
+  @spec batch_assign_tags([pos_integer()], [pos_integer()]) :: {:ok, non_neg_integer()}
   @doc """
   Batch assigns tags to multiple creators (merge, don't replace).
   Returns {:ok, count} of assignments created.
@@ -2107,6 +2279,7 @@ defmodule SocialObjects.Creators do
     {:ok, count}
   end
 
+  @spec get_tag_ids_for_creator(pos_integer()) :: [pos_integer()]
   @doc """
   Gets tag IDs for a creator.
   """
@@ -2118,6 +2291,7 @@ defmodule SocialObjects.Creators do
     |> Repo.all()
   end
 
+  @spec get_tag_ids_for_creator(pos_integer(), pos_integer()) :: [pos_integer()]
   def get_tag_ids_for_creator(brand_id, creator_id) do
     from(a in CreatorTagAssignment,
       join: t in CreatorTag,
@@ -2130,6 +2304,8 @@ defmodule SocialObjects.Creators do
 
   ## Creator Purchases
 
+  @spec create_purchase(pos_integer(), map()) ::
+          {:ok, CreatorPurchase.t()} | {:error, Ecto.Changeset.t()}
   @doc """
   Creates a creator purchase record.
   Uses on_conflict: :nothing to handle duplicates gracefully.
@@ -2140,6 +2316,7 @@ defmodule SocialObjects.Creators do
     |> Repo.insert(on_conflict: :nothing, conflict_target: :tiktok_order_id)
   end
 
+  @spec list_purchases_for_creator(pos_integer(), pos_integer()) :: [CreatorPurchase.t()]
   @doc """
   Lists purchases for a creator, ordered by date descending.
   """
@@ -2151,6 +2328,11 @@ defmodule SocialObjects.Creators do
     |> Repo.all()
   end
 
+  @spec get_purchase_stats(pos_integer(), pos_integer()) :: %{
+          purchase_count: non_neg_integer(),
+          total_spent_cents: non_neg_integer(),
+          paid_purchase_count: non_neg_integer()
+        }
   @doc """
   Gets purchase statistics for a creator.
   Returns %{purchase_count: n, total_spent_cents: n, paid_purchase_count: n}
@@ -2178,6 +2360,7 @@ defmodule SocialObjects.Creators do
     end)
   end
 
+  @spec get_purchases_for_modal(pos_integer()) :: [CreatorPurchase.t()]
   @doc """
   Gets purchases for a creator for modal display, limited to 50.
   """
@@ -2190,6 +2373,7 @@ defmodule SocialObjects.Creators do
     |> Repo.all()
   end
 
+  @spec get_purchases_for_modal(pos_integer(), pos_integer()) :: [CreatorPurchase.t()]
   def get_purchases_for_modal(brand_id, creator_id) do
     from(p in CreatorPurchase,
       where: p.brand_id == ^brand_id and p.creator_id == ^creator_id,
@@ -2199,6 +2383,7 @@ defmodule SocialObjects.Creators do
     |> Repo.all()
   end
 
+  @spec list_existing_purchase_order_ids() :: MapSet.t(String.t())
   @doc """
   Lists all existing purchase order IDs for efficient deduplication.
   Returns a MapSet for O(1) lookups.
@@ -2212,6 +2397,7 @@ defmodule SocialObjects.Creators do
     |> MapSet.new()
   end
 
+  @spec list_existing_purchase_order_ids(pos_integer()) :: MapSet.t(String.t())
   def list_existing_purchase_order_ids(brand_id) do
     from(p in CreatorPurchase,
       where: p.brand_id == ^brand_id,
@@ -2222,6 +2408,7 @@ defmodule SocialObjects.Creators do
     |> MapSet.new()
   end
 
+  @spec batch_count_purchases([pos_integer()]) :: %{optional(pos_integer()) => non_neg_integer()}
   @doc """
   Batch counts purchases for multiple creators.
   Returns a map of creator_id => count.
@@ -2240,6 +2427,9 @@ defmodule SocialObjects.Creators do
     end
   end
 
+  @spec batch_count_purchases(pos_integer(), [pos_integer()]) :: %{
+          optional(pos_integer()) => non_neg_integer()
+        }
   def batch_count_purchases(brand_id, creator_ids) when is_list(creator_ids) do
     if creator_ids == [] do
       %{}

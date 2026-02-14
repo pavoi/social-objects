@@ -59,11 +59,12 @@ defmodule SocialObjects.Workers.CreatorEnrichmentWorker do
   end
 
   defp do_perform(brand_id, args) do
-    Phoenix.PubSub.broadcast(
-      SocialObjects.PubSub,
-      "creator:enrichment:#{brand_id}",
-      {:enrichment_started}
-    )
+    _ =
+      Phoenix.PubSub.broadcast(
+        SocialObjects.PubSub,
+        "creator:enrichment:#{brand_id}",
+        {:enrichment_started}
+      )
 
     # Step 1: Sync sample orders to link creators to their tiktok_user_id
     # This runs first so newly-linked creators can be enriched in step 2
@@ -82,9 +83,9 @@ defmodule SocialObjects.Workers.CreatorEnrichmentWorker do
 
         case enrich_creators(brand_id, batch_size) do
           {:ok, enrich_stats} ->
-            Settings.update_enrichment_last_sync_at(brand_id)
+            _ = Settings.update_enrichment_last_sync_at(brand_id)
             # Reset rate limit streak on successful completion
-            Settings.reset_enrichment_rate_limit_streak(brand_id)
+            _ = Settings.reset_enrichment_rate_limit_streak(brand_id)
 
             Logger.info("""
             Creator enrichment completed
@@ -102,11 +103,12 @@ defmodule SocialObjects.Workers.CreatorEnrichmentWorker do
 
             combined_stats = Map.merge(sample_stats, enrich_stats)
 
-            Phoenix.PubSub.broadcast(
-              SocialObjects.PubSub,
-              "creator:enrichment:#{brand_id}",
-              {:enrichment_completed, combined_stats}
-            )
+            _ =
+              Phoenix.PubSub.broadcast(
+                SocialObjects.PubSub,
+                "creator:enrichment:#{brand_id}",
+                {:enrichment_completed, combined_stats}
+              )
 
             :ok
 
@@ -141,21 +143,23 @@ defmodule SocialObjects.Workers.CreatorEnrichmentWorker do
         "Creator enrichment rate limited (streak: #{streak}). Backing off for #{div(backoff_seconds, 60)} minutes."
       )
 
-      Phoenix.PubSub.broadcast(
-        SocialObjects.PubSub,
-        "creator:enrichment:#{brand_id}",
-        {:enrichment_failed, :rate_limited}
-      )
+      _ =
+        Phoenix.PubSub.broadcast(
+          SocialObjects.PubSub,
+          "creator:enrichment:#{brand_id}",
+          {:enrichment_failed, :rate_limited}
+        )
 
       {:snooze, backoff_seconds}
     else
       Logger.error("Creator enrichment failed: #{inspect(reason)}")
 
-      Phoenix.PubSub.broadcast(
-        SocialObjects.PubSub,
-        "creator:enrichment:#{brand_id}",
-        {:enrichment_failed, reason}
-      )
+      _ =
+        Phoenix.PubSub.broadcast(
+          SocialObjects.PubSub,
+          "creator:enrichment:#{brand_id}",
+          {:enrichment_failed, reason}
+        )
 
       {:error, reason}
     end
@@ -610,7 +614,7 @@ defmodule SocialObjects.Workers.CreatorEnrichmentWorker do
     if MapSet.member?(existing_order_ids, order_id) do
       %{acc | samples_skipped: acc.samples_skipped + 1}
     else
-      Creators.add_creator_to_brand(creator_id, brand_id)
+      _ = Creators.add_creator_to_brand(creator_id, brand_id)
 
       line_items = order["line_items"] || []
       ordered_at = parse_order_timestamp(order["create_time"])
@@ -934,16 +938,17 @@ defmodule SocialObjects.Workers.CreatorEnrichmentWorker do
         update_creator_from_marketplace(brand_id, creator, marketplace_data, handle_change)
 
       {:error, reason} ->
-        if rate_limited_reason?(reason) do
-          :ok
-        else
-          Logger.warning(
-            "Marketplace fetch failed for user_id #{creator.tiktok_user_id}: #{inspect(reason)}"
-          )
+        _ =
+          if rate_limited_reason?(reason) do
+            :ok
+          else
+            Logger.warning(
+              "Marketplace fetch failed for user_id #{creator.tiktok_user_id}: #{inspect(reason)}"
+            )
 
-          # Fall back to username search if user_id lookup fails
-          enrich_creator_by_username(brand_id, creator)
-        end
+            # Fall back to username search if user_id lookup fails
+            enrich_creator_by_username(brand_id, creator)
+          end
 
         {:error, reason}
     end
@@ -1057,7 +1062,10 @@ defmodule SocialObjects.Workers.CreatorEnrichmentWorker do
     stored_username = String.downcase(stored_creator.tiktok_username || "")
 
     valid_candidates =
-      Enum.filter(creators, &valid_name_match_candidate?(&1, normalized_search, stored_username, stored_creator))
+      Enum.filter(
+        creators,
+        &valid_name_match_candidate?(&1, normalized_search, stored_username, stored_creator)
+      )
 
     select_best_candidate(valid_candidates, stored_username)
   end
@@ -1068,7 +1076,9 @@ defmodule SocialObjects.Workers.CreatorEnrichmentWorker do
 
     name_matches = String.downcase(c_nickname) == normalized_search
     username_different = c_username != stored_username
-    follower_valid = validate_follower_range(candidate["follower_count"], stored_creator.follower_count)
+
+    follower_valid =
+      validate_follower_range(candidate["follower_count"], stored_creator.follower_count)
 
     name_matches && username_different && follower_valid
   end
@@ -1116,7 +1126,7 @@ defmodule SocialObjects.Workers.CreatorEnrichmentWorker do
     username
     |> String.split(~r/[._]/, parts: 2)
     |> List.first()
-    |> (fn s -> if String.length(s || "") >= 3, do: s, else: "" end).()
+    |> then(fn s -> if String.length(s || "") >= 3, do: s, else: "" end)
   end
 
   # Count shared prefix characters

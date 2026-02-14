@@ -8,6 +8,20 @@ defmodule SocialObjects.Outreach.EmailEvent do
   use Ecto.Schema
   import Ecto.Changeset
 
+  @type t :: %__MODULE__{
+          id: pos_integer() | nil,
+          outreach_log_id: pos_integer() | nil,
+          event_type: String.t() | nil,
+          email: String.t() | nil,
+          timestamp: DateTime.t() | nil,
+          url: String.t() | nil,
+          reason: String.t() | nil,
+          sg_message_id: String.t() | nil,
+          raw_payload: map() | nil,
+          inserted_at: NaiveDateTime.t() | nil,
+          updated_at: NaiveDateTime.t() | nil
+        }
+
   @event_types ~w(delivered bounce dropped deferred processed open click spamreport unsubscribe group_unsubscribe group_resubscribe)
 
   schema "email_events" do

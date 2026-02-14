@@ -8,6 +8,16 @@ defmodule SocialObjects.Creators.CreatorTag do
   use Ecto.Schema
   import Ecto.Changeset
 
+  @type t :: %__MODULE__{
+          id: binary() | nil,
+          name: String.t() | nil,
+          color: String.t(),
+          position: integer(),
+          brand_id: pos_integer() | nil,
+          inserted_at: DateTime.t() | nil,
+          updated_at: DateTime.t() | nil
+        }
+
   @primary_key {:id, :binary_id, autogenerate: true}
   @foreign_key_type :binary_id
 

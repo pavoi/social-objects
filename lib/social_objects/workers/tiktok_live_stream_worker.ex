@@ -67,7 +67,7 @@ defmodule SocialObjects.Workers.TiktokLiveStreamWorker do
 
     # IMPORTANT: Subscribe to bridge events BEFORE connecting to avoid losing events
     # The bridge starts sending events immediately after connect succeeds
-    Phoenix.PubSub.subscribe(SocialObjects.PubSub, "tiktok_live:bridge:events")
+    _ = Phoenix.PubSub.subscribe(SocialObjects.PubSub, "tiktok_live:bridge:events")
 
     # Now connect to bridge - any events will be queued in our mailbox
     case connect_via_bridge(unique_id) do
@@ -154,7 +154,7 @@ defmodule SocialObjects.Workers.TiktokLiveStreamWorker do
     receive do
       # Bridge event for our stream - translate and forward to EventHandler
       {:tiktok_bridge_event, ^unique_id, event} ->
-        handle_bridge_event(stream_id, brand_id, event)
+        _ = handle_bridge_event(stream_id, brand_id, event)
 
         # Check for terminal events
         case event.type do

@@ -75,7 +75,7 @@ defmodule SocialObjectsWeb.AdminLive.Brands do
 
     case Catalog.update_brand(brand, %{primary_domain: domain}) do
       {:ok, updated_brand} ->
-        update_settings(updated_brand.id, params)
+        _ = update_settings(updated_brand.id, params)
         settings = load_settings(updated_brand)
 
         # Update brands list
@@ -217,7 +217,6 @@ defmodule SocialObjectsWeb.AdminLive.Brands do
   end
 
   defp format_tiktok_accounts(accounts) when is_list(accounts), do: Enum.join(accounts, ", ")
-  defp format_tiktok_accounts(_), do: ""
 
   defp format_csv_list(items), do: Enum.join(items, ", ")
 
@@ -228,27 +227,28 @@ defmodule SocialObjectsWeb.AdminLive.Brands do
   end
 
   defp update_settings(brand_id, params) do
-    Settings.put_setting(brand_id, "sendgrid_from_name", params["sendgrid_from_name"])
-    Settings.put_setting(brand_id, "sendgrid_from_email", params["sendgrid_from_email"])
-    Settings.put_setting(brand_id, "slack_channel", params["slack_channel"])
-    Settings.put_setting(brand_id, "slack_bot_token", params["slack_bot_token"])
-    Settings.put_setting(brand_id, "slack_dev_user_id", params["slack_dev_user_id"])
-    Settings.put_setting(brand_id, "bigquery_project_id", params["bigquery_project_id"])
-    Settings.put_setting(brand_id, "bigquery_dataset", params["bigquery_dataset"])
+    _ = Settings.put_setting(brand_id, "sendgrid_from_name", params["sendgrid_from_name"])
+    _ = Settings.put_setting(brand_id, "sendgrid_from_email", params["sendgrid_from_email"])
+    _ = Settings.put_setting(brand_id, "slack_channel", params["slack_channel"])
+    _ = Settings.put_setting(brand_id, "slack_bot_token", params["slack_bot_token"])
+    _ = Settings.put_setting(brand_id, "slack_dev_user_id", params["slack_dev_user_id"])
+    _ = Settings.put_setting(brand_id, "bigquery_project_id", params["bigquery_project_id"])
+    _ = Settings.put_setting(brand_id, "bigquery_dataset", params["bigquery_dataset"])
 
-    Settings.put_setting(
-      brand_id,
-      "bigquery_service_account_email",
-      params["bigquery_service_account_email"]
-    )
+    _ =
+      Settings.put_setting(
+        brand_id,
+        "bigquery_service_account_email",
+        params["bigquery_service_account_email"]
+      )
 
-    Settings.put_setting(brand_id, "bigquery_private_key", params["bigquery_private_key"])
-    Settings.put_setting(brand_id, "shopify_store_name", params["shopify_store_name"])
-    Settings.put_setting(brand_id, "shopify_client_id", params["shopify_client_id"])
-    Settings.put_setting(brand_id, "shopify_client_secret", params["shopify_client_secret"])
-    Settings.put_setting(brand_id, "shopify_include_tags", params["shopify_include_tags"])
-    Settings.put_setting(brand_id, "shopify_exclude_tags", params["shopify_exclude_tags"])
-    Settings.put_setting(brand_id, "tiktok_live_accounts", params["tiktok_live_accounts"])
+    _ = Settings.put_setting(brand_id, "bigquery_private_key", params["bigquery_private_key"])
+    _ = Settings.put_setting(brand_id, "shopify_store_name", params["shopify_store_name"])
+    _ = Settings.put_setting(brand_id, "shopify_client_id", params["shopify_client_id"])
+    _ = Settings.put_setting(brand_id, "shopify_client_secret", params["shopify_client_secret"])
+    _ = Settings.put_setting(brand_id, "shopify_include_tags", params["shopify_include_tags"])
+    _ = Settings.put_setting(brand_id, "shopify_exclude_tags", params["shopify_exclude_tags"])
+    _ = Settings.put_setting(brand_id, "tiktok_live_accounts", params["tiktok_live_accounts"])
   end
 
   defp normalize_domain(nil), do: nil

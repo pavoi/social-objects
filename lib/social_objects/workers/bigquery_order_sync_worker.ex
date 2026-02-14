@@ -36,11 +36,12 @@ defmodule SocialObjects.Workers.BigQueryOrderSyncWorker do
       {:ok, brand_id} ->
         Logger.info("Starting BigQuery TikTok orders sync...")
 
-        Phoenix.PubSub.broadcast(
-          SocialObjects.PubSub,
-          "bigquery:sync:#{brand_id}",
-          {:bigquery_sync_started}
-        )
+        _ =
+          Phoenix.PubSub.broadcast(
+            SocialObjects.PubSub,
+            "bigquery:sync:#{brand_id}",
+            {:bigquery_sync_started}
+          )
 
         case sync_orders(brand_id) do
           {:ok, stats} ->
@@ -53,24 +54,26 @@ defmodule SocialObjects.Workers.BigQueryOrderSyncWorker do
                - Errors: #{stats.errors}
             """)
 
-            Settings.update_bigquery_last_sync_at(brand_id)
+            _ = Settings.update_bigquery_last_sync_at(brand_id)
 
-            Phoenix.PubSub.broadcast(
-              SocialObjects.PubSub,
-              "bigquery:sync:#{brand_id}",
-              {:bigquery_sync_completed, stats}
-            )
+            _ =
+              Phoenix.PubSub.broadcast(
+                SocialObjects.PubSub,
+                "bigquery:sync:#{brand_id}",
+                {:bigquery_sync_completed, stats}
+              )
 
             :ok
 
           {:error, reason} ->
             Logger.error("BigQuery orders sync failed: #{inspect(reason)}")
 
-            Phoenix.PubSub.broadcast(
-              SocialObjects.PubSub,
-              "bigquery:sync:#{brand_id}",
-              {:bigquery_sync_failed, reason}
-            )
+            _ =
+              Phoenix.PubSub.broadcast(
+                SocialObjects.PubSub,
+                "bigquery:sync:#{brand_id}",
+                {:bigquery_sync_failed, reason}
+              )
 
             {:error, reason}
         end
@@ -221,7 +224,7 @@ defmodule SocialObjects.Workers.BigQueryOrderSyncWorker do
       create_new_creator(order, normalized_phone)
     else
       %{} = creator ->
-        update_creator_from_order_data(creator, order)
+        _ = update_creator_from_order_data(creator, order)
         {:ok, creator, :matched_creator}
     end
   end

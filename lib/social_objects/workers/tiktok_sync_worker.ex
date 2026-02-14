@@ -44,11 +44,12 @@ defmodule SocialObjects.Workers.TiktokSyncWorker do
         Logger.info("Starting TikTok Shop product sync...")
 
         # Broadcast sync start event
-        Phoenix.PubSub.broadcast(
-          SocialObjects.PubSub,
-          "tiktok:sync:#{brand_id}",
-          {:tiktok_sync_started}
-        )
+        _ =
+          Phoenix.PubSub.broadcast(
+            SocialObjects.PubSub,
+            "tiktok:sync:#{brand_id}",
+            {:tiktok_sync_started}
+          )
 
         case sync_all_products(brand_id) do
           {:ok, counts} ->
@@ -61,14 +62,15 @@ defmodule SocialObjects.Workers.TiktokSyncWorker do
             """)
 
             # Update last sync timestamp
-            Settings.update_tiktok_last_sync_at(brand_id)
+            _ = Settings.update_tiktok_last_sync_at(brand_id)
 
             # Broadcast sync complete event
-            Phoenix.PubSub.broadcast(
-              SocialObjects.PubSub,
-              "tiktok:sync:#{brand_id}",
-              {:tiktok_sync_completed, counts}
-            )
+            _ =
+              Phoenix.PubSub.broadcast(
+                SocialObjects.PubSub,
+                "tiktok:sync:#{brand_id}",
+                {:tiktok_sync_completed, counts}
+              )
 
             :ok
 
@@ -77,11 +79,12 @@ defmodule SocialObjects.Workers.TiktokSyncWorker do
               "TikTok Shop sync skipped for brand #{brand_id}: no TikTok auth record"
             )
 
-            Phoenix.PubSub.broadcast(
-              SocialObjects.PubSub,
-              "tiktok:sync:#{brand_id}",
-              {:tiktok_sync_failed, :no_auth_record}
-            )
+            _ =
+              Phoenix.PubSub.broadcast(
+                SocialObjects.PubSub,
+                "tiktok:sync:#{brand_id}",
+                {:tiktok_sync_failed, :no_auth_record}
+              )
 
             {:discard, :no_auth_record}
 
@@ -94,11 +97,12 @@ defmodule SocialObjects.Workers.TiktokSyncWorker do
           {:error, reason} ->
             Logger.error("TikTok Shop sync failed: #{inspect(reason)}")
 
-            Phoenix.PubSub.broadcast(
-              SocialObjects.PubSub,
-              "tiktok:sync:#{brand_id}",
-              {:tiktok_sync_failed, reason}
-            )
+            _ =
+              Phoenix.PubSub.broadcast(
+                SocialObjects.PubSub,
+                "tiktok:sync:#{brand_id}",
+                {:tiktok_sync_failed, reason}
+              )
 
             {:error, reason}
         end
@@ -143,11 +147,12 @@ defmodule SocialObjects.Workers.TiktokSyncWorker do
   defp handle_rate_limit(brand_id) do
     Logger.warning("Rate limited by TikTok Shop API, will retry")
 
-    Phoenix.PubSub.broadcast(
-      SocialObjects.PubSub,
-      "tiktok:sync:#{brand_id}",
-      {:tiktok_sync_failed, :rate_limited}
-    )
+    _ =
+      Phoenix.PubSub.broadcast(
+        SocialObjects.PubSub,
+        "tiktok:sync:#{brand_id}",
+        {:tiktok_sync_failed, :rate_limited}
+      )
 
     {:snooze, 60}
   end

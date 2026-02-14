@@ -8,6 +8,29 @@ defmodule SocialObjects.Outreach.OutreachLog do
   use Ecto.Schema
   import Ecto.Changeset
 
+  @type channel :: :email | :sms
+  @type status :: :sent | :failed | :bounced | :delivered
+
+  @type t :: %__MODULE__{
+          id: pos_integer() | nil,
+          brand_id: pos_integer() | nil,
+          creator_id: pos_integer() | nil,
+          channel: channel(),
+          lark_preset: String.t() | nil,
+          status: status(),
+          provider_id: String.t() | nil,
+          error_message: String.t() | nil,
+          sent_at: DateTime.t() | nil,
+          delivered_at: DateTime.t() | nil,
+          opened_at: DateTime.t() | nil,
+          clicked_at: DateTime.t() | nil,
+          bounced_at: DateTime.t() | nil,
+          spam_reported_at: DateTime.t() | nil,
+          unsubscribed_at: DateTime.t() | nil,
+          inserted_at: NaiveDateTime.t() | nil,
+          updated_at: NaiveDateTime.t() | nil
+        }
+
   @channels ~w(email sms)a
   @statuses ~w(sent failed bounced delivered)a
 

@@ -13,6 +13,8 @@ defmodule SocialObjects.AI do
   alias SocialObjects.Repo
   alias SocialObjects.Workers.TalkingPointsWorker
 
+  @spec generate_talking_points_async(pos_integer(), pos_integer()) ::
+          {:ok, TalkingPointsGeneration.t()} | {:error, term()}
   @doc """
   Generates talking points for a single product asynchronously.
 
@@ -33,6 +35,8 @@ defmodule SocialObjects.AI do
     generate_talking_points_async(brand_id, [product_id], nil)
   end
 
+  @spec generate_product_set_talking_points_async(pos_integer(), pos_integer()) ::
+          {:ok, TalkingPointsGeneration.t()} | {:error, term()}
   @doc """
   Generates talking points for all products in a product set asynchronously.
 
@@ -67,6 +71,8 @@ defmodule SocialObjects.AI do
       {:error, "Product set not found"}
   end
 
+  @spec generate_talking_points_async(pos_integer(), [pos_integer()], pos_integer() | nil) ::
+          {:ok, TalkingPointsGeneration.t()} | {:error, term()}
   @doc """
   Internal function to generate talking points for a list of product IDs.
 
@@ -107,6 +113,7 @@ defmodule SocialObjects.AI do
     end
   end
 
+  @spec get_generation(String.t()) :: TalkingPointsGeneration.t() | nil
   @doc """
   Gets the status of a talking points generation job.
   """
@@ -114,6 +121,7 @@ defmodule SocialObjects.AI do
     Repo.get_by(TalkingPointsGeneration, job_id: job_id)
   end
 
+  @spec get_generation!(pos_integer()) :: TalkingPointsGeneration.t()
   @doc """
   Gets the status of a talking points generation by ID.
   """
@@ -121,6 +129,7 @@ defmodule SocialObjects.AI do
     Repo.get!(TalkingPointsGeneration, id)
   end
 
+  @spec list_product_set_generations(pos_integer()) :: [TalkingPointsGeneration.t()]
   @doc """
   Lists all talking points generations for a product set.
   """
@@ -131,6 +140,8 @@ defmodule SocialObjects.AI do
     |> Repo.all()
   end
 
+  @spec create_generation(map()) ::
+          {:ok, TalkingPointsGeneration.t()} | {:error, Ecto.Changeset.t()}
   @doc """
   Creates a new talking points generation record.
   """
@@ -140,6 +151,8 @@ defmodule SocialObjects.AI do
     |> Repo.insert()
   end
 
+  @spec update_generation(TalkingPointsGeneration.t(), map()) ::
+          {:ok, TalkingPointsGeneration.t()} | {:error, Ecto.Changeset.t()}
   @doc """
   Updates a generation with new progress/results.
   """
@@ -149,6 +162,8 @@ defmodule SocialObjects.AI do
     |> Repo.update()
   end
 
+  @spec add_generation_result(TalkingPointsGeneration.t(), pos_integer(), String.t()) ::
+          {:ok, TalkingPointsGeneration.t()} | {:error, Ecto.Changeset.t()}
   @doc """
   Adds a successful result for a product to the generation.
   """
@@ -158,6 +173,8 @@ defmodule SocialObjects.AI do
     |> Repo.update()
   end
 
+  @spec add_generation_error(TalkingPointsGeneration.t(), pos_integer(), String.t()) ::
+          {:ok, TalkingPointsGeneration.t()} | {:error, Ecto.Changeset.t()}
   @doc """
   Adds an error for a product to the generation.
   """
@@ -167,6 +184,8 @@ defmodule SocialObjects.AI do
     |> Repo.update()
   end
 
+  @spec apply_generated_talking_points(TalkingPointsGeneration.t()) ::
+          {:ok, [tuple()]} | {:error, :no_results}
   @doc """
   Applies the generated talking points to the actual products.
 
@@ -240,6 +259,7 @@ defmodule SocialObjects.AI do
     |> Oban.insert()
   end
 
+  @spec broadcast_generation_event(tuple()) :: :ok
   @doc """
   Broadcasts a generation event via PubSub.
 
@@ -261,11 +281,15 @@ defmodule SocialObjects.AI do
     {general_topic, job_topic} = topics_for_ids(generation.brand_id, generation.job_id)
 
     # Broadcast to general channel
-    Phoenix.PubSub.broadcast(SocialObjects.PubSub, general_topic, message)
+    _ = Phoenix.PubSub.broadcast(SocialObjects.PubSub, general_topic, message)
     # Also broadcast to job-specific channel
     Phoenix.PubSub.broadcast(SocialObjects.PubSub, job_topic, message)
   end
 
+  @spec subscribe() :: :ok
+  @spec subscribe(String.t()) :: :ok
+  @spec subscribe(pos_integer()) :: :ok
+  @spec subscribe(pos_integer(), String.t()) :: :ok
   @doc """
   Subscribes to talking points generation events.
 

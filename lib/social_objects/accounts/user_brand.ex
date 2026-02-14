@@ -5,6 +5,17 @@ defmodule SocialObjects.Accounts.UserBrand do
   use Ecto.Schema
   import Ecto.Changeset
 
+  @type role :: :owner | :admin | :viewer
+
+  @type t :: %__MODULE__{
+          id: pos_integer() | nil,
+          user_id: pos_integer() | nil,
+          brand_id: pos_integer() | nil,
+          role: role(),
+          inserted_at: NaiveDateTime.t() | nil,
+          updated_at: NaiveDateTime.t() | nil
+        }
+
   @roles ~w(owner admin viewer)a
 
   schema "user_brands" do

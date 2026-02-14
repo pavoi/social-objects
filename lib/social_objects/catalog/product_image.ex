@@ -12,6 +12,19 @@ defmodule SocialObjects.Catalog.ProductImage do
   use Ecto.Schema
   import Ecto.Changeset
 
+  @type t :: %__MODULE__{
+          id: pos_integer() | nil,
+          position: integer(),
+          path: String.t() | nil,
+          thumbnail_path: String.t() | nil,
+          alt_text: String.t() | nil,
+          is_primary: boolean(),
+          tiktok_uri: String.t() | nil,
+          product_id: pos_integer() | nil,
+          inserted_at: NaiveDateTime.t() | nil,
+          updated_at: NaiveDateTime.t() | nil
+        }
+
   schema "product_images" do
     field :position, :integer, default: 0
     field :path, :string

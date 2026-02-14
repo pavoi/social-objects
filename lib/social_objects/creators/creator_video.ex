@@ -8,6 +8,32 @@ defmodule SocialObjects.Creators.CreatorVideo do
   use Ecto.Schema
   import Ecto.Changeset
 
+  @type t :: %__MODULE__{
+          id: pos_integer() | nil,
+          brand_id: pos_integer() | nil,
+          creator_id: pos_integer() | nil,
+          tiktok_video_id: String.t() | nil,
+          video_url: String.t() | nil,
+          title: String.t() | nil,
+          posted_at: DateTime.t() | nil,
+          gmv_cents: integer(),
+          items_sold: integer(),
+          affiliate_orders: integer(),
+          impressions: integer(),
+          likes: integer(),
+          comments: integer(),
+          shares: integer(),
+          ctr: Decimal.t() | nil,
+          est_commission_cents: integer() | nil,
+          gpm_cents: integer() | nil,
+          duration: integer() | nil,
+          hash_tags: [String.t()],
+          thumbnail_url: String.t() | nil,
+          attributed_sample_id: pos_integer() | nil,
+          inserted_at: NaiveDateTime.t() | nil,
+          updated_at: NaiveDateTime.t() | nil
+        }
+
   schema "creator_videos" do
     belongs_to :brand, SocialObjects.Catalog.Brand
     belongs_to :creator, SocialObjects.Creators.Creator

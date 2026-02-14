@@ -38,21 +38,23 @@ defmodule SocialObjects.Application do
 
     # Run stream reconciliation after startup (production only)
     # This restarts captures for orphaned streams or marks them as ended
-    if Application.get_env(:social_objects, :env) == :prod do
-      spawn(fn ->
-        # Give the app a moment to fully start
-        Process.sleep(5_000)
+    _ =
+      if Application.get_env(:social_objects, :env) == :prod do
+        _ =
+          spawn(fn ->
+            # Give the app a moment to fully start
+            Process.sleep(5_000)
 
-        try do
-          count = StreamReconciler.run()
-          Logger.info("Stream reconciliation completed, processed #{count} jobs/streams")
-        rescue
-          e ->
-            Logger.error("Stream reconciliation failed: #{Exception.message(e)}")
-            Logger.error(Exception.format_stacktrace(__STACKTRACE__))
-        end
-      end)
-    end
+            try do
+              count = StreamReconciler.run()
+              Logger.info("Stream reconciliation completed, processed #{count} jobs/streams")
+            rescue
+              e ->
+                Logger.error("Stream reconciliation failed: #{Exception.message(e)}")
+                Logger.error(Exception.format_stacktrace(__STACKTRACE__))
+            end
+          end)
+      end
 
     result
   end

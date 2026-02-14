@@ -8,6 +8,29 @@ defmodule SocialObjects.Creators.CreatorSample do
   use Ecto.Schema
   import Ecto.Changeset
 
+  @type status :: :pending | :shipped | :delivered | :cancelled
+
+  @type t :: %__MODULE__{
+          id: pos_integer() | nil,
+          creator_id: pos_integer() | nil,
+          brand_id: pos_integer() | nil,
+          product_id: pos_integer() | nil,
+          tiktok_order_id: String.t() | nil,
+          tiktok_sku_id: String.t() | nil,
+          product_name: String.t() | nil,
+          variation: String.t() | nil,
+          quantity: integer(),
+          ordered_at: DateTime.t() | nil,
+          shipped_at: DateTime.t() | nil,
+          delivered_at: DateTime.t() | nil,
+          status: status() | nil,
+          fulfilled: boolean(),
+          fulfilled_at: DateTime.t() | nil,
+          attributed_video_id: pos_integer() | nil,
+          inserted_at: NaiveDateTime.t() | nil,
+          updated_at: NaiveDateTime.t() | nil
+        }
+
   @statuses ~w(pending shipped delivered cancelled)a
 
   schema "creator_samples" do

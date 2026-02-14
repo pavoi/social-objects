@@ -7,6 +7,22 @@ defmodule SocialObjects.TiktokShop.Auth do
   use Ecto.Schema
   import Ecto.Changeset
 
+  @type t :: %__MODULE__{
+          id: pos_integer() | nil,
+          access_token: String.t() | nil,
+          refresh_token: String.t() | nil,
+          access_token_expires_at: DateTime.t() | nil,
+          refresh_token_expires_at: DateTime.t() | nil,
+          shop_id: String.t() | nil,
+          shop_cipher: String.t() | nil,
+          shop_name: String.t() | nil,
+          shop_code: String.t() | nil,
+          region: String.t() | nil,
+          brand_id: pos_integer() | nil,
+          inserted_at: NaiveDateTime.t() | nil,
+          updated_at: NaiveDateTime.t() | nil
+        }
+
   schema "tiktok_shop_auth" do
     field :access_token, :string
     field :refresh_token, :string

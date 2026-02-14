@@ -17,10 +17,12 @@ defmodule SocialObjects.TiktokShop do
   @doc """
   Returns the TikTok Shop auth record for a brand, or nil if not connected.
   """
+  @spec get_auth(pos_integer()) :: Auth.t() | nil
   def get_auth(brand_id) when is_integer(brand_id) do
     Repo.get_by(Auth, brand_id: brand_id)
   end
 
+  @spec get_auth(nil) :: nil
   def get_auth(nil), do: nil
 
   @doc """
@@ -32,6 +34,7 @@ defmodule SocialObjects.TiktokShop do
   ## Options
     * `:region` - "US" or "Global" (defaults to "US")
   """
+  @spec generate_authorization_url(pos_integer(), String.t()) :: String.t()
   def generate_authorization_url(brand_id, region \\ "US") do
     auth_url_base =
       case region do
@@ -50,6 +53,8 @@ defmodule SocialObjects.TiktokShop do
   This should be called in your OAuth callback handler after the user approves the app.
   Stores the tokens in the database and returns the auth record.
   """
+  @spec exchange_code_for_token(pos_integer(), String.t()) ::
+          {:ok, Auth.t()} | {:error, String.t()}
   require Logger
 
   def exchange_code_for_token(brand_id, auth_code) do
@@ -93,6 +98,7 @@ defmodule SocialObjects.TiktokShop do
   Should be called when the access token expires.
   Updates the tokens in the database.
   """
+  @spec refresh_access_token(pos_integer()) :: {:ok, Auth.t()} | {:error, term()}
   def refresh_access_token(brand_id) do
     case get_auth(brand_id) do
       nil ->
@@ -130,6 +136,7 @@ defmodule SocialObjects.TiktokShop do
   This should be called after obtaining an access token to get shop-specific credentials.
   Updates the auth record with shop information.
   """
+  @spec get_authorized_shops(pos_integer()) :: {:ok, Auth.t()} | {:error, term()}
   def get_authorized_shops(brand_id) do
     case get_auth(brand_id) do
       nil ->
@@ -174,6 +181,8 @@ defmodule SocialObjects.TiktokShop do
     - `{:ok, :refreshed}` - Token was refreshed successfully
     - `{:error, reason}` - Refresh failed or no auth record exists
   """
+  @spec maybe_refresh_token_if_expiring(pos_integer()) ::
+          {:ok, :no_refresh_needed | :refreshed} | {:error, term()}
   def maybe_refresh_token_if_expiring(brand_id) do
     case get_auth(brand_id) do
       nil -> {:error, :no_auth_record}
@@ -208,6 +217,8 @@ defmodule SocialObjects.TiktokShop do
   Automatically handles signature generation and token refresh if needed.
   Will retry once on 401 expired credentials errors.
   """
+  @spec make_api_request(pos_integer(), atom(), String.t(), map(), map()) ::
+          {:ok, map()} | {:error, term()}
   def make_api_request(brand_id, method, path, params \\ %{}, body \\ %{}) do
     do_make_api_request(brand_id, method, path, params, body, _retry_count = 0)
   end
@@ -276,6 +287,7 @@ defmodule SocialObjects.TiktokShop do
   7. Generate HMAC-SHA256 hash
   8. Convert to hexadecimal string
   """
+  @spec generate_signature(String.t(), map(), String.t()) :: String.t()
   def generate_signature(path, params, body \\ "") do
     # Remove sign and access_token from params
     params =
@@ -423,6 +435,8 @@ defmodule SocialObjects.TiktokShop do
       # Search high-GMV creators
       search_marketplace_creators(brand_id, gmv_ranges: ["GMV_RANGE_10000_AND_ABOVE"])
   """
+  @spec search_marketplace_creators(pos_integer(), keyword()) ::
+          {:ok, map()} | {:error, String.t()}
   def search_marketplace_creators(brand_id, opts \\ []) do
     keyword = Keyword.get(opts, :keyword)
     page_size = Keyword.get(opts, :page_size, 12)
@@ -474,6 +488,7 @@ defmodule SocialObjects.TiktokShop do
   ## Example
       get_marketplace_creator(brand_id, "7494112116023331142")
   """
+  @spec get_marketplace_creator(pos_integer(), String.t()) :: {:ok, map()} | {:error, term()}
   def get_marketplace_creator(brand_id, creator_user_id) when is_binary(creator_user_id) do
     case make_api_request(
            brand_id,
@@ -520,6 +535,8 @@ defmodule SocialObjects.TiktokShop do
       # Get orders during a stream
       fetch_orders_in_range(brand_id, stream.started_at, stream.ended_at)
   """
+  @spec fetch_orders_in_range(pos_integer(), DateTime.t(), DateTime.t(), keyword()) ::
+          {:ok, [map()]} | {:error, term()}
   def fetch_orders_in_range(
         brand_id,
         %DateTime{} = start_time,
@@ -575,6 +592,9 @@ defmodule SocialObjects.TiktokShop do
   ## Returns
     A list of maps with :hour (DateTime truncated to hour) and :gmv_cents
   """
+  @spec calculate_hourly_gmv([map()]) :: [
+          %{hour: DateTime.t(), gmv_cents: integer(), order_count: non_neg_integer()}
+        ]
   def calculate_hourly_gmv(orders) when is_list(orders) do
     orders
     |> Enum.filter(&valid_order_for_gmv?/1)

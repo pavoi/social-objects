@@ -42,21 +42,23 @@ defmodule SocialObjects.Workers.VideoSyncWorker do
   @impl Oban.Worker
   def perform(%Oban.Job{args: %{"brand_id" => brand_id}}) do
     # Broadcast sync started
-    Phoenix.PubSub.broadcast(
-      SocialObjects.PubSub,
-      "video:sync:#{brand_id}",
-      {:video_sync_started}
-    )
+    _ =
+      Phoenix.PubSub.broadcast(
+        SocialObjects.PubSub,
+        "video:sync:#{brand_id}",
+        {:video_sync_started}
+      )
 
     case sync_videos(brand_id) do
       {:ok, stats} ->
-        Settings.update_videos_last_import_at(brand_id)
+        _ = Settings.update_videos_last_import_at(brand_id)
 
-        Phoenix.PubSub.broadcast(
-          SocialObjects.PubSub,
-          "video:sync:#{brand_id}",
-          {:video_sync_completed, stats}
-        )
+        _ =
+          Phoenix.PubSub.broadcast(
+            SocialObjects.PubSub,
+            "video:sync:#{brand_id}",
+            {:video_sync_completed, stats}
+          )
 
         Logger.info(
           "Video sync completed for brand #{brand_id}: " <>
@@ -71,20 +73,22 @@ defmodule SocialObjects.Workers.VideoSyncWorker do
       {:error, :no_auth_record} ->
         Logger.warning("Video sync skipped for brand #{brand_id}: no TikTok auth record")
 
-        Phoenix.PubSub.broadcast(
-          SocialObjects.PubSub,
-          "video:sync:#{brand_id}",
-          {:video_sync_failed, :no_auth_record}
-        )
+        _ =
+          Phoenix.PubSub.broadcast(
+            SocialObjects.PubSub,
+            "video:sync:#{brand_id}",
+            {:video_sync_failed, :no_auth_record}
+          )
 
         {:discard, :no_auth_record}
 
       {:error, reason} ->
-        Phoenix.PubSub.broadcast(
-          SocialObjects.PubSub,
-          "video:sync:#{brand_id}",
-          {:video_sync_failed, reason}
-        )
+        _ =
+          Phoenix.PubSub.broadcast(
+            SocialObjects.PubSub,
+            "video:sync:#{brand_id}",
+            {:video_sync_failed, reason}
+          )
 
         {:error, reason}
     end
@@ -260,7 +264,7 @@ defmodule SocialObjects.Workers.VideoSyncWorker do
         {:error, :creator_not_found}
 
       {creator, creator_status} ->
-        Creators.add_creator_to_brand(creator.id, brand_id)
+        _ = Creators.add_creator_to_brand(creator.id, brand_id)
         upsert_video(brand_id, video_id, creator, video, creator_status)
     end
   end
@@ -288,7 +292,7 @@ defmodule SocialObjects.Workers.VideoSyncWorker do
   defp create_new_creator(brand_id, username) do
     case Creators.create_creator(%{tiktok_username: String.downcase(username)}) do
       {:ok, creator} ->
-        Creators.add_creator_to_brand(creator.id, brand_id)
+        _ = Creators.add_creator_to_brand(creator.id, brand_id)
         {creator, :created_creator}
 
       {:error, _changeset} ->
@@ -353,7 +357,7 @@ defmodule SocialObjects.Workers.VideoSyncWorker do
       Enum.reduce(videos, 0, fn video, count ->
         case OEmbed.fetch(video.video_url) do
           {:ok, %{thumbnail_url: url}} when is_binary(url) and url != "" ->
-            Creators.update_video_thumbnail(video, url)
+            _ = Creators.update_video_thumbnail(video, url)
             count + 1
 
           {:error, reason} ->

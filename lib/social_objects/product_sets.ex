@@ -15,6 +15,7 @@ defmodule SocialObjects.ProductSets do
   @doc """
   Returns the default color for host messages.
   """
+  @spec default_message_color() :: :amber
   def default_message_color, do: @default_message_color
 
   ## Product Sets
@@ -22,6 +23,7 @@ defmodule SocialObjects.ProductSets do
   @doc """
   Returns the list of product sets.
   """
+  @spec list_product_sets(pos_integer()) :: [ProductSet.t()]
   def list_product_sets(brand_id) do
     from(ps in ProductSet, where: ps.brand_id == ^brand_id)
     |> Repo.all()
@@ -30,6 +32,7 @@ defmodule SocialObjects.ProductSets do
   @doc """
   Returns the list of product sets with brands and products preloaded, ordered by most recently modified.
   """
+  @spec list_product_sets_with_details(pos_integer()) :: [ProductSet.t()]
   def list_product_sets_with_details(brand_id) do
     ordered_images = from(pi in ProductImage, order_by: [asc: pi.position])
     ordered_variants = from(pv in ProductVariant, order_by: [asc: pv.position])
@@ -65,6 +68,13 @@ defmodule SocialObjects.ProductSets do
     * `:total` - Total count of product sets
     * `:has_more` - Boolean indicating if there are more product sets to load
   """
+  @spec list_product_sets_with_details_paginated(pos_integer(), keyword()) :: %{
+          product_sets: [ProductSet.t()],
+          page: pos_integer(),
+          per_page: pos_integer(),
+          total: non_neg_integer(),
+          has_more: boolean()
+        }
   def list_product_sets_with_details_paginated(brand_id, opts \\ []) do
     page = Keyword.get(opts, :page, 1)
     per_page = Keyword.get(opts, :per_page, 20)
@@ -123,6 +133,7 @@ defmodule SocialObjects.ProductSets do
   Gets a single product set.
   Raises `Ecto.NoResultsError` if the ProductSet does not exist.
   """
+  @spec get_product_set!(pos_integer(), pos_integer()) :: ProductSet.t() | no_return()
   def get_product_set!(brand_id, id) do
     ordered_images = from(pi in ProductImage, order_by: [asc: pi.position])
 
@@ -138,6 +149,7 @@ defmodule SocialObjects.ProductSets do
   @doc """
   Gets a product set by slug.
   """
+  @spec get_product_set_by_slug!(pos_integer(), String.t()) :: ProductSet.t() | no_return()
   def get_product_set_by_slug!(brand_id, slug) do
     ordered_images = from(pi in ProductImage, order_by: [asc: pi.position])
 
@@ -150,6 +162,7 @@ defmodule SocialObjects.ProductSets do
   @doc """
   Checks if a product set with the given name already exists for a brand.
   """
+  @spec product_set_name_exists?(String.t() | nil, pos_integer() | nil) :: boolean()
   def product_set_name_exists?(name, brand_id) when is_binary(name) and not is_nil(brand_id) do
     slug = slugify(name)
 
@@ -164,6 +177,8 @@ defmodule SocialObjects.ProductSets do
   @doc """
   Creates a product set.
   """
+  @spec create_product_set(pos_integer(), map()) ::
+          {:ok, ProductSet.t()} | {:error, Ecto.Changeset.t()}
   def create_product_set(brand_id, attrs \\ %{}) do
     %ProductSet{brand_id: brand_id}
     |> ProductSet.changeset(attrs)
@@ -179,6 +194,8 @@ defmodule SocialObjects.ProductSets do
 
   Returns {:ok, product_set} or {:error, changeset} on failure.
   """
+  @spec create_product_set_with_products(pos_integer(), map(), [pos_integer()]) ::
+          {:ok, ProductSet.t()} | {:error, Ecto.Changeset.t()}
   def create_product_set_with_products(brand_id, product_set_attrs, product_ids \\ []) do
     Repo.transaction(fn ->
       with {:ok, product_set} <- create_product_set(brand_id, product_set_attrs),
@@ -209,6 +226,8 @@ defmodule SocialObjects.ProductSets do
 
   Returns {:ok, product_set} or {:error, changeset}.
   """
+  @spec duplicate_product_set(pos_integer(), pos_integer()) ::
+          {:ok, ProductSet.t()} | {:error, Ecto.Changeset.t()}
   def duplicate_product_set(brand_id, product_set_id) do
     Repo.transaction(fn ->
       # Load the original product set with products
@@ -304,6 +323,7 @@ defmodule SocialObjects.ProductSets do
       iex> ProductSets.slugify("@#$%")
       "product-set-1234567890"
   """
+  @spec slugify(String.t()) :: String.t()
   def slugify(name) do
     slug =
       name
@@ -319,6 +339,8 @@ defmodule SocialObjects.ProductSets do
   @doc """
   Updates a product set.
   """
+  @spec update_product_set(ProductSet.t(), map()) ::
+          {:ok, ProductSet.t()} | {:error, Ecto.Changeset.t()}
   def update_product_set(%ProductSet{} = product_set, attrs) do
     product_set
     |> ProductSet.changeset(attrs)
@@ -329,6 +351,7 @@ defmodule SocialObjects.ProductSets do
   @doc """
   Deletes a product set.
   """
+  @spec delete_product_set(ProductSet.t()) :: {:ok, ProductSet.t()} | {:error, Ecto.Changeset.t()}
   def delete_product_set(%ProductSet{} = product_set) do
     Repo.delete(product_set)
     |> broadcast_product_set_list_change(product_set.brand_id)
@@ -348,6 +371,7 @@ defmodule SocialObjects.ProductSets do
   @doc """
   Gets a single product set product.
   """
+  @spec get_product_set_product!(pos_integer()) :: ProductSetProduct.t() | no_return()
   def get_product_set_product!(id) do
     ordered_images = from(pi in ProductImage, order_by: [asc: pi.position])
     ordered_variants = from(pv in ProductVariant, order_by: [asc: pv.position])
@@ -363,6 +387,8 @@ defmodule SocialObjects.ProductSets do
   Adds a product to a product set with the given position and optional overrides.
   Also updates the product set's updated_at timestamp to mark it as recently modified.
   """
+  @spec add_product_to_product_set(pos_integer(), pos_integer(), map()) ::
+          {:ok, ProductSetProduct.t()} | {:error, Ecto.Changeset.t()}
   def add_product_to_product_set(product_set_id, product_id, attrs \\ %{}) do
     brand_id = product_set_brand_id(product_set_id)
 
@@ -390,6 +416,8 @@ defmodule SocialObjects.ProductSets do
   Automatically renumbers remaining products to fill any gaps and keep positions sequential.
   Also updates the product set's updated_at timestamp to mark it as recently modified.
   """
+  @spec remove_product_from_product_set(pos_integer()) ::
+          {:ok, ProductSetProduct.t()} | {:error, :not_found | Ecto.Changeset.t()}
   def remove_product_from_product_set(product_set_product_id) do
     case Repo.get(ProductSetProduct, product_set_product_id) do
       nil ->
@@ -401,7 +429,7 @@ defmodule SocialObjects.ProductSets do
         case result do
           {:ok, _} ->
             # Auto-renumber positions to fill gaps
-            renumber_product_set_products(product_set_product.product_set_id)
+            _ = renumber_product_set_products(product_set_product.product_set_id)
 
             result
             |> broadcast_product_set_list_change(
@@ -423,6 +451,10 @@ defmodule SocialObjects.ProductSets do
   Returns {:ok, count} where count is the number of updated records, or
   {:error, reason} if validation fails.
   """
+  @spec reorder_products(pos_integer(), [pos_integer()]) ::
+          {:ok, non_neg_integer()}
+          | {:error,
+             :product_set_not_found | :duplicate_ids | :invalid_product_set_product_ids | term()}
   def reorder_products(product_set_id, ordered_product_set_product_ids) do
     # Validate input
     with {:ok, product_set} <- validate_product_set_exists(product_set_id),
@@ -512,6 +544,7 @@ defmodule SocialObjects.ProductSets do
   Gets the next available position for a product set.
   Uses database query to avoid race conditions.
   """
+  @spec get_next_position_for_product_set(pos_integer()) :: pos_integer()
   def get_next_position_for_product_set(product_set_id) do
     max_position =
       from(psp in ProductSetProduct,
@@ -527,6 +560,8 @@ defmodule SocialObjects.ProductSets do
   Gets adjacent product set products (for preloading).
   Returns products at positions: current_position ± range.
   """
+  @spec get_adjacent_product_set_products(pos_integer(), pos_integer(), pos_integer()) ::
+          [ProductSetProduct.t()]
   def get_adjacent_product_set_products(product_set_id, current_position, range \\ 2) do
     ordered_images = from(pi in ProductImage, order_by: [asc: pi.position])
 
@@ -548,6 +583,7 @@ defmodule SocialObjects.ProductSets do
   Returns a map with all the data needed to restore the product if deleted.
   Returns nil if not found.
   """
+  @spec get_product_set_product_for_undo(pos_integer()) :: map() | nil
   def get_product_set_product_for_undo(id) do
     case Repo.get(ProductSetProduct, id) do
       nil ->
@@ -572,6 +608,7 @@ defmodule SocialObjects.ProductSets do
   Gets the current product order for a product set.
   Returns a list of product_set_product IDs in position order.
   """
+  @spec get_current_product_order(pos_integer()) :: [pos_integer()]
   def get_current_product_order(product_set_id) do
     from(psp in ProductSetProduct,
       where: psp.product_set_id == ^product_set_id,
@@ -586,6 +623,8 @@ defmodule SocialObjects.ProductSets do
   Used for batch undo operations where we broadcast once at the end.
   Returns {:ok, product_set_product} or {:error, reason}.
   """
+  @spec remove_product_from_product_set_silent(pos_integer()) ::
+          {:ok, ProductSetProduct.t()} | {:error, :not_found | Ecto.Changeset.t()}
   def remove_product_from_product_set_silent(product_set_product_id) do
     case Repo.get(ProductSetProduct, product_set_product_id) do
       nil ->
@@ -609,6 +648,8 @@ defmodule SocialObjects.ProductSets do
   Shifts existing products at and after the target position to make room.
   Returns {:ok, product_set_product} or {:error, changeset}.
   """
+  @spec restore_product_to_product_set(map()) ::
+          {:ok, ProductSetProduct.t()} | {:error, Ecto.Changeset.t()}
   def restore_product_to_product_set(psp_data) do
     Repo.transaction(fn ->
       # First, shift existing products at and after the target position
@@ -703,6 +744,7 @@ defmodule SocialObjects.ProductSets do
   @doc """
   Gets the current product set state.
   """
+  @spec get_product_set_state(pos_integer()) :: {:ok, ProductSetState.t()} | {:error, :not_found}
   def get_product_set_state(product_set_id) do
     ordered_images = from(pi in ProductImage, order_by: [asc: pi.position])
 
@@ -726,6 +768,8 @@ defmodule SocialObjects.ProductSets do
   Initializes product set state to the first product.
   Uses upsert to handle cases where state row already exists.
   """
+  @spec initialize_product_set_state(pos_integer()) ::
+          {:ok, ProductSetState.t()} | {:error, :no_products | Ecto.Changeset.t()}
   def initialize_product_set_state(product_set_id) do
     # Get first product set product
     first_psp =
@@ -758,6 +802,8 @@ defmodule SocialObjects.ProductSets do
   PRIMARY NAVIGATION: Jumps directly to a product by its position number.
   This is the main navigation method for the host view.
   """
+  @spec jump_to_product(pos_integer(), pos_integer()) ::
+          {:ok, ProductSetState.t()} | {:error, :invalid_position | term()}
   def jump_to_product(product_set_id, position) do
     case Repo.get_by(ProductSetProduct, product_set_id: product_set_id, position: position) do
       nil ->
@@ -775,6 +821,8 @@ defmodule SocialObjects.ProductSets do
   CONVENIENCE: Advances to the next product in sequence.
   Used for arrow key navigation, not the primary method.
   """
+  @spec advance_to_next_product(pos_integer()) ::
+          {:ok, ProductSetState.t()} | {:error, :end_of_product_set | term()}
   def advance_to_next_product(product_set_id) do
     with {:ok, current_state} <- get_product_set_state(product_set_id),
          {:ok, current_psp} <- get_current_product_set_product(current_state),
@@ -793,6 +841,8 @@ defmodule SocialObjects.ProductSets do
   CONVENIENCE: Goes to the previous product in sequence.
   Used for arrow key navigation, not the primary method.
   """
+  @spec go_to_previous_product(pos_integer()) ::
+          {:ok, ProductSetState.t()} | {:error, :start_of_product_set | term()}
   def go_to_previous_product(product_set_id) do
     with {:ok, current_state} <- get_product_set_state(product_set_id),
          {:ok, current_psp} <- get_current_product_set_product(current_state),
@@ -810,6 +860,8 @@ defmodule SocialObjects.ProductSets do
   @doc """
   Cycles through product images (next or previous).
   """
+  @spec cycle_product_image(pos_integer(), :next | :previous) ::
+          {:ok, ProductSetState.t()} | {:error, :no_images | term()}
   def cycle_product_image(product_set_id, direction) do
     with {:ok, state} <- get_product_set_state(product_set_id),
          {:ok, psp} <- get_current_product_set_product(state),
@@ -830,6 +882,8 @@ defmodule SocialObjects.ProductSets do
   Sets the current image index directly for the product set.
   Used when clicking on a thumbnail to jump to a specific image.
   """
+  @spec set_image_index(pos_integer(), non_neg_integer()) ::
+          {:ok, ProductSetState.t()} | {:error, :no_images | :invalid_index | term()}
   def set_image_index(product_set_id, index) when is_integer(index) and index >= 0 do
     with {:ok, state} <- get_product_set_state(product_set_id),
          {:ok, psp} <- get_current_product_set_product(state),
@@ -850,6 +904,8 @@ defmodule SocialObjects.ProductSets do
   Sends a message to the host by updating the product set state.
   The message is persisted in the database and broadcast to all connected clients.
   """
+  @spec send_host_message(pos_integer(), String.t(), atom()) ::
+          {:ok, ProductSetState.t()} | {:error, term()}
   def send_host_message(product_set_id, message_text, color \\ @default_message_color) do
     message_id = generate_message_id()
     timestamp = DateTime.utc_now() |> DateTime.truncate(:second)
@@ -865,6 +921,7 @@ defmodule SocialObjects.ProductSets do
   @doc """
   Clears the current host message from the product set state.
   """
+  @spec clear_host_message(pos_integer()) :: {:ok, ProductSetState.t()} | {:error, term()}
   def clear_host_message(product_set_id) do
     update_product_set_state(product_set_id, %{
       current_host_message_text: nil,
@@ -879,6 +936,7 @@ defmodule SocialObjects.ProductSets do
   @doc """
   Returns the list of message presets, ordered by position.
   """
+  @spec list_message_presets(pos_integer()) :: [MessagePreset.t()]
   def list_message_presets(brand_id) do
     MessagePreset
     |> where([mp], mp.brand_id == ^brand_id)
@@ -891,12 +949,15 @@ defmodule SocialObjects.ProductSets do
 
   Raises `Ecto.NoResultsError` if the message preset does not exist.
   """
+  @spec get_message_preset!(pos_integer(), pos_integer()) :: MessagePreset.t() | no_return()
   def get_message_preset!(brand_id, id),
     do: Repo.get_by!(MessagePreset, id: id, brand_id: brand_id)
 
   @doc """
   Creates a message preset.
   """
+  @spec create_message_preset(pos_integer(), map()) ::
+          {:ok, MessagePreset.t()} | {:error, Ecto.Changeset.t()}
   def create_message_preset(brand_id, attrs \\ %{}) do
     # If no position provided, set it to be last
     attrs =
@@ -920,6 +981,8 @@ defmodule SocialObjects.ProductSets do
   @doc """
   Deletes a message preset.
   """
+  @spec delete_message_preset(MessagePreset.t()) ::
+          {:ok, MessagePreset.t()} | {:error, Ecto.Changeset.t()}
   def delete_message_preset(%MessagePreset{} = message_preset) do
     Repo.delete(message_preset)
   end
@@ -929,6 +992,8 @@ defmodule SocialObjects.ProductSets do
   Useful after deleting products that leave gaps in numbering.
   Also updates the product set's updated_at timestamp to mark it as recently modified.
   """
+  @spec renumber_product_set_products(pos_integer()) ::
+          {:ok, non_neg_integer()} | {:error, term()}
   def renumber_product_set_products(product_set_id) do
     product_set_products =
       from(psp in ProductSetProduct,
@@ -985,11 +1050,12 @@ defmodule SocialObjects.ProductSets do
   end
 
   defp broadcast_state_change({:ok, %ProductSetState{} = state}) do
-    Phoenix.PubSub.broadcast(
-      SocialObjects.PubSub,
-      "product_set:#{state.product_set_id}:state",
-      {:state_changed, state}
-    )
+    _ =
+      Phoenix.PubSub.broadcast(
+        SocialObjects.PubSub,
+        "product_set:#{state.product_set_id}:state",
+        {:state_changed, state}
+      )
 
     {:ok, state}
   end
@@ -999,11 +1065,12 @@ defmodule SocialObjects.ProductSets do
   defp broadcast_product_set_list_change(result, brand_id) do
     case result do
       {:ok, _} when not is_nil(brand_id) ->
-        Phoenix.PubSub.broadcast(
-          SocialObjects.PubSub,
-          "product_sets:#{brand_id}:list",
-          {:product_set_list_changed}
-        )
+        _ =
+          Phoenix.PubSub.broadcast(
+            SocialObjects.PubSub,
+            "product_sets:#{brand_id}:list",
+            {:product_set_list_changed}
+          )
 
         result
 
@@ -1073,6 +1140,7 @@ defmodule SocialObjects.ProductSets do
   Generates a signed token for sharing a product set publicly.
   The token expires after 90 days.
   """
+  @spec generate_share_token(pos_integer()) :: binary()
   def generate_share_token(product_set_id) do
     Phoenix.Token.sign(SocialObjectsWeb.Endpoint, "product_set_share", product_set_id)
   end
@@ -1081,6 +1149,7 @@ defmodule SocialObjects.ProductSets do
   Verifies a share token and returns the product set ID.
   Returns {:ok, product_set_id} or {:error, reason}.
   """
+  @spec verify_share_token(binary()) :: {:ok, pos_integer()} | {:error, :expired | :invalid}
   def verify_share_token(token) do
     # 90 days in seconds
     max_age = 90 * 24 * 60 * 60
@@ -1091,6 +1160,7 @@ defmodule SocialObjects.ProductSets do
   Gets a product set with products and images preloaded for public display.
   Raises `Ecto.NoResultsError` if the ProductSet does not exist.
   """
+  @spec get_product_set_for_public!(pos_integer()) :: ProductSet.t() | no_return()
   def get_product_set_for_public!(id) do
     ordered_images = from(pi in ProductImage, order_by: [asc: pi.position])
     ordered_variants = from(pv in ProductVariant, order_by: [asc: pv.position])

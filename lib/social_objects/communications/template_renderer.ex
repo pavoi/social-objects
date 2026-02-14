@@ -90,9 +90,16 @@ defmodule SocialObjects.Communications.TemplateRenderer do
   Returns {subject, html_body}
   """
   def render_preview(%EmailTemplate{} = template) do
+    base_url = asset_base_url()
+
+    html_body =
+      (template.html_body || "")
+      |> normalize_legacy_asset_hosts()
+      |> absolutize_urls(base_url, base_url)
+
     # Inject CSS to disable link clicks in preview
     html_with_disabled_links =
-      "<style>a { pointer-events: none; cursor: default; }</style>" <> (template.html_body || "")
+      "<style>a { pointer-events: none; cursor: default; }</style>" <> html_body
 
     {template.subject, html_with_disabled_links}
   end

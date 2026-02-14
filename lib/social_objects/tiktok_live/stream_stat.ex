@@ -8,6 +8,21 @@ defmodule SocialObjects.TiktokLive.StreamStat do
   use Ecto.Schema
   import Ecto.Changeset
 
+  @type t :: %__MODULE__{
+          id: pos_integer() | nil,
+          recorded_at: DateTime.t() | nil,
+          viewer_count: integer(),
+          like_count: integer(),
+          gift_count: integer(),
+          comment_count: integer(),
+          follow_count: integer(),
+          share_count: integer(),
+          brand_id: pos_integer() | nil,
+          stream_id: pos_integer() | nil,
+          inserted_at: NaiveDateTime.t() | nil,
+          updated_at: NaiveDateTime.t() | nil
+        }
+
   schema "tiktok_stream_stats" do
     field :recorded_at, :utc_datetime
     field :viewer_count, :integer, default: 0

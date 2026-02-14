@@ -36,16 +36,16 @@ defmodule SocialObjects.Workers.GmvBackfillWorker do
   @impl Oban.Worker
   def perform(%Oban.Job{args: args}) do
     brand_id = resolve_brand_id(Map.get(args, "brand_id"))
-    broadcast(brand_id, {:gmv_backfill_started})
+    _ = broadcast(brand_id, {:gmv_backfill_started})
 
     try do
       :ok = run_backfill(brand_id)
-      broadcast(brand_id, {:gmv_backfill_completed})
+      _ = broadcast(brand_id, {:gmv_backfill_completed})
       :ok
     rescue
       exception ->
         reason = Exception.message(exception)
-        broadcast(brand_id, {:gmv_backfill_failed, reason})
+        _ = broadcast(brand_id, {:gmv_backfill_failed, reason})
         {:error, reason}
     end
   end

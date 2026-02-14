@@ -252,6 +252,26 @@ defmodule SocialObjectsWeb.CreatorTableComponents do
               tooltip="Creator's total TikTok Shop GMV (all brands) since tracking started. Accumulates net new sales from TikTok's 30-day rolling window."
               time_filtered={@time_filter_active}
             />
+            <%!-- 7a. Brand GMV (30d) - Brand-specific --%>
+            <.sort_header
+              label="Brand GMV (30d)"
+              field="brand_gmv"
+              current={@sort_by}
+              dir={@sort_dir}
+              on_sort={@on_sort}
+              tooltip="GMV from this creator's videos and lives for your brand in the last 30 days. Based on matched content only."
+              time_filtered={@time_filter_active}
+            />
+            <%!-- 7b. Brand GMV (Total) - Brand-specific --%>
+            <.sort_header
+              label="Brand GMV (Total)"
+              field="cumulative_brand_gmv"
+              current={@sort_by}
+              dir={@sort_dir}
+              on_sort={@on_sort}
+              tooltip="Cumulative GMV from this creator's content for your brand since tracking started. Based on matched content only."
+              time_filtered={@time_filter_active}
+            />
             <%!-- 8. Avg Views --%>
             <.sort_header
               label="Avg Views"
@@ -396,6 +416,30 @@ defmodule SocialObjectsWeb.CreatorTableComponents do
                   />
                 <% end %>
               </td>
+              <%!-- 7a. Brand GMV (30d) - Brand-specific --%>
+              <td
+                data-column-id="brand_gmv"
+                class={["text-right", @time_filter_active && "col-time-filtered"]}
+              >
+                <.brand_gmv_cell
+                  rolling_value={creator.brand_gmv_cents}
+                  cumulative_value={creator.cumulative_brand_gmv_cents}
+                  tracking_started_at={creator.brand_gmv_tracking_started_at}
+                  mode={:rolling}
+                />
+              </td>
+              <%!-- 7b. Brand GMV (Total) - Brand-specific --%>
+              <td
+                data-column-id="cumulative_brand_gmv"
+                class={["text-right", @time_filter_active && "col-time-filtered"]}
+              >
+                <.brand_gmv_cell
+                  rolling_value={creator.brand_gmv_cents}
+                  cumulative_value={creator.cumulative_brand_gmv_cents}
+                  tracking_started_at={creator.brand_gmv_tracking_started_at}
+                  mode={:cumulative}
+                />
+              </td>
               <%!-- 8. Avg Views --%>
               <td data-column-id="avg_views" class="text-right">
                 {format_number(creator.avg_video_views)}
@@ -443,7 +487,6 @@ defmodule SocialObjectsWeb.CreatorTableComponents do
   # includes TikTok's 30-day rolling window. So the effective GMV start date
   # is 30 days before tracking started.
   defp gmv_effective_start_date(%Date{} = date), do: Date.add(date, -30)
-  defp gmv_effective_start_date(_), do: nil
 
   defp format_gmv_start_date_short(nil), do: ""
 
@@ -466,6 +509,32 @@ defmodule SocialObjectsWeb.CreatorTableComponents do
   end
 
   defp format_tracking_date(_), do: ""
+
+  @doc """
+  Renders brand-specific GMV (from video/live analytics).
+  Similar to cumulative_gmv_cell but for brand-specific GMV.
+  """
+  attr :rolling_value, :integer, default: nil
+  attr :cumulative_value, :integer, default: nil
+  attr :tracking_started_at, :any, default: nil
+  attr :mode, :atom, default: :rolling, values: [:rolling, :cumulative]
+
+  def brand_gmv_cell(assigns) do
+    ~H"""
+    <div class="cumulative-gmv-cell">
+      <%= if @mode == :rolling do %>
+        <span class="cumulative-gmv-cell__value">{format_gmv(@rolling_value)}</span>
+      <% else %>
+        <span class="cumulative-gmv-cell__value">{format_gmv(@cumulative_value)}</span>
+        <%= if @tracking_started_at do %>
+          <span class="cumulative-gmv-cell__since">
+            since {format_gmv_start_date_short(@tracking_started_at)}
+          </span>
+        <% end %>
+      <% end %>
+    </div>
+    """
+  end
 
   @doc """
   Renders a sortable table header with optional tooltip and time-filter highlighting.

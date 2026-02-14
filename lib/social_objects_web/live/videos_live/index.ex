@@ -12,6 +12,7 @@ defmodule SocialObjectsWeb.VideosLive.Index do
   alias SocialObjects.Settings
   alias SocialObjectsWeb.BrandRoutes
 
+  import SocialObjectsWeb.ParamHelpers
   import SocialObjectsWeb.VideoComponents
 
   @impl true
@@ -19,9 +20,10 @@ defmodule SocialObjectsWeb.VideosLive.Index do
     brand_id = socket.assigns.current_brand.id
 
     # Subscribe to video sync events
-    if connected?(socket) do
-      Phoenix.PubSub.subscribe(SocialObjects.PubSub, "video:sync:#{brand_id}")
-    end
+    _ =
+      if connected?(socket) do
+        Phoenix.PubSub.subscribe(SocialObjects.PubSub, "video:sync:#{brand_id}")
+      end
 
     # Load creators once on mount (doesn't change based on search/filters)
     available_creators =
@@ -89,14 +91,19 @@ defmodule SocialObjectsWeb.VideosLive.Index do
 
   @impl true
   def handle_event("filter_creator", %{"creator_id" => creator_id}, socket) do
-    creator_id = if creator_id == "", do: nil, else: String.to_integer(creator_id)
+    creator_id = parse_id_or_nil(creator_id)
     params = build_query_params(socket, selected_creator_id: creator_id, page: 1)
     {:noreply, push_patch(socket, to: videos_path(socket, params))}
   end
 
   @impl true
   def handle_event("hover_video", %{"id" => id}, socket) do
-    video = Enum.find(socket.assigns.videos, &(&1.id == String.to_integer(id)))
+    video =
+      case parse_id(id) do
+        {:ok, video_id} -> Enum.find(socket.assigns.videos, &(&1.id == video_id))
+        :error -> nil
+      end
+
     {:noreply, assign(socket, :selected_video, video)}
   end
 
@@ -207,12 +214,12 @@ defmodule SocialObjectsWeb.VideosLive.Index do
 
   defp parse_page(nil), do: 1
   defp parse_page(""), do: 1
-  defp parse_page(page) when is_binary(page), do: String.to_integer(page)
+  defp parse_page(page) when is_binary(page), do: parse_id_or_default(page, 1)
   defp parse_page(page) when is_integer(page), do: page
 
   defp parse_creator_id(nil), do: nil
   defp parse_creator_id(""), do: nil
-  defp parse_creator_id(id) when is_binary(id), do: String.to_integer(id)
+  defp parse_creator_id(id) when is_binary(id), do: parse_id_or_nil(id)
 
   defp start_async_video_load(socket) do
     %{

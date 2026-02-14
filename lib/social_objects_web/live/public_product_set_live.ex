@@ -10,6 +10,7 @@ defmodule SocialObjectsWeb.PublicProductSetLive do
   alias SocialObjects.Catalog.Product
   alias SocialObjects.ProductSets
 
+  import SocialObjectsWeb.ParamHelpers
   import SocialObjectsWeb.ProductComponents
   import SocialObjectsWeb.ViewHelpers
 
@@ -77,26 +78,31 @@ defmodule SocialObjectsWeb.PublicProductSetLive do
   end
 
   @impl true
-  def handle_event("show_product", %{"product-id" => product_id}, socket) do
-    product_id = String.to_integer(product_id)
-    product_set = socket.assigns.product_set
+  def handle_event("show_product", %{"product-id" => product_id_param}, socket) do
+    case parse_id(product_id_param) do
+      {:ok, product_id} ->
+        product_set = socket.assigns.product_set
 
-    # Security: verify product belongs to this product set
-    product_set_product =
-      Enum.find(product_set.product_set_products, fn psp ->
-        psp.product_id == product_id
-      end)
+        # Security: verify product belongs to this product set
+        product_set_product =
+          Enum.find(product_set.product_set_products, fn psp ->
+            psp.product_id == product_id
+          end)
 
-    if product_set_product do
-      product = product_set_product.product
+        if product_set_product do
+          product = product_set_product.product
 
-      {:noreply,
-       socket
-       |> assign(:editing_product, product)
-       |> assign(:current_image_index, 0)
-       |> assign(:product_edit_form, to_form(Product.changeset(product, %{})))}
-    else
-      {:noreply, socket}
+          {:noreply,
+           socket
+           |> assign(:editing_product, product)
+           |> assign(:current_image_index, 0)
+           |> assign(:product_edit_form, to_form(Product.changeset(product, %{})))}
+        else
+          {:noreply, socket}
+        end
+
+      :error ->
+        {:noreply, socket}
     end
   end
 

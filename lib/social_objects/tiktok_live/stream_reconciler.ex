@@ -278,7 +278,7 @@ defmodule SocialObjects.TiktokLive.StreamReconciler do
             "Stream #{stream.id} (@#{stream.unique_id}) is still live with same room_id, recovering"
           )
 
-          recover_stream(stream)
+          _ = recover_stream(stream)
           true
         end
 

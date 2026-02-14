@@ -5,6 +5,36 @@ defmodule SocialObjects.TiktokLive.Comment do
   use Ecto.Schema
   import Ecto.Changeset
 
+  @type sentiment :: :positive | :neutral | :negative
+
+  @type category ::
+          :concern_complaint
+          | :product_request
+          | :question_confusion
+          | :technical_issue
+          | :praise_compliment
+          | :general
+          | :flash_sale
+
+  @type t :: %__MODULE__{
+          id: pos_integer() | nil,
+          tiktok_user_id: String.t() | nil,
+          tiktok_username: String.t() | nil,
+          tiktok_nickname: String.t() | nil,
+          comment_text: String.t() | nil,
+          commented_at: DateTime.t() | nil,
+          raw_event: map(),
+          parsed_product_number: integer() | nil,
+          sentiment: sentiment() | nil,
+          category: category() | nil,
+          classified_at: DateTime.t() | nil,
+          brand_id: pos_integer() | nil,
+          stream_id: pos_integer() | nil,
+          product_set_product_id: pos_integer() | nil,
+          inserted_at: NaiveDateTime.t() | nil,
+          updated_at: NaiveDateTime.t() | nil
+        }
+
   schema "tiktok_comments" do
     field :tiktok_user_id, :string
     field :tiktok_username, :string

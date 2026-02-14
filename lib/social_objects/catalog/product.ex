@@ -19,6 +19,30 @@ defmodule SocialObjects.Catalog.Product do
   use Ecto.Schema
   import Ecto.Changeset
 
+  @type t :: %__MODULE__{
+          id: pos_integer() | nil,
+          name: String.t() | nil,
+          description: String.t() | nil,
+          talking_points_md: String.t() | nil,
+          original_price_cents: integer() | nil,
+          sale_price_cents: integer() | nil,
+          pid: String.t() | nil,
+          sku: String.t() | nil,
+          tiktok_product_id: String.t() | nil,
+          tiktok_product_ids: [String.t()],
+          size_range: String.t() | nil,
+          has_size_variants: boolean(),
+          archived_at: DateTime.t() | nil,
+          archive_reason: String.t() | nil,
+          gmv_cents: integer(),
+          items_sold: integer(),
+          orders: integer(),
+          performance_synced_at: DateTime.t() | nil,
+          brand_id: pos_integer() | nil,
+          inserted_at: NaiveDateTime.t() | nil,
+          updated_at: NaiveDateTime.t() | nil
+        }
+
   # Fields that are synced from Shopify API and will be overwritten on sync
   @shopify_synced_fields [
     :brand_id,
