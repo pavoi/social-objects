@@ -3,11 +3,27 @@ defmodule SocialObjectsWeb.Router do
 
   import SocialObjectsWeb.UserAuth
 
-  # Custom CSP that allows GrapesJS template editor to function
-  # The editor needs 'unsafe-inline' and 'unsafe-eval' for its canvas iframe
-  # Also allows cdnjs.cloudflare.com for Font Awesome (used by newsletter plugin)
-  # TikTok domains needed for video embed player
-  @csp_header %{
+  # Strict CSP for most routes - no unsafe-inline/unsafe-eval
+  # This provides protection against XSS attacks for the majority of the application
+  @strict_csp %{
+    "content-security-policy" =>
+      "default-src 'self'; " <>
+        "script-src 'self' blob: data:; " <>
+        "style-src 'self' https://cdnjs.cloudflare.com; " <>
+        "style-src-elem 'self' https://cdnjs.cloudflare.com; " <>
+        "img-src 'self' data: blob: https:; " <>
+        "font-src 'self' data: https://cdnjs.cloudflare.com; " <>
+        "frame-src 'self' blob: data: https://www.tiktok.com; " <>
+        "child-src 'self' blob: data:; " <>
+        "connect-src 'self' ws: wss: https://storage.railway.app; " <>
+        "frame-ancestors 'self'; " <>
+        "base-uri 'self';"
+  }
+
+  # Permissive CSP ONLY for GrapesJS template editor
+  # The editor requires 'unsafe-inline' and 'unsafe-eval' for its canvas iframe
+  # This is isolated to template editor routes only
+  @editor_csp %{
     "content-security-policy" =>
       "default-src 'self'; " <>
         "script-src 'self' 'unsafe-inline' 'unsafe-eval' blob: data:; " <>
@@ -28,7 +44,18 @@ defmodule SocialObjectsWeb.Router do
     plug :fetch_live_flash
     plug :put_root_layout, html: {SocialObjectsWeb.Layouts, :root}
     plug :protect_from_forgery
-    plug :put_secure_browser_headers, @csp_header
+    plug :put_secure_browser_headers, @strict_csp
+    plug :fetch_current_scope_for_user
+  end
+
+  # Separate pipeline for template editor with permissive CSP
+  pipeline :browser_editor do
+    plug :accepts, ["html"]
+    plug :fetch_session
+    plug :fetch_live_flash
+    plug :put_root_layout, html: {SocialObjectsWeb.Layouts, :root}
+    plug :protect_from_forgery
+    plug :put_secure_browser_headers, @editor_csp
     plug :fetch_current_scope_for_user
   end
 
@@ -99,8 +126,6 @@ defmodule SocialObjectsWeb.Router do
         live "/products/:id/controller", ProductControllerLive.Index
         live "/creators", CreatorsLive.Index
         live "/videos", VideosLive.Index
-        live "/templates/new", TemplateEditorLive, :new
-        live "/templates/:id/edit", TemplateEditorLive, :edit
         live "/streams", TiktokLive.Index
         live "/shop-analytics", ShopAnalyticsLive.Index
         live "/readme", ReadmeLive.Index
@@ -113,14 +138,37 @@ defmodule SocialObjectsWeb.Router do
         live "/products/:id/controller", ProductControllerLive.Index
         live "/creators", CreatorsLive.Index
         live "/videos", VideosLive.Index
-        live "/templates/new", TemplateEditorLive, :new
-        live "/templates/:id/edit", TemplateEditorLive, :edit
         live "/streams", TiktokLive.Index
         live "/shop-analytics", ShopAnalyticsLive.Index
         live "/readme", ReadmeLive.Index
       end
 
       live "/users/settings", UserLive.Settings, :edit
+    end
+  end
+
+  # Template editor routes with permissive CSP (GrapesJS requires unsafe-inline/eval)
+  scope "/", SocialObjectsWeb do
+    pipe_through [:browser_editor]
+
+    live_session :template_editor,
+      layout: {SocialObjectsWeb.Layouts, :app},
+      on_mount: [
+        {SocialObjectsWeb.UserAuth, :require_authenticated},
+        {SocialObjectsWeb.UserAuth, :require_password_changed},
+        {SocialObjectsWeb.BrandAuth, :set_brand},
+        {SocialObjectsWeb.BrandAuth, :require_brand_access},
+        {SocialObjectsWeb.NavHooks, :set_current_page}
+      ] do
+      scope "/b/:brand_slug" do
+        live "/templates/new", TemplateEditorLive, :new
+        live "/templates/:id/edit", TemplateEditorLive, :edit
+      end
+
+      scope "/" do
+        live "/templates/new", TemplateEditorLive, :new
+        live "/templates/:id/edit", TemplateEditorLive, :edit
+      end
     end
   end
 
