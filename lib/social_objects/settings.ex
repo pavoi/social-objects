@@ -451,6 +451,26 @@ defmodule SocialObjects.Settings do
       present?(get_bigquery_private_key(brand_id))
   end
 
+  @spec get_bigquery_source_include_prefix(pos_integer() | nil) :: String.t() | nil
+  def get_bigquery_source_include_prefix(nil), do: nil
+
+  def get_bigquery_source_include_prefix(brand_id) do
+    case get_setting_value(brand_id, "bigquery_source_include_prefix") do
+      nil -> nil
+      value -> String.trim(value)
+    end
+  end
+
+  @spec get_bigquery_source_exclude_prefix(pos_integer() | nil) :: String.t() | nil
+  def get_bigquery_source_exclude_prefix(nil), do: nil
+
+  def get_bigquery_source_exclude_prefix(brand_id) do
+    case get_setting_value(brand_id, "bigquery_source_exclude_prefix") do
+      nil -> nil
+      value -> String.trim(value)
+    end
+  end
+
   @spec get_tiktok_live_accounts(pos_integer() | nil) :: [String.t()]
   @doc """
   Returns the TikTok Live accounts to monitor for a brand.

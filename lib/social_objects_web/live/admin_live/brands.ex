@@ -208,7 +208,11 @@ defmodule SocialObjectsWeb.AdminLive.Brands do
       "tiktok_live_accounts" =>
         format_tiktok_accounts(Settings.get_tiktok_live_accounts(brand_id)),
       "shopify_include_tags" => format_csv_list(Settings.get_shopify_include_tags(brand_id)),
-      "shopify_exclude_tags" => format_csv_list(Settings.get_shopify_exclude_tags(brand_id))
+      "shopify_exclude_tags" => format_csv_list(Settings.get_shopify_exclude_tags(brand_id)),
+      "bigquery_source_include_prefix" =>
+        Settings.get_bigquery_source_include_prefix(brand_id) || "",
+      "bigquery_source_exclude_prefix" =>
+        Settings.get_bigquery_source_exclude_prefix(brand_id) || ""
     }
 
     Enum.reduce(settings_getters, base_settings, fn {key, getter}, acc ->
@@ -243,6 +247,21 @@ defmodule SocialObjectsWeb.AdminLive.Brands do
       )
 
     _ = Settings.put_setting(brand_id, "bigquery_private_key", params["bigquery_private_key"])
+
+    _ =
+      Settings.put_setting(
+        brand_id,
+        "bigquery_source_include_prefix",
+        params["bigquery_source_include_prefix"]
+      )
+
+    _ =
+      Settings.put_setting(
+        brand_id,
+        "bigquery_source_exclude_prefix",
+        params["bigquery_source_exclude_prefix"]
+      )
+
     _ = Settings.put_setting(brand_id, "shopify_store_name", params["shopify_store_name"])
     _ = Settings.put_setting(brand_id, "shopify_client_id", params["shopify_client_id"])
     _ = Settings.put_setting(brand_id, "shopify_client_secret", params["shopify_client_secret"])

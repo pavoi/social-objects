@@ -117,6 +117,10 @@ defmodule SocialObjects.Workers.BigQueryOrderSyncWorker do
     if is_nil(dataset) or dataset == "" do
       {:error, :missing_bigquery_dataset}
     else
+      include_prefix = Settings.get_bigquery_source_include_prefix(brand_id)
+      exclude_prefix = Settings.get_bigquery_source_exclude_prefix(brand_id)
+      source_clause = build_source_filter_clause(include_prefix, exclude_prefix)
+
       sql = """
       SELECT
         CAST(o.order_id AS STRING) as order_id,
@@ -140,7 +144,7 @@ defmodule SocialObjects.Workers.BigQueryOrderSyncWorker do
       JOIN `#{dataset}.TikTokShopOrderLineItems` li
         ON CAST(o.order_id AS STRING) = li.order_id
       WHERE o.total_amount = 0
-        AND li.sku_type != 'NORMAL'
+        AND li.sku_type != 'NORMAL'#{source_clause}
       ORDER BY o.created_at DESC
       """
 
@@ -707,6 +711,10 @@ defmodule SocialObjects.Workers.BigQueryOrderSyncWorker do
     if is_nil(dataset) or dataset == "" do
       {:error, :missing_bigquery_dataset}
     else
+      include_prefix = Settings.get_bigquery_source_include_prefix(brand_id)
+      exclude_prefix = Settings.get_bigquery_source_exclude_prefix(brand_id)
+      source_clause = build_orders_source_filter_clause(include_prefix, exclude_prefix)
+
       sql = """
       SELECT
         CAST(order_id AS STRING) as order_id,
@@ -721,7 +729,7 @@ defmodule SocialObjects.Workers.BigQueryOrderSyncWorker do
         recipient_postal_code as zipcode,
         recipient_region_code as country
       FROM `#{dataset}.TikTokShopOrders`
-      WHERE CAST(order_id AS STRING) IN (#{ids_str})
+      WHERE CAST(order_id AS STRING) IN (#{ids_str})#{source_clause}
       """
 
       BigQuery.query(sql, brand_id: brand_id)
@@ -731,5 +739,33 @@ defmodule SocialObjects.Workers.BigQueryOrderSyncWorker do
   # Used by backfill - reuse the comprehensive update function
   defp update_creator_from_order(creator, order) do
     update_creator_from_order_data(creator, order)
+  end
+
+  # Source filter helpers for brands sharing the same BigQuery dataset
+  # Supports include/exclude prefixes for MECE filtering (like Shopify tags)
+  defp build_source_filter_clause(include_prefix, exclude_prefix) do
+    build_prefix_filter(include_prefix, exclude_prefix, "o.", "li.")
+  end
+
+  defp build_orders_source_filter_clause(include_prefix, exclude_prefix) do
+    build_prefix_filter(include_prefix, exclude_prefix, "", "")
+  end
+
+  defp build_prefix_filter(include_prefix, exclude_prefix, orders_prefix, line_items_prefix) do
+    build_prefix_clause(include_prefix, "STARTS_WITH", orders_prefix, line_items_prefix) <>
+      build_prefix_clause(exclude_prefix, "NOT STARTS_WITH", orders_prefix, line_items_prefix)
+  end
+
+  defp build_prefix_clause(prefix, _operator, _orders_prefix, _line_items_prefix)
+       when prefix in [nil, ""],
+       do: ""
+
+  defp build_prefix_clause(prefix, operator, "", "") do
+    "\n  AND #{operator}(_daton_sourceversion_integration_id, '#{prefix}')"
+  end
+
+  defp build_prefix_clause(prefix, operator, orders_prefix, line_items_prefix) do
+    "\n  AND #{operator}(#{orders_prefix}_daton_sourceversion_integration_id, '#{prefix}')" <>
+      "\n  AND #{operator}(#{line_items_prefix}_daton_sourceversion_integration_id, '#{prefix}')"
   end
 end

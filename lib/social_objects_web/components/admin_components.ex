@@ -482,6 +482,31 @@ defmodule SocialObjectsWeb.AdminComponents do
                 />
               </div>
             </div>
+            <div class="settings-subsection">
+              <h3 class="settings-subsection__title">Data Source Filter</h3>
+              <p class="settings-subsection__description">
+                Filter which TikTok Shop data syncs to this brand. Useful when multiple brands share one BigQuery dataset.
+              </p>
+              <div class="settings-grid">
+                <.input
+                  field={@form[:bigquery_source_include_prefix]}
+                  type="text"
+                  label="Include Prefix"
+                  placeholder="e.g., pavoi_us_"
+                />
+                <.input
+                  field={@form[:bigquery_source_exclude_prefix]}
+                  type="text"
+                  label="Exclude Prefix"
+                  placeholder="e.g., pavoi_us_active_"
+                />
+              </div>
+              <p class="settings-hint">
+                Filters on <code>_daton_sourceversion_integration_id</code>.
+                Include syncs only matching rows; exclude removes matching rows.
+                Leave both empty to sync all data.
+              </p>
+            </div>
           </section>
 
           <section class="settings-section">
