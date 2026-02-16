@@ -1,0 +1,23 @@
+name: Deploy Main App
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - 'services/tiktok-bridge/**'
+      - '*.md'
+      - 'docs/**'
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Railway CLI
+        run: npm install -g @railway/cli
+
+      - name: Deploy to Railway
+        run: railway up --service pavoi
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
