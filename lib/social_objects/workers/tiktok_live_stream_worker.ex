@@ -225,16 +225,20 @@ defmodule SocialObjects.Workers.TiktokLiveStreamWorker do
       {:error, reason} ->
         Logger.warning("Failed to disconnect from bridge: #{inspect(reason)}")
     end
-  rescue
-    _ -> :ok
+  catch
+    :exit, _reason -> :ok
   end
 
   defp stop_event_handler(pid) when is_pid(pid) do
     if Process.alive?(pid) do
-      EventHandler.stop(pid)
+      try do
+        EventHandler.stop(pid)
+      catch
+        :exit, _reason -> :ok
+      end
+    else
+      :ok
     end
-  rescue
-    _ -> :ok
   end
 
   defp stop_event_handler(_), do: :ok

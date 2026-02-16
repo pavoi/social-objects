@@ -1007,17 +1007,7 @@ defmodule SocialObjects.ProductSets do
       updated_count =
         product_set_products
         |> Enum.with_index(1)
-        |> Enum.count(fn {psp, new_position} ->
-          if psp.position != new_position do
-            psp
-            |> Ecto.Changeset.change(position: new_position)
-            |> Repo.update!()
-
-            true
-          else
-            false
-          end
-        end)
+        |> Enum.count(fn {psp, new_position} -> update_position_if_changed(psp, new_position) end)
 
       # Touch product set to update its timestamp
       touch_product_set(product_set_id)
@@ -1027,6 +1017,16 @@ defmodule SocialObjects.ProductSets do
   end
 
   ## Private Helpers
+
+  defp update_position_if_changed(%ProductSetProduct{position: position}, position), do: false
+
+  defp update_position_if_changed(psp, new_position) do
+    psp
+    |> Ecto.Changeset.change(position: new_position)
+    |> Repo.update!()
+
+    true
+  end
 
   defp update_product_set_state(product_set_id, attrs) do
     Repo.transaction(fn ->

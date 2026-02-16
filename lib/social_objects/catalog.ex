@@ -146,7 +146,6 @@ defmodule SocialObjects.Catalog do
   @spec list_products_by_brand_with_images(pos_integer()) :: [Product.t()]
   def list_products_by_brand_with_images(brand_id), do: list_products_with_images(brand_id)
 
-
   # Allow-list for safe product sorting
   defp build_order_by(sort_by) do
     case sort_by do
