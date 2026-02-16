@@ -85,7 +85,7 @@ Represents a company/brand whose products are featured in live sessions.
 
 **Schema (Elixir):**
 ```elixir
-defmodule Pavoi.Catalog.Brand do
+defmodule SocialObjects.Catalog.Brand do
   use Ecto.Schema
   import Ecto.Changeset
 
@@ -94,8 +94,8 @@ defmodule Pavoi.Catalog.Brand do
     field :slug, :string
     field :notes, :string
 
-    has_many :products, Pavoi.Catalog.Product
-    has_many :sessions, Pavoi.Sessions.Session
+    has_many :products, SocialObjects.Catalog.Product
+    has_many :sessions, SocialObjects.Sessions.Session
 
     timestamps()
   end
@@ -146,7 +146,7 @@ Catalog item with global product information. Products are reusable across multi
 
 **Schema (Elixir):**
 ```elixir
-defmodule Pavoi.Catalog.Product do
+defmodule SocialObjects.Catalog.Product do
   use Ecto.Schema
   import Ecto.Changeset
 
@@ -159,9 +159,9 @@ defmodule Pavoi.Catalog.Product do
     field :pid, :string
     field :sku, :string
 
-    belongs_to :brand, Pavoi.Catalog.Brand
-    has_many :product_images, Pavoi.Catalog.ProductImage, preload_order: [asc: :position]
-    has_many :session_products, Pavoi.Sessions.SessionProduct
+    belongs_to :brand, SocialObjects.Catalog.Brand
+    has_many :product_images, SocialObjects.Catalog.ProductImage, preload_order: [asc: :position]
+    has_many :session_products, SocialObjects.Sessions.SessionProduct
 
     timestamps()
   end
@@ -215,7 +215,7 @@ Images associated with products. Products can have multiple images with ordering
 
 **Schema (Elixir):**
 ```elixir
-defmodule Pavoi.Catalog.ProductImage do
+defmodule SocialObjects.Catalog.ProductImage do
   use Ecto.Schema
   import Ecto.Changeset
 
@@ -226,7 +226,7 @@ defmodule Pavoi.Catalog.ProductImage do
     field :alt_text, :string
     field :is_primary, :boolean, default: false
 
-    belongs_to :product, Pavoi.Catalog.Product
+    belongs_to :product, SocialObjects.Catalog.Product
 
     timestamps()
   end
@@ -267,7 +267,7 @@ Hosts who present during live sessions.
 
 **Schema (Elixir):**
 ```elixir
-defmodule Pavoi.Sessions.Host do
+defmodule SocialObjects.Sessions.Host do
   use Ecto.Schema
   import Ecto.Changeset
 
@@ -275,8 +275,8 @@ defmodule Pavoi.Sessions.Host do
     field :name, :string
     field :notes, :string
 
-    many_to_many :sessions, Pavoi.Sessions.Session,
-      join_through: Pavoi.Sessions.SessionHost
+    many_to_many :sessions, SocialObjects.Sessions.Session,
+      join_through: SocialObjects.Sessions.SessionHost
 
     timestamps()
   end
@@ -314,7 +314,7 @@ A live streaming event with a curated product lineup.
 
 **Schema (Elixir):**
 ```elixir
-defmodule Pavoi.Sessions.Session do
+defmodule SocialObjects.Sessions.Session do
   use Ecto.Schema
   import Ecto.Changeset
 
@@ -323,11 +323,11 @@ defmodule Pavoi.Sessions.Session do
     field :slug, :string
     field :notes, :string
 
-    belongs_to :brand, Pavoi.Catalog.Brand
-    has_many :session_products, Pavoi.Sessions.SessionProduct, preload_order: [asc: :position]
-    has_one :session_state, Pavoi.Sessions.SessionState
-    many_to_many :hosts, Pavoi.Sessions.Host,
-      join_through: Pavoi.Sessions.SessionHost
+    belongs_to :brand, SocialObjects.Catalog.Brand
+    has_many :session_products, SocialObjects.Sessions.SessionProduct, preload_order: [asc: :position]
+    has_one :session_state, SocialObjects.Sessions.SessionState
+    many_to_many :hosts, SocialObjects.Sessions.Host,
+      join_through: SocialObjects.Sessions.SessionHost
 
     timestamps()
   end
@@ -366,15 +366,15 @@ Join table linking hosts to sessions with roles.
 
 **Schema (Elixir):**
 ```elixir
-defmodule Pavoi.Sessions.SessionHost do
+defmodule SocialObjects.Sessions.SessionHost do
   use Ecto.Schema
   import Ecto.Changeset
 
   schema "session_hosts" do
     field :role, :string, default: "primary"
 
-    belongs_to :session, Pavoi.Sessions.Session
-    belongs_to :host, Pavoi.Sessions.Host
+    belongs_to :session, SocialObjects.Sessions.Session
+    belongs_to :host, SocialObjects.Sessions.Host
 
     timestamps()
   end
@@ -421,7 +421,7 @@ Products assigned to a session with ordering and per-session overrides.
 
 **Schema (Elixir):**
 ```elixir
-defmodule Pavoi.Sessions.SessionProduct do
+defmodule SocialObjects.Sessions.SessionProduct do
   use Ecto.Schema
   import Ecto.Changeset
 
@@ -434,8 +434,8 @@ defmodule Pavoi.Sessions.SessionProduct do
     field :featured_sale_price_cents, :integer
     field :notes, :string
 
-    belongs_to :session, Pavoi.Sessions.Session
-    belongs_to :product, Pavoi.Catalog.Product
+    belongs_to :session, SocialObjects.Sessions.Session
+    belongs_to :product, SocialObjects.Catalog.Product
 
     timestamps()
   end
@@ -502,7 +502,7 @@ Real-time control state for live sessions. Tracks which product and image is cur
 
 **Schema (Elixir):**
 ```elixir
-defmodule Pavoi.Sessions.SessionState do
+defmodule SocialObjects.Sessions.SessionState do
   use Ecto.Schema
   import Ecto.Changeset
 
@@ -510,8 +510,8 @@ defmodule Pavoi.Sessions.SessionState do
     field :current_image_index, :integer, default: 0
     field :updated_at, :utc_datetime
 
-    belongs_to :session, Pavoi.Sessions.Session
-    belongs_to :current_session_product, Pavoi.Sessions.SessionProduct
+    belongs_to :session, SocialObjects.Sessions.Session
+    belongs_to :current_session_product, SocialObjects.Sessions.SessionProduct
 
     # No inserted_at - only updated_at matters
   end
@@ -554,7 +554,7 @@ Migrations must be created in dependency order:
 ### 4.2 Sample Migration: Products
 
 ```elixir
-defmodule Pavoi.Repo.Migrations.CreateProducts do
+defmodule SocialObjects.Repo.Migrations.CreateProducts do
   use Ecto.Migration
 
   def change do
@@ -582,7 +582,7 @@ end
 ### 4.3 Sample Migration: SessionProducts
 
 ```elixir
-defmodule Pavoi.Repo.Migrations.CreateSessionProducts do
+defmodule SocialObjects.Repo.Migrations.CreateSessionProducts do
   use Ecto.Migration
 
   def change do
@@ -706,8 +706,8 @@ from p in Product,
 
 ```elixir
 # priv/repo/seeds.exs
-alias Pavoi.{Catalog, Sessions}
-alias Pavoi.Repo
+alias SocialObjects.{Catalog, Sessions}
+alias SocialObjects.Repo
 
 # Create brand
 {:ok, pavoi} = Catalog.create_brand(%{

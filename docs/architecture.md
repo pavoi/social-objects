@@ -136,11 +136,11 @@ but direct jumps are the primary navigation method.
 Application
 │
 ├── Phoenix.PubSub.Supervisor
-├── Pavoi.Repo (Ecto connection pool)
-├── PavoiWeb.Endpoint
+├── SocialObjects.Repo (Ecto connection pool)
+├── SocialObjectsWeb.Endpoint
 │   ├── HTTP Server (Cowboy)
 │   └── LiveView Socket Pool
-└── Pavoi.Application (custom supervisors)
+└── SocialObjects.Application (custom supervisors)
 ```
 
 ---
@@ -151,7 +151,7 @@ Phoenix contexts provide API boundaries around domain functionality. Keep contex
 
 ### 3.1 Catalog Context
 
-**Module:** `Pavoi.Catalog`
+**Module:** `SocialObjects.Catalog`
 
 **Responsibilities:**
 - Manage brands, products, and product images
@@ -176,7 +176,7 @@ _See [Implementation Guide](implementation_guide.md) for code examples._
 
 ### 3.2 Sessions Context
 
-**Module:** `Pavoi.Sessions`
+**Module:** `SocialObjects.Sessions`
 
 **Responsibilities:**
 - Manage live streaming sessions

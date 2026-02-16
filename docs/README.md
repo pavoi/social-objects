@@ -119,7 +119,7 @@ Social Objects provides:
 
 ### Create a New Product
 ```elixir
-Pavoi.Catalog.create_product(%{
+SocialObjects.Catalog.create_product(%{
   brand_id: brand.id,
   name: "CZ Lariat Station Necklace",
   talking_points_md: "- High quality\n- Best seller",

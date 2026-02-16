@@ -20,7 +20,7 @@ This guide tracks implementation progress and provides instructions for remainin
 
 ### 🚧 In Progress / Next Steps
 
-- [x] **Shopify Integration** - Hourly sync via Oban (see `lib/pavoi/shopify/` and `lib/pavoi/workers/shopify_sync_worker.ex`)
+- [x] **Shopify Integration** - Hourly sync via Oban (see `lib/social_objects/shopify/` and `lib/social_objects/workers/shopify_sync_worker.ex`)
 - [ ] **Testing** - Context and LiveView tests
 
 ### 📦 Post-MVP Features
@@ -38,10 +38,10 @@ This guide tracks implementation progress and provides instructions for remainin
 ### 1.1 Context Tests
 
 ```elixir
-# test/pavoi/sessions_test.exs
-defmodule Pavoi.SessionsTest do
-  use Pavoi.DataCase
-  alias Pavoi.Sessions
+# test/social_objects/sessions_test.exs
+defmodule SocialObjects.SessionsTest do
+  use SocialObjects.DataCase
+  alias SocialObjects.Sessions
 
   describe "jump_to_product/2" do
     setup do
@@ -54,7 +54,7 @@ defmodule Pavoi.SessionsTest do
     end
 
     test "jumps directly to product by position", %{session: session, sp10: sp10} do
-      Phoenix.PubSub.subscribe(Pavoi.PubSub, "session:#{session.id}:state")
+      Phoenix.PubSub.subscribe(SocialObjects.PubSub, "session:#{session.id}:state")
 
       {:ok, new_state} = Sessions.jump_to_product(session.id, 10)
 
@@ -73,9 +73,9 @@ end
 ### 1.2 LiveView Tests
 
 ```elixir
-# test/pavoi_web/live/session_controller_live_test.exs
-defmodule PavoiWeb.SessionControllerLiveTest do
-  use PavoiWeb.ConnCase
+# test/social_objects_web/live/session_controller_live_test.exs
+defmodule SocialObjectsWeb.SessionControllerLiveTest do
+  use SocialObjectsWeb.ConnCase
   import Phoenix.LiveViewTest
 
   test "loads session and displays first product", %{conn: conn} do
@@ -99,7 +99,7 @@ end
 
 ### MVP Approach
 
-Pavoi is designed for local use by internal team members. Authentication is deferred to post-MVP because:
+Social Objects is designed for local use by internal team members. Authentication is deferred to post-MVP because:
 
 - **Local deployment only** - Runs on localhost, not exposed to internet
 - **Trusted network** - Used by internal team on secure network
@@ -119,7 +119,7 @@ When deploying to production or remote access is required:
 
 2. **Hash secrets on boot** in `config/runtime.exs`:
    ```elixir
-   config :pavoi, Pavoi.Auth,
+   config :social_objects, SocialObjects.Auth,
      controller_secret_hash: Bcrypt.hash_pwd_salt(System.fetch_env!("CONTROLLER_SHARED_SECRET")),
      host_secret_hash: Bcrypt.hash_pwd_salt(System.fetch_env!("HOST_SHARED_SECRET")),
      admin_secret_hash: Bcrypt.hash_pwd_salt(System.fetch_env!("ADMIN_SHARED_SECRET")),
@@ -130,7 +130,7 @@ When deploying to production or remote access is required:
 4. **Throttle** `/login` route (e.g., using `Hammer`) to 5 attempts/min/IP
 5. **Log audit events** (login, logout, elevated actions) with structured metadata
 
-Designate plugs (`PavoiWeb.RequireController`, etc.) now so migrating to `mix phx.gen.auth` later is drop-in.
+Designate plugs (`SocialObjectsWeb.RequireController`, etc.) now so migrating to `mix phx.gen.auth` later is drop-in.
 
 ---
 
@@ -148,12 +148,12 @@ if config_env() == :prod do
     System.get_env("DATABASE_URL") ||
       raise "DATABASE_URL not set"
 
-  config :pavoi, Pavoi.Repo,
+  config :social_objects, SocialObjects.Repo,
     url: database_url,
     pool_size: String.to_integer(System.get_env("POOL_SIZE") || "10"),
     ssl: true
 
-  config :pavoi, PavoiWeb.Endpoint,
+  config :social_objects, SocialObjectsWeb.Endpoint,
     server: true,  # CRITICAL for deployment
     http: [port: String.to_integer(System.get_env("PORT") || "4000")]
 end
@@ -182,7 +182,7 @@ Critical patterns already implemented:
 
 ```
 lib/
-├── pavoi/
+├── social_objects/
 │   ├── catalog/              # Product catalog schemas
 │   │   ├── brand.ex
 │   │   ├── product.ex
@@ -193,7 +193,7 @@ lib/
 │   │   └── session_state.ex
 │   ├── catalog.ex            # Catalog context (CRUD)
 │   └── sessions.ex           # Sessions context (state management)
-└── pavoi_web/
+└── social_objects_web/
     ├── live/
     │   ├── session_run_live.ex        # Main LiveView
     │   └── session_run_live.html.heex # Template
@@ -216,7 +216,7 @@ priv/
 
 **Temporary Assigns (Memory Management):**
 ```elixir
-# lib/pavoi_web/live/session_run_live.ex:31-36
+# lib/social_objects_web/live/session_run_live.ex:31-36
 {:ok, socket, temporary_assigns: [
   current_session_product: nil,
   current_product: nil,
@@ -227,10 +227,10 @@ priv/
 
 **State Synchronization:**
 ```elixir
-# lib/pavoi/sessions.ex:258-266
+# lib/social_objects/sessions.ex:258-266
 defp broadcast_state_change({:ok, %SessionState{} = state}) do
   Phoenix.PubSub.broadcast(
-    Pavoi.PubSub,
+    SocialObjects.PubSub,
     "session:#{state.session_id}:state",
     {:state_changed, state}
   )
@@ -247,7 +247,7 @@ end
 
 **Database Timestamp Handling:**
 ```elixir
-# lib/pavoi/sessions/session_state.ex:22
+# lib/social_objects/sessions/session_state.ex:22
 |> put_change(:updated_at, DateTime.utc_now() |> DateTime.truncate(:second))
 ```
 _Note: PostgreSQL `:utc_datetime` rejects microseconds, must truncate to seconds_

@@ -30,7 +30,7 @@ This document outlines planned features and enhancements beyond the MVP scope.
 **Timeline:** Q1 2025
 **Priority:** High
 
-**Note:** Shopify sync has been completed! See `lib/pavoi/shopify/` for implementation. Hourly sync runs via Oban.
+**Note:** Shopify sync has been completed! See `lib/social_objects/shopify/` for implementation. Hourly sync runs via Oban.
 
 ### 2.1 TikTok Shop Integration
 
@@ -66,7 +66,7 @@ This document outlines planned features and enhancements beyond the MVP scope.
 
 **Implementation:**
 ```elixir
-defmodule Pavoi.AI.TalkingPoints do
+defmodule SocialObjects.AI.TalkingPoints do
   def generate(product, style \\ :energetic) do
     prompt = """
     Generate 4-6 bullet point talking points for this product:
@@ -152,7 +152,7 @@ end
 
 ### 4.1 OBS Integration
 
-**Goal:** Control OBS scenes and sources from Pavoi
+**Goal:** Control OBS scenes and sources from Social Objects
 
 **Features:**
 - Switch OBS scenes when changing products
@@ -163,7 +163,7 @@ end
 
 **Implementation:**
 - OBS WebSocket plugin
-- Pavoi → OBS commands on product change
+- Social Objects → OBS commands on product change
 - Template-based overlays
 
 **Benefits:**
@@ -173,7 +173,7 @@ end
 
 **Technical Approach:**
 ```elixir
-defmodule Pavoi.OBS do
+defmodule SocialObjects.OBS do
   # Connect to OBS via WebSocket
   def connect(host, port, password) do
     ObsWebSocket.connect(host, port, password)
@@ -201,7 +201,7 @@ end
 
 **Implementation:**
 - StreamDeck SDK
-- WebSocket connection to Pavoi
+- WebSocket connection to Social Objects
 - Button mapping configuration
 
 **Benefits:**
@@ -240,7 +240,7 @@ end
 - CPU fallback for older browsers
 
 **Future Enhancements (Not Implemented):**
-- Wake word detection ("Okay Pavoi") - Currently manual toggle
+- Wake word detection ("Okay Social Objects") - Currently manual toggle
 - Extended commands ("next product", "show image 3") - Currently numbers only
 - Text-to-speech confirmation - Visual feedback only
 - Multi-language support - English only
@@ -304,7 +304,7 @@ _See [VOICE_CONTROL_PLAN.md](../VOICE_CONTROL_PLAN.md) for complete documentatio
 **Use Cases:**
 - Agency managing multiple clients
 - Company with multiple product lines
-- White-label Pavoi for resale
+- White-label Social Objects for resale
 
 ---
 
@@ -352,7 +352,7 @@ _See [VOICE_CONTROL_PLAN.md](../VOICE_CONTROL_PLAN.md) for complete documentatio
 
 ### 6.3 TikTok Analytics Integration
 
-**Goal:** Correlate Pavoi data with TikTok performance metrics
+**Goal:** Correlate Social Objects data with TikTok performance metrics
 
 **Data Points:**
 - Viewer count
@@ -396,7 +396,7 @@ _See [VOICE_CONTROL_PLAN.md](../VOICE_CONTROL_PLAN.md) for complete documentatio
 
 ### Potential Future Direction
 
-**Consider open-sourcing Pavoi:**
+**Consider open-sourcing Social Objects:**
 - Community contributions
 - Plugin ecosystem
 - Third-party integrations
@@ -413,7 +413,7 @@ _See [VOICE_CONTROL_PLAN.md](../VOICE_CONTROL_PLAN.md) for complete documentatio
 ## Summary
 
 **Recently Completed:**
-1. ~~Shopify sync~~ ✅ Complete (see `lib/pavoi/shopify/`)
+1. ~~Shopify sync~~ ✅ Complete (see `lib/social_objects/shopify/`)
 2. ~~Voice control~~ ✅ Complete (see `VOICE_CONTROL_PLAN.md`)
 
 **Immediate Next Steps (Post-MVP):**
