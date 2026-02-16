@@ -287,7 +287,7 @@ defmodule SocialObjects.Catalog do
 
   Returns `{:ok, product}` if found, `{:error, :not_found}` if not found.
   """
-  @spec get_product(pos_integer(), pos_integer()) :: {:ok, Product.t()} | nil
+  @spec get_product(pos_integer(), pos_integer()) :: {:ok, Product.t()} | {:error, :not_found}
   def get_product(brand_id, id) do
     case Repo.get_by(Product, id: id, brand_id: brand_id) do
       nil -> {:error, :not_found}

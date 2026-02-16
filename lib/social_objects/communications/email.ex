@@ -21,8 +21,9 @@ defmodule SocialObjects.Communications.Email do
 
   Returns {:ok, message_id} on success, {:error, reason} on failure.
   """
-  def send_templated_email(%Creator{} = creator, %EmailTemplate{} = template) do
-    brand = Catalog.get_brand!(template.brand_id)
+  def send_templated_email(%Creator{} = creator, %EmailTemplate{brand_id: brand_id} = template)
+      when is_integer(brand_id) do
+    brand = Catalog.get_brand!(brand_id)
     features = get_features()
     original_email = creator.email
     to_email = recipient_email(original_email, features)
@@ -47,6 +48,10 @@ defmodule SocialObjects.Communications.Email do
       {:error, reason} ->
         {:error, format_error(reason)}
     end
+  end
+
+  def send_templated_email(%Creator{}, %EmailTemplate{brand_id: nil}) do
+    {:error, "Template must have a brand_id"}
   end
 
   @doc """
