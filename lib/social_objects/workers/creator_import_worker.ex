@@ -62,11 +62,10 @@ defmodule SocialObjects.Workers.CreatorImportWorker do
       {:ok, counts} ->
         Logger.info("✅ Import completed: #{inspect(counts)}")
 
-        # Update timestamps based on source
+        # Update timestamps based on source (euka_full handled in import function itself)
         _ =
           case source do
             "videos" -> Settings.update_videos_last_import_at(brand_id)
-            "euka_full" -> Settings.update_external_import_last_at(brand_id)
             _ -> nil
           end
 
@@ -220,6 +219,9 @@ defmodule SocialObjects.Workers.CreatorImportWorker do
 
       {:error, error_msg}
     else
+      # Update external import timestamp on success (works for both worker and direct calls)
+      _ = Settings.update_external_import_last_at(brand_id)
+
       {:ok,
        %{
          created: stats.created,

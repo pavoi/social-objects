@@ -174,7 +174,7 @@ defmodule SocialObjectsWeb.ProductsLive.Index do
       # Products tab state (for browsing all products)
       |> assign(:platform_filter, "")
       |> assign(:browse_product_search_query, "")
-      |> assign(:browse_product_sort_by, "")
+      |> assign(:browse_product_sort_by, "name")
       |> assign(:browse_product_page, 1)
       |> assign(:browse_products_total_count, 0)
       |> assign(:browse_products_has_more, false)
@@ -1074,13 +1074,8 @@ defmodule SocialObjectsWeb.ProductsLive.Index do
     # If on products tab, push_patch to update URL (remove ?p= param)
     socket =
       if socket.assigns.page_tab == "products" do
-        query_params =
-          %{pt: "products"}
-          |> maybe_add_param(:q, socket.assigns.browse_product_search_query)
-          |> maybe_add_param(:sort, socket.assigns.browse_product_sort_by)
-          |> maybe_add_param(:platform, socket.assigns.platform_filter)
-
-        push_patch(socket, to: products_path(socket, query_params))
+        params = browse_query_params(socket)
+        push_patch(socket, to: products_path(socket, params))
       else
         socket
       end
@@ -1505,36 +1500,20 @@ defmodule SocialObjectsWeb.ProductsLive.Index do
   @impl true
   def handle_event("browse_search_products", %{"value" => query}, socket) do
     socket = assign(socket, :browse_search_touched, true)
-
-    query_params =
-      %{pt: "products"}
-      |> maybe_add_param(:q, query)
-      |> maybe_add_param(:sort, socket.assigns.browse_product_sort_by)
-      |> maybe_add_param(:platform, socket.assigns.platform_filter)
-
-    {:noreply, push_patch(socket, to: products_path(socket, query_params))}
+    params = browse_query_params(socket, %{q: query})
+    {:noreply, push_patch(socket, to: products_path(socket, params))}
   end
 
   @impl true
   def handle_event("browse_sort_changed", %{"sort" => sort_by}, socket) do
-    query_params =
-      %{pt: "products"}
-      |> maybe_add_param(:q, socket.assigns.browse_product_search_query)
-      |> maybe_add_param(:sort, sort_by)
-      |> maybe_add_param(:platform, socket.assigns.platform_filter)
-
-    {:noreply, push_patch(socket, to: products_path(socket, query_params))}
+    params = browse_query_params(socket, %{sort: sort_by})
+    {:noreply, push_patch(socket, to: products_path(socket, params))}
   end
 
   @impl true
   def handle_event("browse_platform_filter_changed", %{"platform" => platform}, socket) do
-    query_params =
-      %{pt: "products"}
-      |> maybe_add_param(:q, socket.assigns.browse_product_search_query)
-      |> maybe_add_param(:sort, socket.assigns.browse_product_sort_by)
-      |> maybe_add_param(:platform, platform)
-
-    {:noreply, push_patch(socket, to: products_path(socket, query_params))}
+    params = browse_query_params(socket, %{platform: platform})
+    {:noreply, push_patch(socket, to: products_path(socket, params))}
   end
 
   @impl true
@@ -1549,29 +1528,20 @@ defmodule SocialObjectsWeb.ProductsLive.Index do
 
   @impl true
   def handle_event("browse_show_edit_product_modal", %{"product-id" => product_id}, socket) do
-    query_params =
-      %{pt: "products", p: product_id}
-      |> maybe_add_param(:q, socket.assigns.browse_product_search_query)
-      |> maybe_add_param(:sort, socket.assigns.browse_product_sort_by)
-      |> maybe_add_param(:platform, socket.assigns.platform_filter)
-
-    {:noreply, push_patch(socket, to: products_path(socket, query_params))}
+    params = browse_query_params(socket, %{p: product_id})
+    {:noreply, push_patch(socket, to: products_path(socket, params))}
   end
 
   @impl true
   def handle_event("browse_close_edit_product_modal", _params, socket) do
-    query_params =
-      %{pt: "products"}
-      |> maybe_add_param(:q, socket.assigns.browse_product_search_query)
-      |> maybe_add_param(:sort, socket.assigns.browse_product_sort_by)
-      |> maybe_add_param(:platform, socket.assigns.platform_filter)
+    params = browse_query_params(socket)
 
     socket =
       socket
       |> assign(:editing_product, nil)
       |> assign(:product_edit_form, to_form(Product.changeset(%Product{}, %{})))
       |> assign(:current_image_index, 0)
-      |> push_patch(to: products_path(socket, query_params))
+      |> push_patch(to: products_path(socket, params))
 
     {:noreply, socket}
   end
@@ -2116,7 +2086,7 @@ defmodule SocialObjectsWeb.ProductsLive.Index do
   defp maybe_load_products_tab(socket, "products", old_page_tab, params) do
     # Apply browse product search params
     search_query = params["q"] || ""
-    sort_by = params["sort"] || ""
+    sort_by = params["sort"] || "name"
     platform_filter = params["platform"] || ""
     product_id = params["p"]
 
@@ -2316,6 +2286,18 @@ defmodule SocialObjectsWeb.ProductsLive.Index do
   defp maybe_add_param(params, _key, ""), do: params
   defp maybe_add_param(params, _key, nil), do: params
   defp maybe_add_param(params, key, value), do: Map.put(params, key, value)
+
+  # Helper to build browse query params with overrides
+  defp browse_query_params(socket, overrides \\ %{}) do
+    %{pt: "products"}
+    |> maybe_add_param(:q, Map.get(overrides, :q, socket.assigns.browse_product_search_query))
+    |> maybe_add_param(:sort, Map.get(overrides, :sort, socket.assigns.browse_product_sort_by))
+    |> maybe_add_param(
+      :platform,
+      Map.get(overrides, :platform, socket.assigns.platform_filter)
+    )
+    |> maybe_add_param(:p, Map.get(overrides, :p))
+  end
 
   # =============================================================================
   # UNDO FUNCTIONALITY
