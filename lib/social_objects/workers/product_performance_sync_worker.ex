@@ -125,7 +125,7 @@ defmodule SocialObjects.Workers.ProductPerformanceSyncWorker do
 
         {:ok, stats}
 
-      {:error, :rate_limited} ->
+      {:error, reason} when reason == :rate_limited or elem(reason, 0) == :rate_limited ->
         streak = Settings.record_product_performance_rate_limit(brand_id)
         backoff = calculate_backoff(streak)
 

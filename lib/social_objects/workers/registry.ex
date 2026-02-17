@@ -190,7 +190,9 @@ defmodule SocialObjects.Workers.Registry do
       queue: :default,
       status_key: "weekly_recap_last_sent_at",
       triggerable: true,
-      brand_scoped: true
+      brand_scoped: true,
+      # Weekly worker: 8 days before considered stale
+      max_staleness_hours: 192
     },
 
     # Utilities

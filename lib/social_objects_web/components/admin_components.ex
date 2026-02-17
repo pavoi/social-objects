@@ -989,12 +989,12 @@ defmodule SocialObjectsWeb.AdminComponents do
       </td>
       <td>
         <div class="worker-status">
-          <span class={"worker-status__indicator " <> status_indicator_class(@status, @worker_state, failure)} />
+          <span class={"worker-status__indicator " <> status_indicator_class(@status, @worker_state, failure, @worker)} />
           <span
             class={"worker-status__text " <> status_text_class(@worker_state, failure)}
             title={failure_title(failure)}
           >
-            {status_text(@status, @worker_state, failure)}
+            {status_text(@status, @worker_state, failure, @worker)}
           </span>
         </div>
       </td>
@@ -1133,38 +1133,48 @@ defmodule SocialObjectsWeb.AdminComponents do
   defp tiktok_auth_status_text(:missing), do: "Missing"
   defp tiktok_auth_status_text(_), do: "Unknown"
 
-  defp status_indicator_class(_status, :running, _failure),
+  defp status_indicator_class(_status, :running, _failure, _worker),
     do: "worker-status__indicator--running"
 
-  defp status_indicator_class(_status, :pending, _failure),
+  defp status_indicator_class(_status, :pending, _failure, _worker),
     do: "worker-status__indicator--running"
 
-  defp status_indicator_class(_status, _worker_state, %{}), do: "worker-status__indicator--failed"
-  defp status_indicator_class(nil, _worker_state, _failure), do: "worker-status__indicator--stale"
+  defp status_indicator_class(_status, _worker_state, %{}, _worker),
+    do: "worker-status__indicator--failed"
 
-  defp status_indicator_class(datetime, _worker_state, _failure) do
+  defp status_indicator_class(nil, _worker_state, _failure, _worker),
+    do: "worker-status__indicator--stale"
+
+  defp status_indicator_class(datetime, _worker_state, _failure, worker) do
     hours_ago = DateTime.diff(DateTime.utc_now(), datetime, :hour)
+    max_staleness = Map.get(worker, :max_staleness_hours, 24)
+    warning_threshold = div(max_staleness * 3, 2)
 
     cond do
-      hours_ago < 24 -> "worker-status__indicator--ok"
-      hours_ago < 72 -> "worker-status__indicator--warning"
+      hours_ago < max_staleness -> "worker-status__indicator--ok"
+      hours_ago < warning_threshold -> "worker-status__indicator--warning"
       true -> "worker-status__indicator--stale"
     end
   end
 
-  defp status_text(_status, :running, _failure), do: "Running"
-  defp status_text(_status, :pending, _failure), do: "Pending"
-  defp status_text(_status, _worker_state, %{state: "retryable"}), do: "Failed (Retrying)"
-  defp status_text(_status, _worker_state, %{state: "discarded"}), do: "Failed"
-  defp status_text(_status, _worker_state, %{}), do: "Failed"
-  defp status_text(nil, _worker_state, _failure), do: "Never run"
+  defp status_text(_status, :running, _failure, _worker), do: "Running"
+  defp status_text(_status, :pending, _failure, _worker), do: "Pending"
 
-  defp status_text(datetime, _worker_state, _failure) do
+  defp status_text(_status, _worker_state, %{state: "retryable"}, _worker),
+    do: "Failed (Retrying)"
+
+  defp status_text(_status, _worker_state, %{state: "discarded"}, _worker), do: "Failed"
+  defp status_text(_status, _worker_state, %{}, _worker), do: "Failed"
+  defp status_text(nil, _worker_state, _failure, _worker), do: "Never run"
+
+  defp status_text(datetime, _worker_state, _failure, worker) do
     hours_ago = DateTime.diff(DateTime.utc_now(), datetime, :hour)
+    max_staleness = Map.get(worker, :max_staleness_hours, 24)
+    warning_threshold = div(max_staleness * 3, 2)
 
     cond do
-      hours_ago < 24 -> "OK"
-      hours_ago < 72 -> "Stale"
+      hours_ago < max_staleness -> "OK"
+      hours_ago < warning_threshold -> "Stale"
       true -> "Stale"
     end
   end
