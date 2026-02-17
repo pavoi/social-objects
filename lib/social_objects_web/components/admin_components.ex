@@ -6,6 +6,8 @@ defmodule SocialObjectsWeb.AdminComponents do
   use Phoenix.Component
   use SocialObjectsWeb, :verified_routes
 
+  alias SocialObjects.Workers.Requirements
+
   import SocialObjectsWeb.CoreComponents,
     only: [button: 1, input: 1, modal: 1, secret_input: 1, format_relative_time: 1]
 
@@ -920,7 +922,7 @@ defmodule SocialObjectsWeb.AdminComponents do
   attr :statuses, :map, required: true
   attr :running_workers, :list, required: true
   attr :failed_worker_states, :map, required: true
-  attr :tiktok_auth_health, :map, default: nil
+  attr :worker_requirements, :map, required: true
   attr :rate_limit_infos, :map, default: %{}
   attr :brand_id, :any, required: true
 
@@ -947,7 +949,13 @@ defmodule SocialObjectsWeb.AdminComponents do
             status={get_worker_status(@statuses, @brand_id, worker.status_key)}
             worker_state={get_worker_state(@running_workers, worker.key)}
             worker_failure={Map.get(@failed_worker_states, worker.key)}
-            tiktok_auth_health={@tiktok_auth_health}
+            worker_reqs={
+              Map.get(@worker_requirements, worker.key, %{
+                can_run: false,
+                missing_hard: [],
+                missing_hard_labels: ["Unknown requirements"]
+              })
+            }
             rate_limit_info={Map.get(@rate_limit_infos, worker.key)}
             brand_id={@brand_id}
           />
@@ -964,18 +972,22 @@ defmodule SocialObjectsWeb.AdminComponents do
   attr :status, :any, default: nil
   attr :worker_state, :atom, default: nil
   attr :worker_failure, :map, default: nil
-  attr :tiktok_auth_health, :map, default: nil
+  attr :worker_reqs, :map, required: true
   attr :rate_limit_info, :map, default: nil
   attr :brand_id, :any, required: true
 
   def worker_row(assigns) do
     ~H"""
     <% failure = active_failure(@status, @worker_failure) %>
-    <% disabled = run_button_disabled?(@worker_state, @worker, @tiktok_auth_health) %>
+    <% disabled = run_button_disabled?(@worker_state, @worker_reqs) %>
     <tr>
       <td>
         <div class="worker-name">{@worker.name}</div>
         <div class="worker-description">{@worker.description}</div>
+        <.requirements_badge
+          :if={@worker.triggerable && @worker_reqs.missing_hard != []}
+          labels={@worker_reqs.missing_hard_labels}
+        />
         <.rate_limit_warning
           :if={@rate_limit_info && @rate_limit_info.streak > 0}
           info={@rate_limit_info}
@@ -1007,7 +1019,7 @@ defmodule SocialObjectsWeb.AdminComponents do
           phx-value-worker={@worker.key}
           phx-value-brand_id={@brand_id}
           disabled={disabled}
-          title={run_button_title(@worker_state, @worker, @tiktok_auth_health)}
+          title={run_button_title(@worker_state, @worker_reqs)}
         >
           {button_label(@worker_state)}
         </.button>
@@ -1028,6 +1040,25 @@ defmodule SocialObjectsWeb.AdminComponents do
       <span>
         Rate limited {format_relative_time(@info.last_limited_at)}
         {if @info.streak > 1, do: "(streak: #{@info.streak})", else: ""}
+      </span>
+    </div>
+    """
+  end
+
+  @doc """
+  Renders a badge showing missing requirements for a worker.
+
+  This badge is displayed when a worker cannot run due to missing hard requirements,
+  making it clear to the user why the Run button is disabled.
+  """
+  attr :labels, :list, required: true
+
+  def requirements_badge(assigns) do
+    ~H"""
+    <div class="worker-requirements-badge">
+      <span class="worker-requirements-badge__icon">⚠</span>
+      <span class="worker-requirements-badge__text">
+        Missing: {Enum.join(@labels, ", ")}
       </span>
     </div>
     """
@@ -1142,18 +1173,29 @@ defmodule SocialObjectsWeb.AdminComponents do
   defp status_indicator_class(_status, _worker_state, %{}, _worker),
     do: "worker-status__indicator--failed"
 
-  defp status_indicator_class(nil, _worker_state, _failure, _worker),
-    do: "worker-status__indicator--stale"
+  defp status_indicator_class(nil, _worker_state, _failure, worker) do
+    # On-demand workers should not show stale when never run
+    case Requirements.effective_staleness_hours(worker) do
+      nil -> "worker-status__indicator--ok"
+      _ -> "worker-status__indicator--stale"
+    end
+  end
 
   defp status_indicator_class(datetime, _worker_state, _failure, worker) do
-    hours_ago = DateTime.diff(DateTime.utc_now(), datetime, :hour)
-    max_staleness = Map.get(worker, :max_staleness_hours, 24)
-    warning_threshold = div(max_staleness * 3, 2)
+    case Requirements.effective_staleness_hours(worker) do
+      # On-demand workers don't show staleness
+      nil ->
+        "worker-status__indicator--ok"
 
-    cond do
-      hours_ago < max_staleness -> "worker-status__indicator--ok"
-      hours_ago < warning_threshold -> "worker-status__indicator--warning"
-      true -> "worker-status__indicator--stale"
+      max_staleness ->
+        hours_ago = DateTime.diff(DateTime.utc_now(), datetime, :hour)
+        warning_threshold = div(max_staleness * 3, 2)
+
+        cond do
+          hours_ago < max_staleness -> "worker-status__indicator--ok"
+          hours_ago < warning_threshold -> "worker-status__indicator--warning"
+          true -> "worker-status__indicator--stale"
+        end
     end
   end
 
@@ -1165,28 +1207,41 @@ defmodule SocialObjectsWeb.AdminComponents do
 
   defp status_text(_status, _worker_state, %{state: "discarded"}, _worker), do: "Failed"
   defp status_text(_status, _worker_state, %{}, _worker), do: "Failed"
-  defp status_text(nil, _worker_state, _failure, _worker), do: "Never run"
+
+  defp status_text(nil, _worker_state, _failure, worker) do
+    # On-demand workers show "On demand" instead of "Never run"
+    case Requirements.effective_staleness_hours(worker) do
+      nil -> "On demand"
+      _ -> "Never run"
+    end
+  end
 
   defp status_text(datetime, _worker_state, _failure, worker) do
-    hours_ago = DateTime.diff(DateTime.utc_now(), datetime, :hour)
-    max_staleness = Map.get(worker, :max_staleness_hours, 24)
-    warning_threshold = div(max_staleness * 3, 2)
+    case Requirements.effective_staleness_hours(worker) do
+      # On-demand workers always show OK (no staleness tracking)
+      nil ->
+        "OK"
 
-    cond do
-      hours_ago < max_staleness -> "OK"
-      hours_ago < warning_threshold -> "Stale"
-      true -> "Stale"
+      max_staleness ->
+        hours_ago = DateTime.diff(DateTime.utc_now(), datetime, :hour)
+        warning_threshold = div(max_staleness * 3, 2)
+
+        cond do
+          hours_ago < max_staleness -> "OK"
+          hours_ago < warning_threshold -> "Stale"
+          true -> "Stale"
+        end
     end
   end
 
   defp failure_title(nil), do: nil
   defp failure_title(%{error: error}), do: error
 
-  defp run_button_disabled?(worker_state, worker, auth_health) do
-    worker_state != nil || tiktok_auth_missing_for_worker?(worker, auth_health)
+  defp run_button_disabled?(worker_state, worker_reqs) do
+    worker_state != nil || !worker_reqs.can_run
   end
 
-  defp run_button_title(worker_state, worker, auth_health) do
+  defp run_button_title(worker_state, worker_reqs) do
     cond do
       worker_state == :running ->
         "Worker is currently running"
@@ -1194,20 +1249,13 @@ defmodule SocialObjectsWeb.AdminComponents do
       worker_state == :pending ->
         "Worker is currently queued"
 
-      tiktok_auth_missing_for_worker?(worker, auth_health) ->
-        "TikTok auth is missing for this brand"
+      !worker_reqs.can_run ->
+        "Missing: #{Enum.join(worker_reqs.missing_hard_labels, ", ")}"
 
       true ->
         nil
     end
   end
-
-  defp tiktok_auth_missing_for_worker?(worker, auth_health) do
-    Map.get(worker, :requires_tiktok_auth, false) && tiktok_auth_missing?(auth_health)
-  end
-
-  defp tiktok_auth_missing?(%{status: :missing}), do: true
-  defp tiktok_auth_missing?(_), do: false
 
   defp active_failure(_status, nil), do: nil
   defp active_failure(nil, failure), do: failure

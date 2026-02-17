@@ -18,6 +18,7 @@ defmodule SocialObjectsWeb.AdminLive.Dashboard do
   alias SocialObjects.Monitoring
   alias SocialObjects.TiktokShop
   alias SocialObjects.Workers.Registry
+  alias SocialObjects.Workers.Requirements
 
   @monitoring_refresh_ms 10_000
 
@@ -83,27 +84,15 @@ defmodule SocialObjectsWeb.AdminLive.Dashboard do
   @impl true
   def handle_event("trigger_worker", %{"worker" => worker_key, "brand_id" => brand_id}, socket) do
     brand_id = parse_brand_id(brand_id)
-    worker = Registry.get_worker(String.to_existing_atom(worker_key))
 
-    cond do
-      is_nil(brand_id) ->
-        {:noreply, put_flash(socket, :error, "Please select a brand to run this worker")}
+    result =
+      with {:ok, brand_id} <- validate_brand_id(brand_id),
+           {:ok, worker} <- lookup_triggerable_worker(worker_key),
+           {:ok, :ready} <- can_trigger_worker_for_brand?(worker, brand_id) do
+        trigger_worker(worker, brand_id)
+      end
 
-      missing_tiktok_auth_for_worker?(worker, brand_id) ->
-        {:noreply, put_flash(socket, :error, "TikTok auth is missing for this brand")}
-
-      true ->
-        case trigger_worker(worker, brand_id) do
-          {:ok, _job} ->
-            {:noreply,
-             socket
-             |> put_flash(:info, "#{worker.name} job queued for brand")
-             |> load_monitoring_data()}
-
-          {:error, reason} ->
-            {:noreply, put_flash(socket, :error, "Failed to trigger worker: #{inspect(reason)}")}
-        end
-    end
+    {:noreply, handle_trigger_result(socket, result, worker_key)}
   end
 
   @impl true
@@ -154,6 +143,9 @@ defmodule SocialObjectsWeb.AdminLive.Dashboard do
     :creator_purchase_sync_started,
     :creator_purchase_sync_completed,
     :creator_purchase_sync_failed,
+    :brand_gmv_sync_started,
+    :brand_gmv_sync_completed,
+    :brand_gmv_sync_failed,
     :stream_analytics_sync_started,
     :stream_analytics_sync_completed,
     :stream_analytics_sync_failed,
@@ -190,6 +182,55 @@ defmodule SocialObjectsWeb.AdminLive.Dashboard do
   # Private Functions
   # ============================================================================
 
+  # Trigger worker helpers
+  defp validate_brand_id(nil), do: {:error, :no_brand}
+  defp validate_brand_id(brand_id), do: {:ok, brand_id}
+
+  defp lookup_triggerable_worker(worker_key) do
+    case Registry.get_worker(worker_key) do
+      nil -> {:error, {:unknown_worker, worker_key}}
+      %{triggerable: false} -> {:error, :not_triggerable}
+      worker -> {:ok, worker}
+    end
+  end
+
+  defp handle_trigger_result(socket, {:ok, _job}, _worker_key) do
+    socket
+    |> put_flash(:info, "Worker job queued for brand")
+    |> load_monitoring_data()
+  end
+
+  defp handle_trigger_result(socket, {:error, :no_brand}, _worker_key) do
+    put_flash(socket, :error, "Please select a brand to run this worker")
+  end
+
+  defp handle_trigger_result(socket, {:error, {:unknown_worker, key}}, _worker_key) do
+    put_flash(socket, :error, "Unknown worker: #{key}")
+  end
+
+  defp handle_trigger_result(socket, {:error, :not_triggerable}, _worker_key) do
+    put_flash(socket, :error, "This worker cannot be manually triggered")
+  end
+
+  defp handle_trigger_result(socket, {:error, :missing_hard, missing}, _worker_key) do
+    labels = Requirements.requirement_labels(missing) |> Enum.join(", ")
+    put_flash(socket, :error, "Missing requirements: #{labels}")
+  end
+
+  defp handle_trigger_result(socket, {:error, :unknown_worker}, worker_key) do
+    put_flash(socket, :error, "Unknown worker: #{worker_key}")
+  end
+
+  defp handle_trigger_result(socket, {:error, reason}, _worker_key) do
+    put_flash(socket, :error, "Failed to trigger worker: #{inspect(reason)}")
+  end
+
+  defp can_trigger_worker_for_brand?(worker, brand_id) do
+    requirements = Map.get(worker, :requirements, [])
+    capabilities = Requirements.get_brand_capabilities(brand_id, requirements)
+    Requirements.can_run?(worker, capabilities)
+  end
+
   defp subscribe_to_sync_topics(brands) do
     for brand <- brands do
       _ = Phoenix.PubSub.subscribe(SocialObjects.PubSub, "shopify:sync:#{brand.id}")
@@ -200,6 +241,7 @@ defmodule SocialObjectsWeb.AdminLive.Dashboard do
       _ = Phoenix.PubSub.subscribe(SocialObjects.PubSub, "tiktok_live:scan:#{brand.id}")
       _ = Phoenix.PubSub.subscribe(SocialObjects.PubSub, "product_performance:sync:#{brand.id}")
       _ = Phoenix.PubSub.subscribe(SocialObjects.PubSub, "creator_purchase:sync:#{brand.id}")
+      _ = Phoenix.PubSub.subscribe(SocialObjects.PubSub, "brand_gmv:sync:#{brand.id}")
       _ = Phoenix.PubSub.subscribe(SocialObjects.PubSub, "stream_analytics:sync:#{brand.id}")
       _ = Phoenix.PubSub.subscribe(SocialObjects.PubSub, "weekly_recap:sync:#{brand.id}")
       _ = Phoenix.PubSub.subscribe(SocialObjects.PubSub, "tiktok_token_refresh:sync:#{brand.id}")
@@ -221,7 +263,18 @@ defmodule SocialObjectsWeb.AdminLive.Dashboard do
   defp load_monitoring_data(socket) do
     brand_id = socket.assigns.selected_brand_id
 
+    # Compute capabilities ONCE per brand selection
+    capabilities =
+      if brand_id,
+        do: Requirements.get_brand_capabilities(brand_id),
+        else: %{}
+
+    # Compute worker requirements using the unified Requirements module
+    worker_requirements = Requirements.compute_all_worker_requirements(capabilities)
+
     socket
+    |> assign(:brand_capabilities, capabilities)
+    |> assign(:worker_requirements, worker_requirements)
     |> assign(:worker_statuses, Monitoring.get_all_sync_statuses(brand_id))
     |> assign(:oban_stats, Monitoring.get_oban_queue_stats())
     |> assign(:failed_jobs, Monitoring.get_recent_failed_jobs(brand_id: brand_id, limit: 5))
@@ -280,10 +333,6 @@ defmodule SocialObjectsWeb.AdminLive.Dashboard do
   defp parse_brand_id(""), do: nil
   defp parse_brand_id(id) when is_binary(id), do: parse_id_or_nil(id)
   defp parse_brand_id(id) when is_integer(id), do: id
-
-  defp missing_tiktok_auth_for_worker?(worker, brand_id) do
-    Map.get(worker, :requires_tiktok_auth, false) and is_nil(TiktokShop.get_auth(brand_id))
-  end
 
   defp trigger_worker(worker, brand_id) do
     args = %{"brand_id" => brand_id}
@@ -378,7 +427,7 @@ defmodule SocialObjectsWeb.AdminLive.Dashboard do
                 statuses={@worker_statuses}
                 running_workers={@running_workers}
                 failed_worker_states={@failed_worker_states}
-                tiktok_auth_health={@tiktok_auth_health}
+                worker_requirements={@worker_requirements}
                 rate_limit_infos={@rate_limit_infos}
                 brand_id={@selected_brand_id}
               />

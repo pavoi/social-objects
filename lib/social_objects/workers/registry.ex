@@ -23,7 +23,9 @@ defmodule SocialObjects.Workers.Registry do
       queue: :shopify,
       status_key: "shopify_last_sync_at",
       triggerable: true,
-      brand_scoped: true
+      brand_scoped: true,
+      requirements: [hard: :shopify],
+      freshness_mode: :scheduled
     },
     %{
       key: :tiktok_sync,
@@ -36,7 +38,8 @@ defmodule SocialObjects.Workers.Registry do
       status_key: "tiktok_last_sync_at",
       triggerable: true,
       brand_scoped: true,
-      requires_tiktok_auth: true
+      requirements: [hard: :tiktok_auth],
+      freshness_mode: :scheduled
     },
     %{
       key: :product_performance_sync,
@@ -49,7 +52,22 @@ defmodule SocialObjects.Workers.Registry do
       status_key: "product_performance_last_sync_at",
       triggerable: true,
       brand_scoped: true,
-      requires_tiktok_auth: true
+      requirements: [hard: :tiktok_auth],
+      freshness_mode: :scheduled
+    },
+    %{
+      key: :brand_gmv_sync,
+      module: SocialObjects.Workers.BrandGmvSyncWorker,
+      name: "Brand GMV Sync",
+      description: "Syncs brand-specific content GMV from TikTok",
+      category: :products,
+      schedule: "Daily @ 6 AM",
+      queue: :tiktok,
+      status_key: "brand_gmv_last_sync_at",
+      triggerable: true,
+      brand_scoped: true,
+      requirements: [hard: :tiktok_auth],
+      freshness_mode: :scheduled
     },
 
     # Creators
@@ -63,7 +81,9 @@ defmodule SocialObjects.Workers.Registry do
       queue: :bigquery,
       status_key: "bigquery_last_sync_at",
       triggerable: true,
-      brand_scoped: true
+      brand_scoped: true,
+      requirements: [hard: :bigquery],
+      freshness_mode: :scheduled
     },
     %{
       key: :creator_enrichment,
@@ -76,7 +96,8 @@ defmodule SocialObjects.Workers.Registry do
       status_key: "enrichment_last_sync_at",
       triggerable: true,
       brand_scoped: true,
-      requires_tiktok_auth: true
+      requirements: [hard: :tiktok_auth],
+      freshness_mode: :scheduled
     },
     %{
       key: :video_sync,
@@ -89,7 +110,8 @@ defmodule SocialObjects.Workers.Registry do
       status_key: "videos_last_import_at",
       triggerable: true,
       brand_scoped: true,
-      requires_tiktok_auth: true
+      requirements: [hard: :tiktok_auth],
+      freshness_mode: :scheduled
     },
     %{
       key: :creator_import,
@@ -101,7 +123,9 @@ defmodule SocialObjects.Workers.Registry do
       queue: :default,
       status_key: nil,
       triggerable: false,
-      brand_scoped: true
+      brand_scoped: true,
+      requirements: [],
+      freshness_mode: :on_demand
     },
     %{
       key: :euka_import,
@@ -113,7 +137,9 @@ defmodule SocialObjects.Workers.Registry do
       queue: :creators,
       status_key: "external_import_last_at",
       triggerable: false,
-      brand_scoped: true
+      brand_scoped: true,
+      requirements: [],
+      freshness_mode: :on_demand
     },
     %{
       key: :creator_outreach,
@@ -125,7 +151,9 @@ defmodule SocialObjects.Workers.Registry do
       queue: :default,
       status_key: nil,
       triggerable: false,
-      brand_scoped: true
+      brand_scoped: true,
+      requirements: [],
+      freshness_mode: :on_demand
     },
     %{
       key: :creator_purchase_sync,
@@ -138,7 +166,8 @@ defmodule SocialObjects.Workers.Registry do
       status_key: "creator_purchase_last_sync_at",
       triggerable: true,
       brand_scoped: true,
-      requires_tiktok_auth: true
+      requirements: [hard: :tiktok_auth],
+      freshness_mode: :scheduled
     },
 
     # Streaming
@@ -148,12 +177,14 @@ defmodule SocialObjects.Workers.Registry do
       name: "Live Monitor",
       description: "Scans for active TikTok live streams",
       category: :streaming,
-      schedule: "Every 5 min",
+      schedule: "Every 2 min",
       queue: :tiktok_live,
       status_key: "tiktok_live_last_scan_at",
       triggerable: true,
       brand_scoped: true,
-      requires_tiktok_auth: true
+      # Note: Live monitor only needs live accounts configured, NOT TikTok Shop auth
+      requirements: [hard: :live_accounts],
+      freshness_mode: :scheduled
     },
     %{
       key: :tiktok_live_stream,
@@ -165,7 +196,9 @@ defmodule SocialObjects.Workers.Registry do
       queue: :tiktok_live,
       status_key: "stream_capture_last_run_at",
       triggerable: false,
-      brand_scoped: true
+      brand_scoped: true,
+      requirements: [],
+      freshness_mode: :on_demand
     },
     %{
       key: :stream_analytics_sync,
@@ -178,7 +211,8 @@ defmodule SocialObjects.Workers.Registry do
       status_key: "stream_analytics_last_sync_at",
       triggerable: true,
       brand_scoped: true,
-      requires_tiktok_auth: true
+      requirements: [hard: :tiktok_auth],
+      freshness_mode: :scheduled
     },
     %{
       key: :stream_report,
@@ -190,7 +224,9 @@ defmodule SocialObjects.Workers.Registry do
       queue: :default,
       status_key: "stream_report_last_sent_at",
       triggerable: false,
-      brand_scoped: true
+      brand_scoped: true,
+      requirements: [],
+      freshness_mode: :on_demand
     },
     %{
       key: :weekly_stream_recap,
@@ -203,7 +239,9 @@ defmodule SocialObjects.Workers.Registry do
       status_key: "weekly_recap_last_sent_at",
       triggerable: true,
       brand_scoped: true,
-      # Weekly worker: 8 days before considered stale
+      requirements: [],
+      freshness_mode: :weekly,
+      # Explicit override (matches default for :weekly mode)
       max_staleness_hours: 192
     },
 
@@ -219,7 +257,8 @@ defmodule SocialObjects.Workers.Registry do
       status_key: "token_refresh_last_run_at",
       triggerable: true,
       brand_scoped: true,
-      requires_tiktok_auth: true
+      requirements: [hard: :tiktok_auth],
+      freshness_mode: :scheduled
     },
     %{
       key: :talking_points,
@@ -231,7 +270,9 @@ defmodule SocialObjects.Workers.Registry do
       queue: :ai,
       status_key: "talking_points_last_run_at",
       triggerable: false,
-      brand_scoped: true
+      brand_scoped: true,
+      requirements: [],
+      freshness_mode: :on_demand
     },
     %{
       key: :gmv_backfill,
@@ -243,7 +284,10 @@ defmodule SocialObjects.Workers.Registry do
       queue: :tiktok,
       status_key: "gmv_backfill_last_run_at",
       triggerable: true,
-      brand_scoped: true
+      brand_scoped: true,
+      # Soft requirement - worker will no-op gracefully if missing
+      requirements: [soft: :tiktok_auth],
+      freshness_mode: :on_demand
     }
   ]
 

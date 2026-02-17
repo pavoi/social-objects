@@ -236,6 +236,23 @@
   @apply flex-shrink-0;
 }
 
+/* Requirements Badge - shows missing requirements for disabled workers */
+.worker-requirements-badge {
+  @apply flex items-center gap-1.5 text-xs py-1 px-2.5 mt-1 rounded-md;
+  background: color-mix(in srgb, var(--color-accent-amber) 10%, transparent);
+  color: var(--color-accent-amber);
+  border: 1px solid color-mix(in srgb, var(--color-accent-amber) 25%, transparent);
+}
+
+.worker-requirements-badge__icon {
+  @apply flex-shrink-0;
+  font-size: 0.75rem;
+}
+
+.worker-requirements-badge__text {
+  @apply text-xs;
+}
+
 /* Failed Jobs Panel */
 .failed-jobs-panel {
   @apply mt-6;
