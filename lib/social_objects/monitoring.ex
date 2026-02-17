@@ -273,6 +273,55 @@ defmodule SocialObjects.Monitoring do
   end
 
   @doc """
+  Gets rate limit info for product performance sync worker.
+
+  Returns:
+  - :streak - consecutive rate limit count
+  - :last_limited_at - when last rate limited
+  - :in_cooldown - whether currently in cooldown
+  """
+  def get_product_performance_rate_limit_info(brand_id) do
+    streak_setting =
+      Repo.get_by(SystemSetting, brand_id: brand_id, key: "product_performance_rate_limit_streak")
+
+    last_limited_setting =
+      Repo.get_by(SystemSetting,
+        brand_id: brand_id,
+        key: "product_performance_last_rate_limited_at"
+      )
+
+    streak =
+      case streak_setting do
+        nil -> 0
+        setting -> String.to_integer(setting.value)
+      end
+
+    last_limited_at =
+      case last_limited_setting do
+        nil -> nil
+        setting -> parse_datetime(setting.value)
+      end
+
+    # Check if in cooldown (within 10 minutes of last rate limit)
+    in_cooldown =
+      case last_limited_at do
+        nil ->
+          false
+
+        dt ->
+          cooldown_seconds = 10 * 60
+          seconds_since = DateTime.diff(DateTime.utc_now(), dt, :second)
+          seconds_since < cooldown_seconds
+      end
+
+    %{
+      streak: streak,
+      last_limited_at: last_limited_at,
+      in_cooldown: in_cooldown
+    }
+  end
+
+  @doc """
   Retries a specific failed job by ID.
   """
   def retry_job(job_id) do

@@ -151,7 +151,7 @@ defmodule SocialObjects.Workers.Registry do
       category: :streaming,
       schedule: "On demand",
       queue: :tiktok_live,
-      status_key: nil,
+      status_key: "stream_capture_last_run_at",
       triggerable: false,
       brand_scoped: true
     },
@@ -176,7 +176,7 @@ defmodule SocialObjects.Workers.Registry do
       category: :streaming,
       schedule: "On demand",
       queue: :default,
-      status_key: nil,
+      status_key: "stream_report_last_sent_at",
       triggerable: false,
       brand_scoped: true
     },
@@ -202,7 +202,7 @@ defmodule SocialObjects.Workers.Registry do
       category: :utilities,
       schedule: "Daily @ 3 AM",
       queue: :default,
-      status_key: nil,
+      status_key: "token_refresh_last_run_at",
       triggerable: true,
       brand_scoped: true,
       requires_tiktok_auth: true
@@ -215,7 +215,7 @@ defmodule SocialObjects.Workers.Registry do
       category: :utilities,
       schedule: "On demand",
       queue: :ai,
-      status_key: nil,
+      status_key: "talking_points_last_run_at",
       triggerable: false,
       brand_scoped: true
     },
@@ -227,7 +227,7 @@ defmodule SocialObjects.Workers.Registry do
       category: :utilities,
       schedule: "On demand",
       queue: :tiktok,
-      status_key: nil,
+      status_key: "gmv_backfill_last_run_at",
       triggerable: true,
       brand_scoped: true
     }

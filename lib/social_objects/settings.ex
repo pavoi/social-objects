@@ -221,6 +221,101 @@ defmodule SocialObjects.Settings do
     upsert_setting(brand_id, "weekly_recap_last_sent_at", now_iso(), "datetime")
   end
 
+  @spec get_stream_capture_last_run_at(pos_integer()) :: DateTime.t() | nil
+  @doc """
+  Gets the last stream capture run timestamp.
+
+  Returns nil if never run or a DateTime if run before.
+  """
+  def get_stream_capture_last_run_at(brand_id) do
+    get_datetime_setting(brand_id, "stream_capture_last_run_at")
+  end
+
+  @spec update_stream_capture_last_run_at(pos_integer()) ::
+          {:ok, SystemSetting.t()} | {:error, Ecto.Changeset.t()}
+  @doc """
+  Updates the last stream capture run timestamp to the current time.
+  """
+  def update_stream_capture_last_run_at(brand_id) do
+    upsert_setting(brand_id, "stream_capture_last_run_at", now_iso(), "datetime")
+  end
+
+  @spec get_stream_report_last_sent_at(pos_integer()) :: DateTime.t() | nil
+  @doc """
+  Gets the last stream report sent timestamp.
+
+  Returns nil if never sent or a DateTime if sent before.
+  """
+  def get_stream_report_last_sent_at(brand_id) do
+    get_datetime_setting(brand_id, "stream_report_last_sent_at")
+  end
+
+  @spec update_stream_report_last_sent_at(pos_integer()) ::
+          {:ok, SystemSetting.t()} | {:error, Ecto.Changeset.t()}
+  @doc """
+  Updates the last stream report sent timestamp to the current time.
+  """
+  def update_stream_report_last_sent_at(brand_id) do
+    upsert_setting(brand_id, "stream_report_last_sent_at", now_iso(), "datetime")
+  end
+
+  @spec get_token_refresh_last_run_at(pos_integer()) :: DateTime.t() | nil
+  @doc """
+  Gets the last token refresh run timestamp.
+
+  Returns nil if never run or a DateTime if run before.
+  """
+  def get_token_refresh_last_run_at(brand_id) do
+    get_datetime_setting(brand_id, "token_refresh_last_run_at")
+  end
+
+  @spec update_token_refresh_last_run_at(pos_integer()) ::
+          {:ok, SystemSetting.t()} | {:error, Ecto.Changeset.t()}
+  @doc """
+  Updates the last token refresh run timestamp to the current time.
+  """
+  def update_token_refresh_last_run_at(brand_id) do
+    upsert_setting(brand_id, "token_refresh_last_run_at", now_iso(), "datetime")
+  end
+
+  @spec get_talking_points_last_run_at(pos_integer()) :: DateTime.t() | nil
+  @doc """
+  Gets the last talking points generation timestamp.
+
+  Returns nil if never run or a DateTime if run before.
+  """
+  def get_talking_points_last_run_at(brand_id) do
+    get_datetime_setting(brand_id, "talking_points_last_run_at")
+  end
+
+  @spec update_talking_points_last_run_at(pos_integer()) ::
+          {:ok, SystemSetting.t()} | {:error, Ecto.Changeset.t()}
+  @doc """
+  Updates the last talking points generation timestamp to the current time.
+  """
+  def update_talking_points_last_run_at(brand_id) do
+    upsert_setting(brand_id, "talking_points_last_run_at", now_iso(), "datetime")
+  end
+
+  @spec get_gmv_backfill_last_run_at(pos_integer()) :: DateTime.t() | nil
+  @doc """
+  Gets the last GMV backfill run timestamp.
+
+  Returns nil if never run or a DateTime if run before.
+  """
+  def get_gmv_backfill_last_run_at(brand_id) do
+    get_datetime_setting(brand_id, "gmv_backfill_last_run_at")
+  end
+
+  @spec update_gmv_backfill_last_run_at(pos_integer()) ::
+          {:ok, SystemSetting.t()} | {:error, Ecto.Changeset.t()}
+  @doc """
+  Updates the last GMV backfill run timestamp to the current time.
+  """
+  def update_gmv_backfill_last_run_at(brand_id) do
+    upsert_setting(brand_id, "gmv_backfill_last_run_at", now_iso(), "datetime")
+  end
+
   @spec get_setting(pos_integer(), String.t()) :: String.t() | nil
   @doc """
   Gets a generic string setting by key.
@@ -556,6 +651,63 @@ defmodule SocialObjects.Settings do
   """
   def reset_enrichment_rate_limit_streak(brand_id) do
     upsert_setting(brand_id, "enrichment_rate_limit_streak", "0", "integer")
+  end
+
+  # =============================================================================
+  # Product Performance Rate Limit Tracking
+  # =============================================================================
+
+  @spec get_product_performance_last_rate_limited_at(pos_integer()) :: DateTime.t() | nil
+  @doc """
+  Gets the last time product performance sync was rate limited.
+  Returns nil if never rate limited.
+  """
+  def get_product_performance_last_rate_limited_at(brand_id) do
+    get_datetime_setting(brand_id, "product_performance_last_rate_limited_at")
+  end
+
+  @spec get_product_performance_rate_limit_streak(pos_integer()) :: non_neg_integer()
+  @doc """
+  Gets the current product performance rate limit streak (consecutive rate limits).
+  Returns 0 if no streak.
+  """
+  def get_product_performance_rate_limit_streak(brand_id) do
+    case Repo.get_by(SystemSetting,
+           brand_id: brand_id,
+           key: "product_performance_rate_limit_streak"
+         ) do
+      nil -> 0
+      setting -> String.to_integer(setting.value)
+    end
+  end
+
+  @spec record_product_performance_rate_limit(pos_integer()) :: pos_integer()
+  @doc """
+  Records a product performance rate limit event. Increments the streak counter.
+  """
+  def record_product_performance_rate_limit(brand_id) do
+    now = now_iso()
+    streak = get_product_performance_rate_limit_streak(brand_id) + 1
+
+    upsert_setting(brand_id, "product_performance_last_rate_limited_at", now, "datetime")
+
+    upsert_setting(
+      brand_id,
+      "product_performance_rate_limit_streak",
+      Integer.to_string(streak),
+      "integer"
+    )
+
+    streak
+  end
+
+  @spec reset_product_performance_rate_limit_streak(pos_integer()) ::
+          {:ok, SystemSetting.t()} | {:error, Ecto.Changeset.t()}
+  @doc """
+  Resets the product performance rate limit streak after a successful sync.
+  """
+  def reset_product_performance_rate_limit_streak(brand_id) do
+    upsert_setting(brand_id, "product_performance_rate_limit_streak", "0", "integer")
   end
 
   defp get_datetime_setting(brand_id, key) do

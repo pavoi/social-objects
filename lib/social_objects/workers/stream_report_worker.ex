@@ -32,6 +32,7 @@ defmodule SocialObjects.Workers.StreamReportWorker do
 
   alias SocialObjects.AI.CommentClassifier
   alias SocialObjects.Repo
+  alias SocialObjects.Settings
   alias SocialObjects.StreamReport
   alias SocialObjects.TiktokLive
   alias SocialObjects.TiktokLive.Stream
@@ -295,6 +296,7 @@ defmodule SocialObjects.Workers.StreamReportWorker do
          :ok <- log_report_summary(stream_id, report_data),
          {:ok, :sent} <- StreamReport.send_to_slack(report_data) do
       Logger.info("Stream report sent successfully for stream #{stream_id}")
+      _ = Settings.update_stream_report_last_sent_at(brand_id)
       :ok
     else
       {:error, :sentiment_missing} ->

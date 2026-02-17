@@ -20,6 +20,7 @@ defmodule SocialObjects.Workers.TiktokTokenRefreshWorker do
     unique: [period: :infinity, states: [:available, :scheduled, :executing]]
 
   require Logger
+  alias SocialObjects.Settings
   alias SocialObjects.TiktokShop
 
   @impl Oban.Worker
@@ -31,16 +32,19 @@ defmodule SocialObjects.Workers.TiktokTokenRefreshWorker do
         case TiktokShop.maybe_refresh_token_if_expiring(brand_id) do
           {:ok, :no_refresh_needed} ->
             Logger.debug("TikTok token still valid, no refresh needed")
+            _ = Settings.update_token_refresh_last_run_at(brand_id)
             _ = broadcast(brand_id, {:tiktok_token_refresh_completed, :no_refresh_needed})
             :ok
 
           {:ok, :refreshed} ->
             Logger.info("TikTok access token refreshed successfully")
+            _ = Settings.update_token_refresh_last_run_at(brand_id)
             _ = broadcast(brand_id, {:tiktok_token_refresh_completed, :refreshed})
             :ok
 
           {:error, :no_auth_record} ->
             Logger.debug("No TikTok auth record found, skipping token refresh")
+            _ = Settings.update_token_refresh_last_run_at(brand_id)
             _ = broadcast(brand_id, {:tiktok_token_refresh_completed, :no_auth_record})
             :ok
 

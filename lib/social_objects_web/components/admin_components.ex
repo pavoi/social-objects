@@ -921,7 +921,7 @@ defmodule SocialObjectsWeb.AdminComponents do
   attr :running_workers, :list, required: true
   attr :failed_worker_states, :map, required: true
   attr :tiktok_auth_health, :map, default: nil
-  attr :rate_limit_info, :map, default: nil
+  attr :rate_limit_infos, :map, default: %{}
   attr :brand_id, :any, required: true
 
   def worker_category_panel(assigns) do
@@ -948,7 +948,7 @@ defmodule SocialObjectsWeb.AdminComponents do
             worker_state={get_worker_state(@running_workers, worker.key)}
             worker_failure={Map.get(@failed_worker_states, worker.key)}
             tiktok_auth_health={@tiktok_auth_health}
-            rate_limit_info={if worker.key == :creator_enrichment, do: @rate_limit_info, else: nil}
+            rate_limit_info={Map.get(@rate_limit_infos, worker.key)}
             brand_id={@brand_id}
           />
         </tbody>

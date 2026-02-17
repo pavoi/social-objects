@@ -224,7 +224,7 @@ defmodule SocialObjectsWeb.AdminLive.Dashboard do
     |> assign(:running_workers, get_running_workers(brand_id))
     |> assign(:failed_worker_states, get_failed_worker_states(brand_id))
     |> assign(:tiktok_auth_health, get_tiktok_auth_health(brand_id))
-    |> assign(:rate_limit_info, get_rate_limit_info(brand_id))
+    |> assign(:rate_limit_infos, get_rate_limit_infos(brand_id))
   end
 
   defp get_running_workers(nil), do: []
@@ -235,8 +235,14 @@ defmodule SocialObjectsWeb.AdminLive.Dashboard do
   defp get_failed_worker_states(brand_id),
     do: Monitoring.get_failed_worker_states_for_brand(brand_id)
 
-  defp get_rate_limit_info(nil), do: nil
-  defp get_rate_limit_info(brand_id), do: Monitoring.get_enrichment_rate_limit_info(brand_id)
+  defp get_rate_limit_infos(nil), do: %{}
+
+  defp get_rate_limit_infos(brand_id) do
+    %{
+      creator_enrichment: Monitoring.get_enrichment_rate_limit_info(brand_id),
+      product_performance_sync: Monitoring.get_product_performance_rate_limit_info(brand_id)
+    }
+  end
 
   defp get_tiktok_auth_health(nil), do: nil
 
@@ -369,7 +375,7 @@ defmodule SocialObjectsWeb.AdminLive.Dashboard do
                 running_workers={@running_workers}
                 failed_worker_states={@failed_worker_states}
                 tiktok_auth_health={@tiktok_auth_health}
-                rate_limit_info={@rate_limit_info}
+                rate_limit_infos={@rate_limit_infos}
                 brand_id={@selected_brand_id}
               />
             </div>

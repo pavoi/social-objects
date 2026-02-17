@@ -30,6 +30,7 @@ defmodule SocialObjects.Workers.GmvBackfillWorker do
   alias SocialObjects.Creators.Creator
   alias SocialObjects.Creators.CreatorPerformanceSnapshot
   alias SocialObjects.Repo
+  alias SocialObjects.Settings
 
   @batch_size 100
 
@@ -40,6 +41,7 @@ defmodule SocialObjects.Workers.GmvBackfillWorker do
 
     try do
       :ok = run_backfill(brand_id)
+      _ = if brand_id, do: Settings.update_gmv_backfill_last_run_at(brand_id)
       _ = broadcast(brand_id, {:gmv_backfill_completed})
       :ok
     rescue

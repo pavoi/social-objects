@@ -21,6 +21,7 @@ defmodule SocialObjects.Workers.TiktokLiveStreamWorker do
   require Logger
 
   alias SocialObjects.Repo
+  alias SocialObjects.Settings
   alias SocialObjects.TiktokLive.{BridgeClient, EventHandler, Stream}
 
   # Check stream status every 1 minute
@@ -161,11 +162,13 @@ defmodule SocialObjects.Workers.TiktokLiveStreamWorker do
           :stream_ended ->
             Logger.info("Stream #{stream_id} ended")
             stop_event_handler(event_handler_pid)
+            _ = Settings.update_stream_capture_last_run_at(brand_id)
             :ok
 
           :disconnected ->
             Logger.info("Stream #{stream_id} disconnected from bridge")
             stop_event_handler(event_handler_pid)
+            _ = Settings.update_stream_capture_last_run_at(brand_id)
             :ok
 
           :error ->

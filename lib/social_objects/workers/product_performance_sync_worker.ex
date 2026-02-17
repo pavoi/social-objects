@@ -9,10 +9,18 @@ defmodule SocialObjects.Workers.ProductPerformanceSyncWorker do
 
   Matches API product IDs to local products via `tiktok_product_id` field.
 
+  ## Rate Limit Handling
+
+  Uses exponential backoff with streak tracking (like CreatorEnrichmentWorker):
+  - Checks cooldown before executing
+  - Records rate limit streak on 429 errors
+  - Calculates backoff: 15min, 30min, 60min, 2hrs max
+  - Resets streak on successful sync
+
   ## Edge Cases
 
   - No product match: Skipped (product may not be synced yet)
-  - API rate limit (429): Snoozes for 5 minutes
+  - API rate limit (429): Records streak, snoozes with exponential backoff
   - API server error (5xx): Returns error for Oban retry
   """
 
@@ -28,13 +36,31 @@ defmodule SocialObjects.Workers.ProductPerformanceSyncWorker do
   alias SocialObjects.TiktokShop.Analytics
   alias SocialObjects.TiktokShop.Parsers
 
+  # Cooldown period in seconds after a rate limit before allowing new requests
+  @cooldown_seconds 10 * 60
+
   @doc """
   Performs the product performance sync for a brand.
 
+  Checks rate limit cooldown before executing. If in cooldown, skips execution.
   Fetches the last 90 days of product performance data and updates products.
   """
   @impl Oban.Worker
   def perform(%Oban.Job{args: %{"brand_id" => brand_id}}) do
+    case check_rate_limit_cooldown(brand_id) do
+      {:cooldown, seconds_remaining} ->
+        Logger.info(
+          "[ProductPerformance] In cooldown (#{seconds_remaining}s remaining), skipping"
+        )
+
+        :ok
+
+      :ok ->
+        do_perform(brand_id)
+    end
+  end
+
+  defp do_perform(brand_id) do
     _ =
       Phoenix.PubSub.broadcast(
         SocialObjects.PubSub,
@@ -44,6 +70,8 @@ defmodule SocialObjects.Workers.ProductPerformanceSyncWorker do
 
     case sync_products(brand_id) do
       {:ok, stats} ->
+        # Reset rate limit streak on success
+        _ = Settings.reset_product_performance_rate_limit_streak(brand_id)
         # Update the system_settings timestamp for the dashboard
         _ = Settings.update_product_performance_last_sync_at(brand_id)
 
@@ -55,7 +83,7 @@ defmodule SocialObjects.Workers.ProductPerformanceSyncWorker do
           )
 
         Logger.info(
-          "Product performance sync completed for brand #{brand_id}: " <>
+          "[ProductPerformance] Sync completed for brand #{brand_id}: " <>
             "#{stats.products_synced} synced, #{stats.products_skipped} skipped " <>
             "(#{stats.api_products_count} from API, #{stats.local_products_count} local)"
         )
@@ -98,13 +126,44 @@ defmodule SocialObjects.Workers.ProductPerformanceSyncWorker do
         {:ok, stats}
 
       {:error, :rate_limited} ->
-        Logger.warning("TikTok Analytics API rate limited, snoozing for 5 minutes")
-        {:snooze, 300}
+        streak = Settings.record_product_performance_rate_limit(brand_id)
+        backoff = calculate_backoff(streak)
+
+        Logger.warning(
+          "[ProductPerformance] Rate limited (streak: #{streak}), backing off #{div(backoff, 60)} min"
+        )
+
+        {:snooze, backoff}
 
       {:error, reason} ->
-        Logger.error("Failed to fetch TikTok product analytics: #{inspect(reason)}")
+        Logger.error("[ProductPerformance] Failed to fetch analytics: #{inspect(reason)}")
         {:error, reason}
     end
+  end
+
+  defp check_rate_limit_cooldown(brand_id) do
+    case Settings.get_product_performance_last_rate_limited_at(brand_id) do
+      nil ->
+        :ok
+
+      last_limited_at ->
+        seconds_since = DateTime.diff(DateTime.utc_now(), last_limited_at, :second)
+
+        if seconds_since < @cooldown_seconds do
+          {:cooldown, @cooldown_seconds - seconds_since}
+        else
+          :ok
+        end
+    end
+  end
+
+  defp calculate_backoff(streak) do
+    # Base: 15 minutes, doubles each streak up to 2 hours max
+    base = 15 * 60
+    max_backoff = 2 * 60 * 60
+    # Cap the multiplier at streak 3 (8x = 2 hours)
+    multiplier = :math.pow(2, min(streak - 1, 3)) |> round()
+    min(base * multiplier, max_backoff)
   end
 
   defp fetch_all_products(brand_id, start_date, end_date) do

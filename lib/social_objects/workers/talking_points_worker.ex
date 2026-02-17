@@ -26,6 +26,7 @@ defmodule SocialObjects.Workers.TalkingPointsWorker do
   alias SocialObjects.AI.OpenAIClient
   alias SocialObjects.Catalog.Product
   alias SocialObjects.Repo
+  alias SocialObjects.Settings
 
   @impl Oban.Worker
   def perform(%Oban.Job{args: %{"job_id" => job_id, "product_ids" => product_ids} = args}) do
@@ -78,6 +79,10 @@ defmodule SocialObjects.Workers.TalkingPointsWorker do
 
       # Return :ok if any succeeded, or error if all failed
       if generation.completed_count > 0 do
+        _ =
+          if generation.brand_id,
+            do: Settings.update_talking_points_last_run_at(generation.brand_id)
+
         :ok
       else
         {:error, "All products failed to generate"}
