@@ -165,7 +165,10 @@ defmodule SocialObjectsWeb.AdminLive.Dashboard do
     :tiktok_token_refresh_failed,
     :gmv_backfill_started,
     :gmv_backfill_completed,
-    :gmv_backfill_failed
+    :gmv_backfill_failed,
+    :euka_import_started,
+    :euka_import_completed,
+    :euka_import_failed
   ]
 
   @impl true
@@ -201,6 +204,7 @@ defmodule SocialObjectsWeb.AdminLive.Dashboard do
       _ = Phoenix.PubSub.subscribe(SocialObjects.PubSub, "weekly_recap:sync:#{brand.id}")
       _ = Phoenix.PubSub.subscribe(SocialObjects.PubSub, "tiktok_token_refresh:sync:#{brand.id}")
       _ = Phoenix.PubSub.subscribe(SocialObjects.PubSub, "gmv_backfill:sync:#{brand.id}")
+      _ = Phoenix.PubSub.subscribe(SocialObjects.PubSub, "euka:import:#{brand.id}")
     end
   end
 

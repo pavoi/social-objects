@@ -24,6 +24,7 @@ defmodule SocialObjectsWeb.CreatorTableComponents do
   attr :videos_last_import_at, :any, default: nil
   attr :enrichment_last_sync_at, :any, default: nil
   attr :bigquery_last_sync_at, :any, default: nil
+  attr :external_import_last_at, :any, default: nil
 
   def data_freshness_panel(assigns) do
     assigns =
@@ -31,6 +32,7 @@ defmodule SocialObjectsWeb.CreatorTableComponents do
       |> assign(:videos_status, freshness_status(assigns.videos_last_import_at))
       |> assign(:enrichment_status, freshness_status(assigns.enrichment_last_sync_at))
       |> assign(:bigquery_status, freshness_status(assigns.bigquery_last_sync_at))
+      |> assign(:external_import_status, freshness_status(assigns.external_import_last_at))
 
     ~H"""
     <div class="data-freshness">
@@ -49,7 +51,7 @@ defmodule SocialObjectsWeb.CreatorTableComponents do
             d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z"
           />
         </svg>
-        <%= if has_stale_data?([@videos_status, @enrichment_status, @bigquery_status]) do %>
+        <%= if has_stale_data?([@videos_status, @enrichment_status, @bigquery_status, @external_import_status]) do %>
           <span class="data-freshness__warning">!</span>
         <% end %>
       </div>
@@ -82,6 +84,15 @@ defmodule SocialObjectsWeb.CreatorTableComponents do
             <span class="data-freshness__source">Auto-synced</span>
           </div>
           <span class="data-freshness__time">{@videos_status.text}</span>
+        </div>
+
+        <div class="data-freshness__item">
+          <span class={"data-freshness__dot data-freshness__dot--#{@external_import_status.level}"} />
+          <div class="data-freshness__label">
+            <strong>External Imports</strong>
+            <span class="data-freshness__source">On-demand</span>
+          </div>
+          <span class="data-freshness__time">{@external_import_status.text}</span>
         </div>
 
         <div class="data-freshness__legend">

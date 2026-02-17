@@ -37,13 +37,14 @@ defmodule SocialObjectsWeb.CreatorsLive.Index do
   def mount(_params, _session, socket) do
     brand_id = socket.assigns.current_brand.id
 
-    # Subscribe to BigQuery sync, enrichment, video sync, and outreach events
+    # Subscribe to BigQuery sync, enrichment, video sync, outreach, and euka import events
     _ =
       if connected?(socket) do
         _ = Phoenix.PubSub.subscribe(SocialObjects.PubSub, "bigquery:sync:#{brand_id}")
         _ = Phoenix.PubSub.subscribe(SocialObjects.PubSub, "creator:enrichment:#{brand_id}")
         _ = Phoenix.PubSub.subscribe(SocialObjects.PubSub, "outreach:updates:#{brand_id}")
         _ = Phoenix.PubSub.subscribe(SocialObjects.PubSub, "video:sync:#{brand_id}")
+        _ = Phoenix.PubSub.subscribe(SocialObjects.PubSub, "euka:import:#{brand_id}")
       end
 
     bigquery_last_sync_at = Settings.get_bigquery_last_sync_at(brand_id)
@@ -51,6 +52,7 @@ defmodule SocialObjectsWeb.CreatorsLive.Index do
     enrichment_last_sync_at = Settings.get_enrichment_last_sync_at(brand_id)
     enrichment_syncing = sync_job_blocked?(CreatorEnrichmentWorker, brand_id)
     video_syncing = sync_job_blocked?(VideoSyncWorker, brand_id)
+    external_import_last_at = Settings.get_external_import_last_at(brand_id)
     features = Application.get_env(:social_objects, :features, [])
 
     available_tags = Creators.list_tags_for_brand(brand_id)
@@ -123,6 +125,7 @@ defmodule SocialObjectsWeb.CreatorsLive.Index do
       |> assign(:time_preset, "all")
       # Data freshness state
       |> assign(:videos_last_import_at, Settings.get_videos_last_import_at(brand_id))
+      |> assign(:external_import_last_at, external_import_last_at)
       # Page tab (creators vs templates)
       |> assign(:page_tab, "creators")
       # Email template management (for Templates tab)
@@ -1279,6 +1282,29 @@ defmodule SocialObjectsWeb.CreatorsLive.Index do
       |> put_flash(:error, "Video sync failed. Please try again.")
 
     {:noreply, socket}
+  end
+
+  # Euka import PubSub handlers
+  @impl true
+  def handle_info({:euka_import_completed, _brand_id, stats}, socket) do
+    socket =
+      socket
+      |> assign(
+        :external_import_last_at,
+        Settings.get_external_import_last_at(socket.assigns.brand_id)
+      )
+      |> put_flash(
+        :info,
+        "Euka import completed: #{stats.created} created, #{stats.updated} updated"
+      )
+      |> load_creators()
+
+    {:noreply, socket}
+  end
+
+  @impl true
+  def handle_info({:euka_import_failed, _brand_id, _reason}, socket) do
+    {:noreply, put_flash(socket, :error, "Euka import failed. Check logs for details.")}
   end
 
   # Outreach PubSub handler - reload data when outreach completes
