@@ -56,7 +56,11 @@ config :social_objects, Oban,
        {"0 6 * * *", SocialObjects.Workers.BrandCronWorker, args: %{task: "brand_gmv_sync"}},
        # Weekly stream recap every Monday at 9 AM PST (5 PM UTC)
        # Covers previous week (Mon-Sun) - all streams will be 2+ days old and synced
-       {"0 17 * * 1", SocialObjects.Workers.BrandCronWorker, args: %{task: "weekly_stream_recap"}}
+       {"0 17 * * 1", SocialObjects.Workers.BrandCronWorker,
+        args: %{task: "weekly_stream_recap"}},
+       # Sync creator sample purchases daily at 3 AM UTC
+       {"0 3 * * *", SocialObjects.Workers.BrandCronWorker,
+        args: %{task: "creator_purchase_sync"}}
      ]}
   ]
 
