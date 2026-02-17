@@ -189,6 +189,15 @@
   background-color: rgba(0, 0, 0, 0.7);
 }
 
+/* Sample count badge - positioned top right over image */
+.product-card-browse__sample-badge {
+  @apply absolute top-2 right-2 z-[2];
+  @apply inline-flex items-center px-2 py-1;
+  @apply text-xs font-medium rounded-full;
+  background: rgba(0, 0, 0, 0.7);
+  color: white;
+}
+
 /* ============================================================================
    SHARED STYLES
    ============================================================================ */

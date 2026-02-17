@@ -365,6 +365,15 @@ defmodule SocialObjectsWeb.ProductComponents do
                 <span class="product-modal__value">{@editing_product.size_range}</span>
               </div>
             <% end %>
+
+            <%= if not @public_view and @editing_product.sample_count > 0 do %>
+              <div class="product-modal__info-row">
+                <span class="product-modal__label">Samples Sent</span>
+                <span class="product-modal__value">
+                  {format_number(@editing_product.sample_count)}
+                </span>
+              </div>
+            <% end %>
           </div>
 
           <%!-- Description --%>
@@ -902,6 +911,11 @@ defmodule SocialObjectsWeb.ProductComponents do
         <div class="product-card-browse__image-container">
           <%= if @position do %>
             <span class="product-card-browse__position">{@position}</span>
+          <% end %>
+          <%= if @product.sample_count > 0 do %>
+            <span class="product-card-browse__sample-badge">
+              {@product.sample_count} sampled
+            </span>
           <% end %>
           <%= if @product.product_images && length(@product.product_images) > 0 do %>
             <ImageComponents.image_carousel

@@ -38,6 +38,8 @@ defmodule SocialObjects.Catalog.Product do
           items_sold: integer(),
           orders: integer(),
           performance_synced_at: DateTime.t() | nil,
+          sample_count: integer(),
+          sample_count_synced_at: DateTime.t() | nil,
           brand_id: pos_integer() | nil,
           inserted_at: NaiveDateTime.t() | nil,
           updated_at: NaiveDateTime.t() | nil
@@ -82,6 +84,10 @@ defmodule SocialObjects.Catalog.Product do
     field :items_sold, :integer, default: 0
     field :orders, :integer, default: 0
     field :performance_synced_at, :utc_datetime
+
+    # Sample tracking (from creator_samples)
+    field :sample_count, :integer, default: 0
+    field :sample_count_synced_at, :utc_datetime
 
     belongs_to :brand, SocialObjects.Catalog.Brand
     has_many :product_images, SocialObjects.Catalog.ProductImage, preload_order: [asc: :position]

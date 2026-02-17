@@ -657,4 +657,62 @@ defmodule SocialObjects.Catalog do
   def get_variant_by_shopify_id(shopify_variant_id) do
     Repo.get_by(ProductVariant, shopify_variant_id: shopify_variant_id)
   end
+
+  ## Sample Count Functions
+
+  @doc """
+  Syncs sample counts for all products in a brand.
+  Updates ALL products (including those with zero samples).
+  """
+  @spec sync_product_sample_counts(pos_integer()) :: {:ok, non_neg_integer()}
+  def sync_product_sample_counts(brand_id) do
+    now = DateTime.utc_now()
+
+    # Two-step approach to ensure all products get updated:
+    # 1. Set all brand products to 0 with synced_at
+    # 2. Update with actual counts from samples
+
+    result =
+      Repo.query!(
+        """
+        WITH sample_counts AS (
+          SELECT product_id, COUNT(*) as cnt
+          FROM creator_samples
+          WHERE brand_id = $1 AND product_id IS NOT NULL
+          GROUP BY product_id
+        ),
+        reset AS (
+          UPDATE products
+          SET sample_count = 0, sample_count_synced_at = $2
+          WHERE brand_id = $1
+        )
+        UPDATE products p
+        SET sample_count = sc.cnt,
+            sample_count_synced_at = $2
+        FROM sample_counts sc
+        WHERE p.id = sc.product_id AND p.brand_id = $1
+        RETURNING p.id
+        """,
+        [brand_id, now]
+      )
+
+    {:ok, result.num_rows}
+  end
+
+  @doc """
+  Increments sample count for a product atomically.
+  Called when a sample is created with a linked product_id.
+  Also updates sample_count_synced_at for consistency.
+  """
+  @spec increment_product_sample_count(pos_integer() | nil) :: :ok
+  def increment_product_sample_count(product_id) when is_integer(product_id) do
+    now = DateTime.utc_now()
+
+    from(p in Product, where: p.id == ^product_id)
+    |> Repo.update_all(inc: [sample_count: 1], set: [sample_count_synced_at: now])
+
+    :ok
+  end
+
+  def increment_product_sample_count(nil), do: :ok
 end

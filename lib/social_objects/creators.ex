@@ -285,6 +285,27 @@ defmodule SocialObjects.Creators do
   defp apply_unified_sort(query, "cumulative_gmv", "desc", _brand_id),
     do: order_by(query, [c], desc_nulls_last: c.cumulative_gmv_cents)
 
+  # Brand GMV sorting (from brand_creators junction table)
+  defp apply_unified_sort(query, "brand_gmv", dir, brand_id) do
+    query
+    |> join(:left, [c], bc in BrandCreator,
+      on: bc.creator_id == c.id and bc.brand_id == ^brand_id,
+      as: :brand_creator_gmv
+    )
+    |> order_by([brand_creator_gmv: bc], [{^sort_dir_nulls_last(dir), bc.brand_gmv_cents}])
+  end
+
+  defp apply_unified_sort(query, "cumulative_brand_gmv", dir, brand_id) do
+    query
+    |> join(:left, [c], bc in BrandCreator,
+      on: bc.creator_id == c.id and bc.brand_id == ^brand_id,
+      as: :brand_creator_cumulative_gmv
+    )
+    |> order_by([brand_creator_cumulative_gmv: bc], [
+      {^sort_dir_nulls_last(dir), bc.cumulative_brand_gmv_cents}
+    ])
+  end
+
   # Delegate to existing sort handlers for CRM columns
   defp apply_unified_sort(query, sort_by, sort_dir, brand_id),
     do: apply_creator_sort(query, sort_by, sort_dir, brand_id)
@@ -839,14 +860,30 @@ defmodule SocialObjects.Creators do
 
   ## Creator Samples
 
-  @spec create_creator_sample(map()) :: {:ok, CreatorSample.t()} | {:error, Ecto.Changeset.t()}
+  @spec create_creator_sample(map()) ::
+          {:ok, CreatorSample.t()} | {:error, Ecto.Changeset.t() | term()}
   @doc """
   Creates a creator sample.
+  Also increments the sample_count on the linked product (if any) atomically.
   """
   def create_creator_sample(attrs \\ %{}) do
-    %CreatorSample{}
-    |> CreatorSample.changeset(attrs)
-    |> Repo.insert()
+    changeset = CreatorSample.changeset(%CreatorSample{}, attrs)
+
+    Ecto.Multi.new()
+    |> Ecto.Multi.insert(:sample, changeset)
+    |> Ecto.Multi.run(:increment_count, fn _repo, %{sample: sample} ->
+      if sample.product_id do
+        SocialObjects.Catalog.increment_product_sample_count(sample.product_id)
+      end
+
+      {:ok, :incremented}
+    end)
+    |> Repo.transaction()
+    |> case do
+      {:ok, %{sample: sample}} -> {:ok, sample}
+      {:error, :sample, changeset, _} -> {:error, changeset}
+      {:error, _, reason, _} -> {:error, reason}
+    end
   end
 
   @spec list_samples_for_creator(pos_integer()) :: [CreatorSample.t()]
