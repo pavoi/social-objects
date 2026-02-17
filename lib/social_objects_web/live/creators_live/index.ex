@@ -37,7 +37,7 @@ defmodule SocialObjectsWeb.CreatorsLive.Index do
   def mount(_params, _session, socket) do
     brand_id = socket.assigns.current_brand.id
 
-    # Subscribe to BigQuery sync, enrichment, video sync, outreach, and euka import events
+    # Subscribe to BigQuery sync, enrichment, video sync, outreach, euka import, and brand GMV events
     _ =
       if connected?(socket) do
         _ = Phoenix.PubSub.subscribe(SocialObjects.PubSub, "bigquery:sync:#{brand_id}")
@@ -45,6 +45,7 @@ defmodule SocialObjectsWeb.CreatorsLive.Index do
         _ = Phoenix.PubSub.subscribe(SocialObjects.PubSub, "outreach:updates:#{brand_id}")
         _ = Phoenix.PubSub.subscribe(SocialObjects.PubSub, "video:sync:#{brand_id}")
         _ = Phoenix.PubSub.subscribe(SocialObjects.PubSub, "euka:import:#{brand_id}")
+        _ = Phoenix.PubSub.subscribe(SocialObjects.PubSub, "brand_gmv:sync:#{brand_id}")
       end
 
     bigquery_last_sync_at = Settings.get_bigquery_last_sync_at(brand_id)
@@ -53,6 +54,7 @@ defmodule SocialObjectsWeb.CreatorsLive.Index do
     enrichment_syncing = sync_job_blocked?(CreatorEnrichmentWorker, brand_id)
     video_syncing = sync_job_blocked?(VideoSyncWorker, brand_id)
     external_import_last_at = Settings.get_external_import_last_at(brand_id)
+    brand_gmv_last_sync_at = Settings.get_brand_gmv_last_sync_at(brand_id)
     features = Application.get_env(:social_objects, :features, [])
 
     available_tags = Creators.list_tags_for_brand(brand_id)
@@ -62,7 +64,7 @@ defmodule SocialObjectsWeb.CreatorsLive.Index do
       |> assign(:creators, [])
       |> assign(:search_query, "")
       |> assign(:badge_filter, "")
-      |> assign(:sort_by, "cumulative_gmv")
+      |> assign(:sort_by, "cumulative_brand_gmv")
       |> assign(:sort_dir, "desc")
       |> assign(:page, 1)
       |> assign(:per_page, 50)
@@ -126,6 +128,7 @@ defmodule SocialObjectsWeb.CreatorsLive.Index do
       # Data freshness state
       |> assign(:videos_last_import_at, Settings.get_videos_last_import_at(brand_id))
       |> assign(:external_import_last_at, external_import_last_at)
+      |> assign(:brand_gmv_last_sync_at, brand_gmv_last_sync_at)
       # Page tab (creators vs templates)
       |> assign(:page_tab, "creators")
       # Email template management (for Templates tab)
@@ -1307,6 +1310,39 @@ defmodule SocialObjectsWeb.CreatorsLive.Index do
     {:noreply, put_flash(socket, :error, "Euka import failed. Check logs for details.")}
   end
 
+  # Brand GMV sync PubSub handlers
+  @impl true
+  def handle_info({:brand_gmv_sync_started}, socket) do
+    {:noreply, socket}
+  end
+
+  @impl true
+  def handle_info({:brand_gmv_sync_completed, stats}, socket) do
+    socket =
+      socket
+      |> assign(
+        :brand_gmv_last_sync_at,
+        Settings.get_brand_gmv_last_sync_at(socket.assigns.brand_id)
+      )
+      |> assign(:page, 1)
+      |> load_creators()
+      |> put_flash(
+        :info,
+        "Brand GMV synced: #{stats.usernames_processed} creators processed, #{stats.brand_creators_updated} updated"
+      )
+
+    {:noreply, socket}
+  end
+
+  @impl true
+  def handle_info({:brand_gmv_sync_failed, _reason}, socket) do
+    socket =
+      socket
+      |> put_flash(:error, "Brand GMV sync failed. Please try again.")
+
+    {:noreply, socket}
+  end
+
   # Outreach PubSub handler - reload data when outreach completes
   @impl true
   def handle_info({:outreach_sent, _creator}, socket) do
@@ -1424,7 +1460,7 @@ defmodule SocialObjectsWeb.CreatorsLive.Index do
     socket
     |> assign(:search_query, params["q"] || "")
     |> assign(:badge_filter, params["badge"] || "")
-    |> assign(:sort_by, params["sort"] || "cumulative_gmv")
+    |> assign(:sort_by, params["sort"] || "cumulative_brand_gmv")
     |> assign(:sort_dir, params["dir"] || "desc")
     |> assign(:page, parse_page(params["page"]))
     |> assign(:outreach_status, parse_outreach_status(params["status"]))
@@ -1664,7 +1700,7 @@ defmodule SocialObjectsWeb.CreatorsLive.Index do
   defp default_value?({_k, ""}), do: true
   defp default_value?({_k, nil}), do: true
   defp default_value?({:page, 1}), do: true
-  defp default_value?({:sort, "cumulative_gmv"}), do: true
+  defp default_value?({:sort, "cumulative_brand_gmv"}), do: true
   defp default_value?({:sort, nil}), do: true
   defp default_value?({:dir, "desc"}), do: true
   defp default_value?({:tab, "contact"}), do: true

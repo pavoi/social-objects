@@ -221,16 +221,16 @@ defmodule SocialObjects.Workers.CreatorImportWorkerTest do
       # $300 total rolling
       total_gmv = 30_000
 
+      gmv_stats = %{
+        video_gmv: video_gmv,
+        live_gmv: live_gmv,
+        total_gmv: total_gmv,
+        video_count: 5,
+        live_count: 2
+      }
+
       {:ok, :ok} =
-        BrandGmv.update_brand_creator_gmv(
-          brand.id,
-          creator.id,
-          video_gmv,
-          live_gmv,
-          total_gmv,
-          date,
-          now
-        )
+        BrandGmv.update_brand_creator_gmv(brand.id, creator.id, gmv_stats, date, now)
 
       # Step 3: Verify bootstrap guard worked
       bc_after = Creators.get_brand_creator(brand.id, creator.id)
@@ -249,19 +249,16 @@ defmodule SocialObjects.Workers.CreatorImportWorkerTest do
 
       # Step 4: Verify second sync DOES accumulate deltas
       # Simulate GMV increase
+      gmv_stats_2 = %{
+        video_gmv: 25_000,
+        live_gmv: 15_000,
+        total_gmv: 40_000,
+        video_count: 6,
+        live_count: 3
+      }
+
       {:ok, :ok} =
-        BrandGmv.update_brand_creator_gmv(
-          brand.id,
-          creator.id,
-          # +$50 video
-          25_000,
-          # +$50 live
-          15_000,
-          # +$100 total
-          40_000,
-          date,
-          now
-        )
+        BrandGmv.update_brand_creator_gmv(brand.id, creator.id, gmv_stats_2, date, now)
 
       bc_final = Creators.get_brand_creator(brand.id, creator.id)
 

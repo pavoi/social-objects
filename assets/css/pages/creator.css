@@ -225,8 +225,12 @@
   @apply text-lg font-semibold text-text-primary;
 }
 
+.creator-modal-tabs-row {
+  @apply flex items-center justify-between gap-4 mb-4 pb-2 border-b border-border-secondary;
+}
+
 .creator-modal-tabs {
-  @apply flex gap-1 mb-4 pb-2 border-b border-border-secondary;
+  @apply flex gap-1;
 }
 
 .creator-modal-content {
@@ -941,8 +945,24 @@
   @apply flex flex-col items-start gap-1 shrink-0;
 }
 
-.creator-modal-header__refresh-time {
-  @apply text-xs text-text-tertiary;
+.creator-modal-header__sync-status {
+  @apply flex items-center gap-2.5 text-xs;
+}
+
+.creator-modal-header__sync-item {
+  @apply flex items-center gap-1;
+}
+
+.creator-modal-header__sync-label {
+  @apply text-text-secondary font-medium;
+}
+
+.creator-modal-header__sync-time {
+  @apply text-text-tertiary;
+}
+
+.creator-modal-header__sync-separator {
+  @apply text-border-secondary text-[10px];
 }
 
 /* ============================================================================
@@ -1050,6 +1070,14 @@
   color: var(--color-amber-400);
 }
 
+.sortable-header__tooltip-source {
+  display: block;
+  margin-top: 4px;
+  font-size: 0.75rem;
+  color: var(--color-text-tertiary);
+  font-style: italic;
+}
+
 /* ============================================================================
    MANUAL IMPORT INDICATOR
    ============================================================================ */
@@ -1104,14 +1132,18 @@
     @apply text-base;
   }
 
-  .creator-modal-tabs {
-    @apply overflow-x-auto mb-3 scrollbar-none;
-    -webkit-overflow-scrolling: touch;
-    -ms-overflow-style: none;
+  .creator-modal-tabs-row {
+    @apply flex-wrap mb-3;
     margin-left: calc(var(--spacing-3) * -1);
     margin-right: calc(var(--spacing-3) * -1);
     padding-left: var(--spacing-3);
     padding-right: var(--spacing-3);
+  }
+
+  .creator-modal-tabs {
+    @apply overflow-x-auto scrollbar-none;
+    -webkit-overflow-scrolling: touch;
+    -ms-overflow-style: none;
   }
 
   .creator-modal-header__top {
@@ -1145,7 +1177,11 @@
     @apply text-sm;
   }
 
+  .creator-modal-tabs-row {
+    @apply mb-3;
+  }
+
   .creator-modal-tabs {
-    @apply gap-0 mb-3;
+    @apply gap-0;
   }
 }

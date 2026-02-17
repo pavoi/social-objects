@@ -335,6 +335,25 @@ defmodule SocialObjects.Settings do
     upsert_setting(brand_id, "external_import_last_at", now_iso(), "datetime")
   end
 
+  @spec get_brand_gmv_last_sync_at(pos_integer()) :: DateTime.t() | nil
+  @doc """
+  Gets the last brand GMV sync timestamp.
+
+  Returns nil if never synced or a DateTime if synced before.
+  """
+  def get_brand_gmv_last_sync_at(brand_id) do
+    get_datetime_setting(brand_id, "brand_gmv_last_sync_at")
+  end
+
+  @spec update_brand_gmv_last_sync_at(pos_integer()) ::
+          {:ok, SystemSetting.t()} | {:error, Ecto.Changeset.t()}
+  @doc """
+  Updates the last brand GMV sync timestamp to the current time.
+  """
+  def update_brand_gmv_last_sync_at(brand_id) do
+    upsert_setting(brand_id, "brand_gmv_last_sync_at", now_iso(), "datetime")
+  end
+
   @spec get_setting(pos_integer(), String.t()) :: String.t() | nil
   @doc """
   Gets a generic string setting by key.

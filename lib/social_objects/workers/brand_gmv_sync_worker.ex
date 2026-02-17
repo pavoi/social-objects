@@ -42,6 +42,7 @@ defmodule SocialObjects.Workers.BrandGmvSyncWorker do
   require Logger
 
   alias SocialObjects.Creators.BrandGmv
+  alias SocialObjects.Settings
 
   @impl Oban.Worker
   def perform(%Oban.Job{args: %{"brand_id" => brand_id}}) do
@@ -50,6 +51,8 @@ defmodule SocialObjects.Workers.BrandGmvSyncWorker do
 
     case BrandGmv.sync_from_analytics(brand_id) do
       {:ok, stats} ->
+        # Record timestamp before PubSub broadcast
+        _ = Settings.update_brand_gmv_last_sync_at(brand_id)
         _ = broadcast(brand_id, {:brand_gmv_sync_completed, stats})
 
         Logger.info(

@@ -158,23 +158,39 @@ defmodule SocialObjects.Creators.BrandGmv do
   Processes video and live analytics data, updating BrandCreator records.
   """
   def process_analytics_data(brand_id, video_data, live_data) do
-    # Group video GMV by username
+    # Group video data by username with GMV and video count
     video_by_username =
       video_data
       |> Enum.group_by(&normalize_username(&1["username"]))
       |> Enum.map(fn {username, videos} ->
         total_gmv = videos |> Enum.map(&parse_gmv(&1["gmv"])) |> Enum.sum()
-        {username, total_gmv}
+        # Count unique video_ids
+        video_count =
+          videos
+          |> Enum.map(& &1["video_id"])
+          |> Enum.reject(&is_nil/1)
+          |> Enum.uniq()
+          |> length()
+
+        {username, %{gmv: total_gmv, count: video_count}}
       end)
       |> Map.new()
 
-    # Group live GMV by username
+    # Group live data by username with GMV and live count
     live_by_username =
       live_data
       |> Enum.group_by(&normalize_username(&1["username"]))
       |> Enum.map(fn {username, lives} ->
         total_gmv = lives |> Enum.map(&parse_gmv(&1["gmv"])) |> Enum.sum()
-        {username, total_gmv}
+        # Count unique live_ids
+        live_count =
+          lives
+          |> Enum.map(& &1["live_id"])
+          |> Enum.reject(&is_nil/1)
+          |> Enum.uniq()
+          |> length()
+
+        {username, %{gmv: total_gmv, count: live_count}}
       end)
       |> Map.new()
 
@@ -196,21 +212,25 @@ defmodule SocialObjects.Creators.BrandGmv do
     now = DateTime.utc_now()
 
     Enum.reduce(all_usernames, stats, fn username, acc ->
-      video_gmv = Map.get(video_by_username, username, 0)
-      live_gmv = Map.get(live_by_username, username, 0)
+      video_info = Map.get(video_by_username, username, %{gmv: 0, count: 0})
+      live_info = Map.get(live_by_username, username, %{gmv: 0, count: 0})
+      video_gmv = video_info.gmv
+      live_gmv = live_info.gmv
       total_gmv = video_gmv + live_gmv
+      video_count = video_info.count
+      live_count = live_info.count
+
+      gmv_stats = %{
+        video_gmv: video_gmv,
+        live_gmv: live_gmv,
+        total_gmv: total_gmv,
+        video_count: video_count,
+        live_count: live_count
+      }
 
       case match_or_create_creator(brand_id, username) do
         {:ok, creator, :matched} ->
-          update_brand_creator_gmv(
-            brand_id,
-            creator.id,
-            video_gmv,
-            live_gmv,
-            total_gmv,
-            today,
-            now
-          )
+          update_brand_creator_gmv(brand_id, creator.id, gmv_stats, today, now)
 
           %{
             acc
@@ -220,15 +240,7 @@ defmodule SocialObjects.Creators.BrandGmv do
           }
 
         {:ok, creator, :created} ->
-          update_brand_creator_gmv(
-            brand_id,
-            creator.id,
-            video_gmv,
-            live_gmv,
-            total_gmv,
-            today,
-            now
-          )
+          update_brand_creator_gmv(brand_id, creator.id, gmv_stats, today, now)
 
           %{
             acc
@@ -311,7 +323,15 @@ defmodule SocialObjects.Creators.BrandGmv do
   will skip adding deltas to cumulative values to prevent double-counting. The flag
   is reset to false after the first sync.
   """
-  def update_brand_creator_gmv(brand_id, creator_id, video_gmv, live_gmv, total_gmv, date, now) do
+  def update_brand_creator_gmv(brand_id, creator_id, gmv_stats, date, now) do
+    %{
+      video_gmv: video_gmv,
+      live_gmv: live_gmv,
+      total_gmv: total_gmv,
+      video_count: video_count,
+      live_count: live_count
+    } = gmv_stats
+
     Repo.transaction(fn ->
       # Get or create brand_creator
       brand_creator = get_or_create_brand_creator(brand_id, creator_id)
@@ -346,6 +366,8 @@ defmodule SocialObjects.Creators.BrandGmv do
           (brand_creator.cumulative_brand_live_gmv_cents || 0) + effective_live_delta,
         brand_gmv_tracking_started_at: tracking_started_at,
         brand_gmv_last_synced_at: now,
+        video_count: video_count,
+        live_count: live_count,
         updated_at: now
       ]
 

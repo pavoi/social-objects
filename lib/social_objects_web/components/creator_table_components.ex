@@ -25,6 +25,7 @@ defmodule SocialObjectsWeb.CreatorTableComponents do
   attr :enrichment_last_sync_at, :any, default: nil
   attr :bigquery_last_sync_at, :any, default: nil
   attr :external_import_last_at, :any, default: nil
+  attr :brand_gmv_last_sync_at, :any, default: nil
 
   def data_freshness_panel(assigns) do
     assigns =
@@ -33,6 +34,7 @@ defmodule SocialObjectsWeb.CreatorTableComponents do
       |> assign(:enrichment_status, freshness_status(assigns.enrichment_last_sync_at))
       |> assign(:bigquery_status, freshness_status(assigns.bigquery_last_sync_at))
       |> assign(:external_import_status, freshness_status(assigns.external_import_last_at))
+      |> assign(:brand_gmv_status, freshness_status(assigns.brand_gmv_last_sync_at))
 
     ~H"""
     <div class="data-freshness">
@@ -51,7 +53,7 @@ defmodule SocialObjectsWeb.CreatorTableComponents do
             d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z"
           />
         </svg>
-        <%= if has_stale_data?([@videos_status, @enrichment_status, @bigquery_status, @external_import_status]) do %>
+        <%= if has_stale_data?([@videos_status, @enrichment_status, @bigquery_status, @external_import_status, @brand_gmv_status]) do %>
           <span class="data-freshness__warning">!</span>
         <% end %>
       </div>
@@ -84,6 +86,15 @@ defmodule SocialObjectsWeb.CreatorTableComponents do
             <span class="data-freshness__source">Auto-synced</span>
           </div>
           <span class="data-freshness__time">{@videos_status.text}</span>
+        </div>
+
+        <div class="data-freshness__item">
+          <span class={"data-freshness__dot data-freshness__dot--#{@brand_gmv_status.level}"} />
+          <div class="data-freshness__label">
+            <strong>Brand GMV</strong>
+            <span class="data-freshness__source">Auto-synced</span>
+          </div>
+          <span class="data-freshness__time">{@brand_gmv_status.text}</span>
         </div>
 
         <div class="data-freshness__item">
@@ -229,6 +240,7 @@ defmodule SocialObjectsWeb.CreatorTableComponents do
               dir={@sort_dir}
               on_sort={@on_sort}
               tooltip="TikTok username and display name"
+              freshness_source="Creator Profiles"
             />
             <%!-- 4. Email --%>
             <.sort_header
@@ -237,31 +249,23 @@ defmodule SocialObjectsWeb.CreatorTableComponents do
               current={@sort_by}
               dir={@sort_dir}
               on_sort={@on_sort}
-              tooltip="Contact email address"
+              tooltip="Contact email (may be TikTok forwarding). Also from External Imports."
+              freshness_source="Shop Orders"
             />
             <%!-- 5. Tags --%>
             <th class="col-tags" data-column-id="tags" title="Custom tags for organization">
               Tags
             </th>
-            <%!-- 6. Followers --%>
+            <%!-- 6. Brand GMV (Total) - Brand-specific --%>
             <.sort_header
-              label="Followers"
-              field="followers"
+              label="Brand GMV (Total)"
+              field="cumulative_brand_gmv"
               current={@sort_by}
               dir={@sort_dir}
               on_sort={@on_sort}
-              tooltip="TikTok follower count"
+              tooltip="Cumulative GMV from this creator's content for your brand. Also seeded from External Imports."
               time_filtered={@time_filter_active}
-            />
-            <%!-- 7. Cumulative GMV --%>
-            <.sort_header
-              label="Cumulative GMV"
-              field="cumulative_gmv"
-              current={@sort_by}
-              dir={@sort_dir}
-              on_sort={@on_sort}
-              tooltip="Creator's total TikTok Shop GMV (all brands) since tracking started. Accumulates net new sales from TikTok's 30-day rolling window."
-              time_filtered={@time_filter_active}
+              freshness_source="Brand GMV"
             />
             <%!-- 7a. Brand GMV (30d) - Brand-specific --%>
             <.sort_header
@@ -272,25 +276,39 @@ defmodule SocialObjectsWeb.CreatorTableComponents do
               on_sort={@on_sort}
               tooltip="GMV from this creator's videos and lives for your brand in the last 30 days. Based on matched content only."
               time_filtered={@time_filter_active}
+              freshness_source="Brand GMV"
             />
-            <%!-- 7b. Brand GMV (Total) - Brand-specific --%>
+            <%!-- 7b. Cumulative GMV --%>
             <.sort_header
-              label="Brand GMV (Total)"
-              field="cumulative_brand_gmv"
+              label="Cumulative GMV"
+              field="cumulative_gmv"
               current={@sort_by}
               dir={@sort_dir}
               on_sort={@on_sort}
-              tooltip="Cumulative GMV from this creator's content for your brand since tracking started. Based on matched content only."
+              tooltip="Creator's total TikTok Shop GMV (all brands) since tracking started. Also seeded from External Imports."
               time_filtered={@time_filter_active}
+              freshness_source="Creator Profiles"
             />
-            <%!-- 8. Avg Views --%>
+            <%!-- 8. Followers --%>
+            <.sort_header
+              label="Followers"
+              field="followers"
+              current={@sort_by}
+              dir={@sort_dir}
+              on_sort={@on_sort}
+              tooltip="TikTok follower count. Also from External Imports."
+              time_filtered={@time_filter_active}
+              freshness_source="Creator Profiles"
+            />
+            <%!-- 9. Avg Views --%>
             <.sort_header
               label="Avg Views"
               field="avg_views"
               current={@sort_by}
               dir={@sort_dir}
               on_sort={@on_sort}
-              tooltip="Average video views"
+              tooltip="Average video views. Also from External Imports."
+              freshness_source="Creator Profiles"
             />
             <%!-- 9. Samples --%>
             <.sort_header
@@ -300,6 +318,7 @@ defmodule SocialObjectsWeb.CreatorTableComponents do
               dir={@sort_dir}
               on_sort={@on_sort}
               tooltip="Sample products sent"
+              freshness_source="Shop Orders"
             />
             <%!-- 10. Videos Posted --%>
             <.sort_header
@@ -308,7 +327,8 @@ defmodule SocialObjectsWeb.CreatorTableComponents do
               current={@sort_by}
               dir={@sort_dir}
               on_sort={@on_sort}
-              tooltip="Affiliate videos posted"
+              tooltip="Videos with GMV for your brand"
+              freshness_source="Brand GMV"
             />
             <%!-- 11. Commission --%>
             <.sort_header
@@ -317,7 +337,8 @@ defmodule SocialObjectsWeb.CreatorTableComponents do
               current={@sort_by}
               dir={@sort_dir}
               on_sort={@on_sort}
-              tooltip="Total commission earned"
+              tooltip="Total commission earned. Also from External Imports."
+              freshness_source="Video Performance"
             />
             <%!-- 12. Last Sample --%>
             <.sort_header
@@ -327,6 +348,7 @@ defmodule SocialObjectsWeb.CreatorTableComponents do
               dir={@sort_dir}
               on_sort={@on_sort}
               tooltip="Most recent sample received"
+              freshness_source="Shop Orders"
             />
           </tr>
         </thead>
@@ -390,24 +412,31 @@ defmodule SocialObjectsWeb.CreatorTableComponents do
               <td data-column-id="tags" class="col-tags" phx-click="stop_propagation">
                 <.tag_cell creator={creator} />
               </td>
-              <%!-- 6. Followers --%>
+              <%!-- 6. Brand GMV (Total) - Brand-specific --%>
               <td
-                data-column-id="followers"
+                data-column-id="cumulative_brand_gmv"
                 class={["text-right", @time_filter_active && "col-time-filtered"]}
               >
-                <%= if @delta_period && creator.snapshot_delta do %>
-                  <.metric_with_delta
-                    current={creator.follower_count}
-                    delta={creator.snapshot_delta.follower_delta}
-                    start_date={creator.snapshot_delta.start_date}
-                    has_complete_data={creator.snapshot_delta.has_complete_data}
-                    format={:number}
-                  />
-                <% else %>
-                  {format_number(creator.follower_count)}
-                <% end %>
+                <.brand_gmv_cell
+                  rolling_value={creator.brand_gmv_cents}
+                  cumulative_value={creator.cumulative_brand_gmv_cents}
+                  tracking_started_at={creator.brand_gmv_tracking_started_at}
+                  mode={:cumulative}
+                />
               </td>
-              <%!-- 7. Cumulative GMV --%>
+              <%!-- 7a. Brand GMV (30d) - Brand-specific --%>
+              <td
+                data-column-id="brand_gmv"
+                class={["text-right", @time_filter_active && "col-time-filtered"]}
+              >
+                <.brand_gmv_cell
+                  rolling_value={creator.brand_gmv_cents}
+                  cumulative_value={creator.cumulative_brand_gmv_cents}
+                  tracking_started_at={creator.brand_gmv_tracking_started_at}
+                  mode={:rolling}
+                />
+              </td>
+              <%!-- 7b. Cumulative GMV --%>
               <td
                 data-column-id="cumulative_gmv"
                 class={["text-right", @time_filter_active && "col-time-filtered"]}
@@ -427,31 +456,24 @@ defmodule SocialObjectsWeb.CreatorTableComponents do
                   />
                 <% end %>
               </td>
-              <%!-- 7a. Brand GMV (30d) - Brand-specific --%>
+              <%!-- 8. Followers --%>
               <td
-                data-column-id="brand_gmv"
+                data-column-id="followers"
                 class={["text-right", @time_filter_active && "col-time-filtered"]}
               >
-                <.brand_gmv_cell
-                  rolling_value={creator.brand_gmv_cents}
-                  cumulative_value={creator.cumulative_brand_gmv_cents}
-                  tracking_started_at={creator.brand_gmv_tracking_started_at}
-                  mode={:rolling}
-                />
+                <%= if @delta_period && creator.snapshot_delta do %>
+                  <.metric_with_delta
+                    current={creator.follower_count}
+                    delta={creator.snapshot_delta.follower_delta}
+                    start_date={creator.snapshot_delta.start_date}
+                    has_complete_data={creator.snapshot_delta.has_complete_data}
+                    format={:number}
+                  />
+                <% else %>
+                  {format_number(creator.follower_count)}
+                <% end %>
               </td>
-              <%!-- 7b. Brand GMV (Total) - Brand-specific --%>
-              <td
-                data-column-id="cumulative_brand_gmv"
-                class={["text-right", @time_filter_active && "col-time-filtered"]}
-              >
-                <.brand_gmv_cell
-                  rolling_value={creator.brand_gmv_cents}
-                  cumulative_value={creator.cumulative_brand_gmv_cents}
-                  tracking_started_at={creator.brand_gmv_tracking_started_at}
-                  mode={:cumulative}
-                />
-              </td>
-              <%!-- 8. Avg Views --%>
+              <%!-- 9. Avg Views --%>
               <td data-column-id="avg_views" class="text-right">
                 {format_number(creator.avg_video_views)}
               </td>
@@ -558,6 +580,7 @@ defmodule SocialObjectsWeb.CreatorTableComponents do
   attr :tooltip, :string, default: nil
   attr :time_filtered, :boolean, default: false
   attr :manual_import, :boolean, default: false
+  attr :freshness_source, :string, default: nil
 
   def sort_header(assigns) do
     is_active = assigns.current == assigns.field
@@ -618,6 +641,9 @@ defmodule SocialObjectsWeb.CreatorTableComponents do
           {@tooltip}
           <%= if @time_filtered do %>
             <span class="sortable-header__tooltip-filter">Showing period change</span>
+          <% end %>
+          <%= if @freshness_source do %>
+            <span class="sortable-header__tooltip-source">Source: {@freshness_source}</span>
           <% end %>
         </span>
       <% end %>
@@ -859,9 +885,9 @@ defmodule SocialObjectsWeb.CreatorTableComponents do
                 <% end %>
               </td>
               <td class="text-right">{format_gmv(video.gmv_cents)}</td>
-              <td class="text-right">{format_gmv(video.gpm_cents)}</td>
-              <td class="text-right">{video.items_sold || 0}</td>
-              <td class="text-right">{format_number(video.impressions)}</td>
+              <td class="text-right">{format_gmv_or_dash(video.gpm_cents)}</td>
+              <td class="text-right">{format_metric(video.items_sold)}</td>
+              <td class="text-right">{format_metric(video.impressions)}</td>
               <td class="text-right">{format_ctr(video.ctr)}</td>
               <td class="text-right text-text-secondary">{format_duration(video.duration)}</td>
               <td class="text-text-secondary">
@@ -994,6 +1020,9 @@ defmodule SocialObjectsWeb.CreatorTableComponents do
   attr :performance, :list, default: nil
   attr :fulfillment_stats, :map, default: nil
   attr :refreshing, :boolean, default: false
+  attr :videos_last_sync_at, :any, default: nil
+  attr :current_brand, :any, default: nil
+  attr :current_host, :string, default: nil
 
   def creator_detail_modal(assigns) do
     ~H"""
@@ -1046,13 +1075,27 @@ defmodule SocialObjectsWeb.CreatorTableComponents do
                   phx-value-id={@creator.id}
                   disabled={@refreshing}
                 >
-                  {if @refreshing, do: "Refreshing...", else: "Refresh Data"}
+                  {if @refreshing, do: "Refreshing...", else: "Refresh Profile"}
                 </.button>
-                <span class="creator-modal-header__refresh-time">
-                  Last refreshed: {if @creator.last_enriched_at,
-                    do: format_relative_time(@creator.last_enriched_at),
-                    else: "Never"}
-                </span>
+                <div class="creator-modal-header__sync-status">
+                  <span class="creator-modal-header__sync-item">
+                    <span class="creator-modal-header__sync-label">Profile</span>
+                    <span class="creator-modal-header__sync-time">
+                      {if @creator.last_enriched_at,
+                        do: format_relative_time(@creator.last_enriched_at),
+                        else: "Never"}
+                    </span>
+                  </span>
+                  <span class="creator-modal-header__sync-separator">•</span>
+                  <span class="creator-modal-header__sync-item">
+                    <span class="creator-modal-header__sync-label">Videos</span>
+                    <span class="creator-modal-header__sync-time">
+                      {if @videos_last_sync_at,
+                        do: format_relative_time(@videos_last_sync_at),
+                        else: "Never"}
+                    </span>
+                  </span>
+                </div>
               </div>
             </div>
             <div class="creator-modal-tags" data-modal-tag-target={@creator.id}>
@@ -1106,47 +1149,63 @@ defmodule SocialObjectsWeb.CreatorTableComponents do
             <% end %>
           </div>
 
-          <div class="creator-modal-tabs">
-            <button
-              type="button"
-              class={["tab", @active_tab == "contact" && "tab--active"]}
-              phx-click="change_tab"
-              phx-value-tab="contact"
-            >
-              Contact
-            </button>
-            <button
-              type="button"
-              class={["tab", @active_tab == "samples" && "tab--active"]}
-              phx-click="change_tab"
-              phx-value-tab="samples"
-            >
-              Samples
-            </button>
-            <button
-              type="button"
-              class={["tab", @active_tab == "purchases" && "tab--active"]}
-              phx-click="change_tab"
-              phx-value-tab="purchases"
-            >
-              Purchases
-            </button>
-            <button
-              type="button"
-              class={["tab", @active_tab == "videos" && "tab--active"]}
-              phx-click="change_tab"
-              phx-value-tab="videos"
-            >
-              Videos
-            </button>
-            <button
-              type="button"
-              class={["tab", @active_tab == "performance" && "tab--active"]}
-              phx-click="change_tab"
-              phx-value-tab="performance"
-            >
-              Performance
-            </button>
+          <div class="creator-modal-tabs-row">
+            <div class="creator-modal-tabs">
+              <button
+                type="button"
+                class={["tab", @active_tab == "contact" && "tab--active"]}
+                phx-click="change_tab"
+                phx-value-tab="contact"
+              >
+                Contact
+              </button>
+              <button
+                type="button"
+                class={["tab", @active_tab == "samples" && "tab--active"]}
+                phx-click="change_tab"
+                phx-value-tab="samples"
+              >
+                Samples
+              </button>
+              <button
+                type="button"
+                class={["tab", @active_tab == "purchases" && "tab--active"]}
+                phx-click="change_tab"
+                phx-value-tab="purchases"
+              >
+                Purchases
+              </button>
+              <button
+                type="button"
+                class={["tab", @active_tab == "videos" && "tab--active"]}
+                phx-click="change_tab"
+                phx-value-tab="videos"
+              >
+                Videos
+              </button>
+              <button
+                type="button"
+                class={["tab", @active_tab == "performance" && "tab--active"]}
+                phx-click="change_tab"
+                phx-value-tab="performance"
+              >
+                Performance
+              </button>
+            </div>
+            <%= if @active_tab == "videos" && @current_brand do %>
+              <.link
+                navigate={
+                  SocialObjectsWeb.BrandRoutes.brand_path(
+                    @current_brand,
+                    "/videos?creator=#{@creator.id}",
+                    @current_host
+                  )
+                }
+                class="button button--ghost button--sm"
+              >
+                View all in Videos page →
+              </.link>
+            <% end %>
           </div>
 
           <div class="creator-modal-content">

@@ -53,7 +53,7 @@
    ============================================================================ */
 
 .sortable-header {
-  @apply p-0;
+  @apply p-0 relative;
 }
 
 .sortable-header__btn {
