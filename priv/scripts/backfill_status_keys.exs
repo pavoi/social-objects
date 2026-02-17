@@ -2,7 +2,11 @@ import Ecto.Query
 alias SocialObjects.Repo
 alias SocialObjects.Settings.SystemSetting
 
-brand_id = 1
+# Get brand_id from args or default to 1
+brand_id = case System.argv() do
+  [id | _] -> String.to_integer(id)
+  _ -> 1
+end
 
 IO.puts("=== Backfilling status_key values for brand #{brand_id} ===\n")
 

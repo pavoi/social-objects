@@ -546,6 +546,14 @@ defmodule SocialObjects.Settings do
       present?(get_bigquery_private_key(brand_id))
   end
 
+  @spec tiktok_live_accounts_configured?(pos_integer()) :: boolean()
+  @doc """
+  Returns true if the brand has TikTok live accounts configured for monitoring.
+  """
+  def tiktok_live_accounts_configured?(brand_id) do
+    get_tiktok_live_accounts(brand_id) != []
+  end
+
   @spec get_bigquery_source_include_prefix(pos_integer() | nil) :: String.t() | nil
   def get_bigquery_source_include_prefix(nil), do: nil
 

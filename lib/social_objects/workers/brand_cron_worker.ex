@@ -74,8 +74,8 @@ defmodule SocialObjects.Workers.BrandCronWorker do
   end
 
   defp enqueue_for_brand("tiktok_live_monitor", brand_id) do
-    # Only enqueue if brand has TikTok Shop auth configured
-    if TiktokShop.get_auth(brand_id) do
+    # Only enqueue if brand has TikTok live accounts configured
+    if Settings.tiktok_live_accounts_configured?(brand_id) do
       %{"brand_id" => brand_id, "source" => "cron"}
       |> TiktokLiveMonitorWorker.new()
       |> Oban.insert()
