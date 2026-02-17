@@ -805,6 +805,26 @@ defmodule SocialObjects.Creators do
     |> Repo.all()
   end
 
+  @spec get_brand_creator(pos_integer(), pos_integer()) :: BrandCreator.t() | nil
+  @doc """
+  Gets the brand_creator junction record for a brand/creator pair.
+  Returns nil if no association exists.
+  """
+  def get_brand_creator(brand_id, creator_id) do
+    Repo.get_by(BrandCreator, brand_id: brand_id, creator_id: creator_id)
+  end
+
+  @spec update_brand_creator(BrandCreator.t(), map()) ::
+          {:ok, BrandCreator.t()} | {:error, Ecto.Changeset.t()}
+  @doc """
+  Updates a brand_creator record.
+  """
+  def update_brand_creator(%BrandCreator{} = brand_creator, attrs) do
+    brand_creator
+    |> BrandCreator.changeset(attrs)
+    |> Repo.update()
+  end
+
   ## Creator Samples
 
   @spec create_creator_sample(map()) :: {:ok, CreatorSample.t()} | {:error, Ecto.Changeset.t()}
@@ -2445,4 +2465,278 @@ defmodule SocialObjects.Creators do
       |> Map.new()
     end
   end
+
+  ## Import Audits
+
+  alias SocialObjects.Creators.ImportAudit
+
+  @spec create_import_audit(map()) :: {:ok, ImportAudit.t()} | {:error, Ecto.Changeset.t()}
+  @doc """
+  Creates an import audit record to track an import run.
+  """
+  def create_import_audit(attrs) do
+    %ImportAudit{}
+    |> ImportAudit.changeset(attrs)
+    |> Repo.insert()
+  end
+
+  @spec update_import_audit(ImportAudit.t(), map()) ::
+          {:ok, ImportAudit.t()} | {:error, Ecto.Changeset.t()}
+  @doc """
+  Updates an import audit record with new status or counts.
+  """
+  def update_import_audit(audit, attrs) do
+    audit
+    |> ImportAudit.changeset(attrs)
+    |> Repo.update()
+  end
+
+  @spec get_import_audit!(pos_integer()) :: ImportAudit.t()
+  @doc """
+  Gets an import audit by ID.
+  """
+  def get_import_audit!(id), do: Repo.get!(ImportAudit, id)
+
+  @spec compute_file_checksum(String.t()) :: String.t()
+  @doc """
+  Computes MD5 checksum of a file for duplicate detection.
+  """
+  def compute_file_checksum(file_path) do
+    File.stream!(file_path, 2048)
+    |> Enum.reduce(:crypto.hash_init(:md5), fn chunk, acc ->
+      :crypto.hash_update(acc, chunk)
+    end)
+    |> :crypto.hash_final()
+    |> Base.encode16(case: :lower)
+  end
+
+  @spec can_import_file?(pos_integer(), String.t(), String.t()) ::
+          {:ok, String.t()} | {:error, :already_imported}
+  @doc """
+  Checks if a file can be imported (not already running or completed).
+
+  Returns {:ok, checksum} if import can proceed, or {:error, :already_imported}
+  if a running or completed import exists for this file.
+  """
+  def can_import_file?(brand_id, source, file_path) do
+    checksum = compute_file_checksum(file_path)
+
+    existing =
+      Repo.exists?(
+        from(a in ImportAudit,
+          where:
+            a.brand_id == ^brand_id and
+              a.source == ^source and
+              a.file_checksum == ^checksum and
+              a.status in ["running", "completed"]
+        )
+      )
+
+    if existing do
+      {:error, :already_imported}
+    else
+      {:ok, checksum}
+    end
+  end
+
+  ## Quality-Aware Creator Upsert with Manual-Edit Protection
+
+  @spec upsert_creator_with_protection(map(), keyword()) ::
+          {:ok, Creator.t(), :created | :updated} | {:error, Ecto.Changeset.t()}
+  @doc """
+  Upserts a creator with quality-aware contact merging and manual-edit protection.
+
+  Unlike the regular `upsert_creator/1`, this function:
+  - Respects `manually_edited_fields` - never overwrites manually edited data
+  - Uses quality-aware merging - replaces low-quality data with high-quality data
+  - Detects low-quality data patterns (masked values, redirect emails)
+
+  ## Options
+    - `:update_enrichment` - If true, sets `last_enriched_at` and `enrichment_source`
+
+  Returns `{:ok, creator, :created}` or `{:ok, creator, :updated}` or `{:error, changeset}`.
+  """
+  def upsert_creator_with_protection(attrs, opts \\ []) do
+    username = attrs[:tiktok_username] || attrs["tiktok_username"]
+
+    case get_creator_by_any_username(username) do
+      nil -> create_protected_creator(attrs)
+      existing -> update_protected_creator(existing, attrs, opts)
+    end
+  end
+
+  defp create_protected_creator(attrs) do
+    sanitized = sanitize_contact_attrs(attrs)
+
+    case create_creator(sanitized) do
+      {:ok, creator} -> {:ok, creator, :created}
+      error -> error
+    end
+  end
+
+  defp update_protected_creator(existing, attrs, opts) do
+    updates =
+      existing
+      |> build_protected_attrs(attrs)
+      |> maybe_add_enrichment_fields(opts)
+
+    if map_size(updates) > 0 do
+      case update_creator(existing, updates) do
+        {:ok, creator} -> {:ok, creator, :updated}
+        error -> error
+      end
+    else
+      {:ok, existing, :updated}
+    end
+  end
+
+  defp maybe_add_enrichment_fields(updates, opts) do
+    if Keyword.get(opts, :update_enrichment, false) do
+      Map.merge(updates, %{
+        last_enriched_at: DateTime.utc_now(),
+        enrichment_source: Keyword.get(opts, :enrichment_source, "external_import")
+      })
+    else
+      updates
+    end
+  end
+
+  defp build_protected_attrs(existing, new_attrs) do
+    # Note: manually_edited_fields has default: [] in schema, so it's always a list
+    protected = existing.manually_edited_fields
+
+    [
+      :email,
+      :phone,
+      :first_name,
+      :last_name,
+      :address_line_1,
+      :address_line_2,
+      :city,
+      :state,
+      :zipcode
+    ]
+    |> Enum.reduce(%{}, fn field, acc ->
+      existing_val = Map.get(existing, field)
+      new_val = sanitize_contact_field(field, get_attr(new_attrs, field))
+
+      if should_update_field?(existing_val, new_val, field, protected) do
+        Map.put(acc, field, new_val)
+      else
+        acc
+      end
+    end)
+  end
+
+  # Quality-aware field update logic:
+  # 1. Never update to nil/empty values
+  # 2. Never overwrite manually edited fields
+  # 3. Always fill blanks (existing is nil/empty)
+  # 4. Replace low-quality with high-quality data
+  # 5. Don't overwrite existing high-quality data
+
+  defp should_update_field?(_existing, nil, _field, _protected), do: false
+  defp should_update_field?(_existing, "", _field, _protected), do: false
+
+  defp should_update_field?(existing, new_value, field, protected) do
+    field_str = to_string(field)
+
+    cond do
+      # Never overwrite manually edited fields
+      field_str in protected ->
+        false
+
+      # Always fill blanks
+      is_nil(existing) or existing == "" ->
+        true
+
+      # Don't replace with low-quality data
+      low_quality?(new_value) ->
+        false
+
+      # Replace low-quality existing data with high-quality new data
+      low_quality?(existing) and not low_quality?(new_value) ->
+        true
+
+      # Don't overwrite existing high-quality data
+      true ->
+        false
+    end
+  end
+
+  # Detect low-quality data patterns
+  defp low_quality?(nil), do: true
+  defp low_quality?(""), do: true
+
+  defp low_quality?(value) when is_binary(value) do
+    # Masked values (contains asterisks)
+    # Redirect/temp emails
+    # Placeholder patterns
+    String.contains?(value, "*") or
+      String.contains?(value, "@redirect.") or
+      String.contains?(value, "@temp.") or
+      String.downcase(value) in ["n/a", "na", "none", "unknown", "test"]
+  end
+
+  defp low_quality?(_), do: false
+
+  defp sanitize_contact_attrs(attrs) do
+    attrs
+    |> maybe_sanitize_field(:email, &sanitize_email/1)
+    |> maybe_sanitize_field(:phone, &sanitize_phone/1)
+    |> maybe_sanitize_field("email", &sanitize_email/1)
+    |> maybe_sanitize_field("phone", &sanitize_phone/1)
+  end
+
+  defp maybe_sanitize_field(attrs, key, sanitizer) when is_map(attrs) do
+    case Map.fetch(attrs, key) do
+      {:ok, value} -> Map.put(attrs, key, sanitizer.(value))
+      :error -> attrs
+    end
+  end
+
+  defp sanitize_contact_field(:email, value), do: sanitize_email(value)
+  defp sanitize_contact_field(:phone, value), do: sanitize_phone(value)
+  defp sanitize_contact_field(_field, value), do: blank_to_nil(value)
+
+  defp sanitize_email(nil), do: nil
+  defp sanitize_email(""), do: nil
+
+  defp sanitize_email(email) when is_binary(email) do
+    email = String.trim(email)
+
+    # Basic email validation - must have @ and domain
+    if Regex.match?(~r/^[^\s@]+@[^\s@]+\.[^\s@]+$/, email) do
+      String.downcase(email)
+    else
+      nil
+    end
+  end
+
+  defp sanitize_phone(nil), do: nil
+  defp sanitize_phone(""), do: nil
+
+  defp sanitize_phone(phone) when is_binary(phone) do
+    normalized = normalize_phone(phone)
+
+    if normalized do
+      # Keep if it has enough digits (after normalization)
+      digits = String.replace(normalized, ~r/\D/, "")
+
+      if String.length(digits) >= 10 do
+        normalized
+      else
+        nil
+      end
+    else
+      nil
+    end
+  end
+
+  defp blank_to_nil(nil), do: nil
+
+  defp blank_to_nil(val) when is_binary(val),
+    do: if(String.trim(val) == "", do: nil, else: String.trim(val))
+
+  defp blank_to_nil(val), do: val
 end

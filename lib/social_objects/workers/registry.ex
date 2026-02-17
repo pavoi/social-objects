@@ -104,6 +104,18 @@ defmodule SocialObjects.Workers.Registry do
       brand_scoped: true
     },
     %{
+      key: :euka_import,
+      module: SocialObjects.Workers.CreatorImportWorker,
+      name: "Euka Import",
+      description: "Imports creator data from Euka exports",
+      category: :creators,
+      schedule: "On demand",
+      queue: :creators,
+      status_key: "external_import_last_at",
+      triggerable: false,
+      brand_scoped: true
+    },
+    %{
       key: :creator_outreach,
       module: SocialObjects.Workers.CreatorOutreachWorker,
       name: "Creator Outreach",

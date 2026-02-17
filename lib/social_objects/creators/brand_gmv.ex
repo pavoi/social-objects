@@ -302,8 +302,14 @@ defmodule SocialObjects.Creators.BrandGmv do
 
   1. Gets current BrandCreator record (or creates if not exists)
   2. Calculates delta = max(0, new_gmv - previous_gmv)
-  3. Adds delta to cumulative totals
+  3. Adds delta to cumulative totals (skipped if gmv_seeded_externally is true)
   4. Creates CreatorPerformanceSnapshot for audit trail
+
+  ## Bootstrap Guard
+
+  If `gmv_seeded_externally` is true (set during Euka import), the first TikTok sync
+  will skip adding deltas to cumulative values to prevent double-counting. The flag
+  is reset to false after the first sync.
   """
   def update_brand_creator_gmv(brand_id, creator_id, video_gmv, live_gmv, total_gmv, date, now) do
     Repo.transaction(fn ->
@@ -314,37 +320,55 @@ defmodule SocialObjects.Creators.BrandGmv do
       {video_delta, live_delta, total_delta} =
         calculate_deltas(brand_creator, video_gmv, live_gmv, total_gmv)
 
+      # Check bootstrap flag - if externally seeded, skip delta accumulation this run
+      {effective_video_delta, effective_live_delta, effective_total_delta, reset_flag} =
+        if brand_creator.gmv_seeded_externally do
+          # First sync after external seed: apply zero delta, reset flag
+          {0, 0, 0, true}
+        else
+          {video_delta, live_delta, total_delta, false}
+        end
+
       # Update tracking start date if this is first sync
       tracking_started_at =
         brand_creator.brand_gmv_tracking_started_at || date
 
+      # Build update set, conditionally resetting the bootstrap flag
+      update_set = [
+        brand_gmv_cents: total_gmv,
+        brand_video_gmv_cents: video_gmv,
+        brand_live_gmv_cents: live_gmv,
+        cumulative_brand_gmv_cents:
+          (brand_creator.cumulative_brand_gmv_cents || 0) + effective_total_delta,
+        cumulative_brand_video_gmv_cents:
+          (brand_creator.cumulative_brand_video_gmv_cents || 0) + effective_video_delta,
+        cumulative_brand_live_gmv_cents:
+          (brand_creator.cumulative_brand_live_gmv_cents || 0) + effective_live_delta,
+        brand_gmv_tracking_started_at: tracking_started_at,
+        brand_gmv_last_synced_at: now,
+        updated_at: now
+      ]
+
+      # Reset bootstrap flag if it was set
+      update_set =
+        if reset_flag do
+          Keyword.put(update_set, :gmv_seeded_externally, false)
+        else
+          update_set
+        end
+
       # Update brand_creator with new values
       from(bc in BrandCreator, where: bc.id == ^brand_creator.id)
-      |> Repo.update_all(
-        set: [
-          brand_gmv_cents: total_gmv,
-          brand_video_gmv_cents: video_gmv,
-          brand_live_gmv_cents: live_gmv,
-          cumulative_brand_gmv_cents:
-            (brand_creator.cumulative_brand_gmv_cents || 0) + total_delta,
-          cumulative_brand_video_gmv_cents:
-            (brand_creator.cumulative_brand_video_gmv_cents || 0) + video_delta,
-          cumulative_brand_live_gmv_cents:
-            (brand_creator.cumulative_brand_live_gmv_cents || 0) + live_delta,
-          brand_gmv_tracking_started_at: tracking_started_at,
-          brand_gmv_last_synced_at: now,
-          updated_at: now
-        ]
-      )
+      |> Repo.update_all(set: update_set)
 
-      # Create performance snapshot for audit trail
+      # Create performance snapshot for audit trail (use effective deltas)
       create_gmv_snapshot(brand_id, creator_id, date, %{
         video_gmv: video_gmv,
         live_gmv: live_gmv,
         total_gmv: total_gmv,
-        video_delta: video_delta,
-        live_delta: live_delta,
-        total_delta: total_delta
+        video_delta: effective_video_delta,
+        live_delta: effective_live_delta,
+        total_delta: effective_total_delta
       })
 
       :ok

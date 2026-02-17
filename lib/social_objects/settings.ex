@@ -316,6 +316,25 @@ defmodule SocialObjects.Settings do
     upsert_setting(brand_id, "gmv_backfill_last_run_at", now_iso(), "datetime")
   end
 
+  @spec get_external_import_last_at(pos_integer()) :: DateTime.t() | nil
+  @doc """
+  Gets the last external data import timestamp (e.g., Euka imports).
+
+  Returns nil if never imported or a DateTime if imported before.
+  """
+  def get_external_import_last_at(brand_id) do
+    get_datetime_setting(brand_id, "external_import_last_at")
+  end
+
+  @spec update_external_import_last_at(pos_integer()) ::
+          {:ok, SystemSetting.t()} | {:error, Ecto.Changeset.t()}
+  @doc """
+  Updates the last external data import timestamp to the current time.
+  """
+  def update_external_import_last_at(brand_id) do
+    upsert_setting(brand_id, "external_import_last_at", now_iso(), "datetime")
+  end
+
   @spec get_setting(pos_integer(), String.t()) :: String.t() | nil
   @doc """
   Gets a generic string setting by key.
