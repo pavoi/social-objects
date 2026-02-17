@@ -27,6 +27,8 @@ defmodule SocialObjects.Creators.CreatorSample do
           fulfilled: boolean(),
           fulfilled_at: DateTime.t() | nil,
           attributed_video_id: pos_integer() | nil,
+          import_source: String.t() | nil,
+          import_source_key: String.t() | nil,
           inserted_at: NaiveDateTime.t() | nil,
           updated_at: NaiveDateTime.t() | nil
         }
@@ -58,6 +60,10 @@ defmodule SocialObjects.Creators.CreatorSample do
     field :fulfilled_at, :utc_datetime
     belongs_to :attributed_video, SocialObjects.Creators.CreatorVideo
 
+    # Import source tracking for deduplication
+    field :import_source, :string
+    field :import_source_key, :string
+
     timestamps()
   end
 
@@ -79,14 +85,42 @@ defmodule SocialObjects.Creators.CreatorSample do
       :status,
       :fulfilled,
       :fulfilled_at,
-      :attributed_video_id
+      :attributed_video_id,
+      :import_source,
+      :import_source_key
     ])
     |> validate_required([:creator_id, :brand_id])
     |> validate_number(:quantity, greater_than: 0)
+    |> validate_import_metadata_consistency()
     |> unique_constraint([:tiktok_order_id, :tiktok_sku_id])
+    |> unique_constraint([:creator_id, :brand_id, :import_source, :import_source_key],
+      name: :creator_samples_external_import_unique
+    )
     |> foreign_key_constraint(:creator_id)
     |> foreign_key_constraint(:brand_id)
     |> foreign_key_constraint(:product_id)
+    |> check_constraint(:import_metadata_consistency, name: :import_metadata_consistency)
+  end
+
+  # Validates that import_source and import_source_key are either both nil or both set
+  defp validate_import_metadata_consistency(changeset) do
+    source = get_field(changeset, :import_source)
+    key = get_field(changeset, :import_source_key)
+
+    case {source, key} do
+      {nil, nil} ->
+        changeset
+
+      {s, k} when is_binary(s) and is_binary(k) ->
+        changeset
+
+      _ ->
+        add_error(
+          changeset,
+          :import_source,
+          "import_source and import_source_key must both be set or both be nil"
+        )
+    end
   end
 
   @doc """

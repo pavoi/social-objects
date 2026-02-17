@@ -25,6 +25,10 @@ defmodule SocialObjects.Creators.BrandCreator do
           cumulative_brand_live_gmv_cents: integer(),
           brand_gmv_tracking_started_at: Date.t() | nil,
           brand_gmv_last_synced_at: DateTime.t() | nil,
+          video_count: integer(),
+          live_count: integer(),
+          unmatched_products_raw: String.t() | nil,
+          gmv_seeded_externally: boolean(),
           inserted_at: NaiveDateTime.t() | nil,
           updated_at: NaiveDateTime.t() | nil
         }
@@ -53,6 +57,16 @@ defmodule SocialObjects.Creators.BrandCreator do
     field :brand_gmv_tracking_started_at, :date
     field :brand_gmv_last_synced_at, :utc_datetime
 
+    # Brand-specific video/live counts (seeded from external imports or computed from creator_videos)
+    field :video_count, :integer, default: 0
+    field :live_count, :integer, default: 0
+
+    # Fallback storage for unmatched product names from external imports
+    field :unmatched_products_raw, :string
+
+    # Bootstrap flag for GMV - prevents double-counting on first TikTok sync
+    field :gmv_seeded_externally, :boolean, default: false
+
     timestamps()
   end
 
@@ -72,7 +86,11 @@ defmodule SocialObjects.Creators.BrandCreator do
       :cumulative_brand_video_gmv_cents,
       :cumulative_brand_live_gmv_cents,
       :brand_gmv_tracking_started_at,
-      :brand_gmv_last_synced_at
+      :brand_gmv_last_synced_at,
+      :video_count,
+      :live_count,
+      :unmatched_products_raw,
+      :gmv_seeded_externally
     ])
     |> validate_required([:brand_id, :creator_id])
     |> unique_constraint([:brand_id, :creator_id])
