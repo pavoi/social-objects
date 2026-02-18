@@ -168,6 +168,29 @@ defmodule SocialObjects.Storage do
     end
   end
 
+  @doc """
+  Stores a video thumbnail in the bucket.
+
+  Downloads the thumbnail from the given URL and uploads it to storage
+  with a key based on the video ID.
+
+  Returns the storage key or :skip if storage is not configured/URL is empty.
+  """
+  @spec store_video_thumbnail(String.t() | nil, pos_integer()) ::
+          {:ok, String.t()} | {:error, term()} | :skip
+  def store_video_thumbnail(url, video_id) do
+    if configured?() and is_binary(url) and url != "" do
+      with {:ok, body, content_type} <- fetch_url(url),
+           extension <- content_type_extension(content_type),
+           key <- "thumbnails/videos/#{video_id}.#{extension}",
+           {:ok, _} <- upload_binary(key, body, content_type) do
+        {:ok, key}
+      end
+    else
+      :skip
+    end
+  end
+
   defp get_content_type(headers, url) do
     # Try to get content-type from headers, fallback to guessing from URL
     # Req returns headers as a map with list values

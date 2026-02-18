@@ -29,6 +29,7 @@ defmodule SocialObjects.Creators.CreatorVideo do
           duration: integer() | nil,
           hash_tags: [String.t()],
           thumbnail_url: String.t() | nil,
+          thumbnail_storage_key: String.t() | nil,
           attributed_sample_id: pos_integer() | nil,
           inserted_at: NaiveDateTime.t() | nil,
           updated_at: NaiveDateTime.t() | nil
@@ -66,6 +67,7 @@ defmodule SocialObjects.Creators.CreatorVideo do
 
     # Thumbnail for embed display
     field :thumbnail_url, :string
+    field :thumbnail_storage_key, :string
 
     # Sample fulfillment - which sample this video fulfilled
     belongs_to :attributed_sample, SocialObjects.Creators.CreatorSample
@@ -98,7 +100,8 @@ defmodule SocialObjects.Creators.CreatorVideo do
       :gpm_cents,
       :duration,
       :hash_tags,
-      :thumbnail_url
+      :thumbnail_url,
+      :thumbnail_storage_key
     ])
     |> validate_required([:brand_id, :creator_id, :tiktok_video_id])
     |> unique_constraint(:tiktok_video_id)

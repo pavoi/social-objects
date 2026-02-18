@@ -1132,14 +1132,17 @@ defmodule SocialObjects.Creators do
     )
   end
 
-  @spec update_video_thumbnail(CreatorVideo.t(), String.t()) ::
+  @spec update_video_thumbnail(CreatorVideo.t(), String.t(), String.t() | nil) ::
           {:ok, CreatorVideo.t()} | {:error, Ecto.Changeset.t()}
   @doc """
-  Updates a video's thumbnail URL.
+  Updates a video's thumbnail URL and optionally its storage key.
   """
-  def update_video_thumbnail(%CreatorVideo{} = video, thumbnail_url) do
+  def update_video_thumbnail(%CreatorVideo{} = video, thumbnail_url, storage_key \\ nil) do
     video
-    |> Ecto.Changeset.change(%{thumbnail_url: thumbnail_url})
+    |> Ecto.Changeset.change(%{
+      thumbnail_url: thumbnail_url,
+      thumbnail_storage_key: storage_key
+    })
     |> Repo.update()
   end
 
@@ -1153,6 +1156,23 @@ defmodule SocialObjects.Creators do
       where: v.brand_id == ^brand_id,
       where: is_nil(v.thumbnail_url),
       where: not is_nil(v.video_url),
+      order_by: [desc: v.gmv_cents],
+      limit: ^limit
+    )
+    |> Repo.all()
+  end
+
+  @spec list_videos_needing_thumbnail_storage(pos_integer(), pos_integer()) :: [CreatorVideo.t()]
+  @doc """
+  Lists videos that have thumbnails but haven't been stored in storage yet.
+  Used by ThumbnailBackfillWorker to migrate existing thumbnails to storage.
+  """
+  def list_videos_needing_thumbnail_storage(brand_id, limit \\ 50) do
+    from(v in CreatorVideo,
+      where: v.brand_id == ^brand_id,
+      where: not is_nil(v.thumbnail_url),
+      where: not is_nil(v.video_url),
+      where: is_nil(v.thumbnail_storage_key),
       order_by: [desc: v.gmv_cents],
       limit: ^limit
     )
@@ -1221,6 +1241,7 @@ defmodule SocialObjects.Creators do
         select: %{
           id: v.id,
           thumbnail_url: v.thumbnail_url,
+          thumbnail_storage_key: v.thumbnail_storage_key,
           duration: v.duration,
           title: v.title,
           gmv_cents: v.gmv_cents,
