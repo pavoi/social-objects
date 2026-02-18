@@ -28,6 +28,7 @@ import HourlyPerformanceChart from "./hooks/hourly_performance_chart"
 import TikTokEmbed from "./hooks/tiktok_embed"
 import VideoGridHover from "./hooks/video_grid_hover"
 import InfiniteScroll from "./hooks/infinite_scroll"
+import HoverDropdown from "./hooks/hover_dropdown"
 
 // Lazy-loaded VoiceControl hook wrapper
 // Only loads the full voice_control.js when hook actually mounts (feature flag enabled)
@@ -79,6 +80,7 @@ const Hooks = {
   TikTokEmbed,
   VideoGridHover,
   InfiniteScroll,
+  HoverDropdown,
 }
 
 export default Hooks

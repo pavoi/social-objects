@@ -8,6 +8,123 @@ defmodule SocialObjectsWeb.FilterComponents do
   use Phoenix.Component
 
   @doc """
+  Renders a hover-triggered dropdown filter matching the Creators page style.
+
+  Desktop: Reveals dropdown on hover via CSS.
+  All devices: Supports click-toggle fallback via shared JS hook.
+
+  ## Attributes
+  - `options` - List of {value, label} tuples for the dropdown options
+  - `current_value` - The currently selected value (string or nil)
+  - `open` - Whether the dropdown is open (optional server-controlled open state)
+  - `open_on_hover` - Whether desktop opens on hover (`true`) or click only (`false`)
+  - `change_event` - Event name when an option is selected (receives "value" param)
+  - `toggle_event` - Event name for server-controlled click toggle (optional)
+  - `clear_event` - Event name when clear button clicked (optional, shows X when active)
+  - `id` - Unique ID for the component (required for phx-click-away)
+
+  ## Example
+
+      <.hover_dropdown
+        id="creator-filter"
+        options={[{"", "All Creators"} | Enum.map(@creators, &{&1.id, "@" <> &1.username})]}
+        current_value={@selected_creator_id}
+        change_event="filter_creator"
+        toggle_event="toggle_creator_filter"
+        open={@creator_filter_open}
+      />
+  """
+  attr :id, :string, required: true
+  attr :options, :list, required: true
+  attr :current_value, :any, default: nil
+  attr :open, :boolean, default: false
+  attr :open_on_hover, :boolean, default: true
+  attr :change_event, :string, required: true
+  attr :toggle_event, :string, default: nil
+  attr :clear_event, :string, default: nil
+
+  def hover_dropdown(assigns) do
+    # Find the label for the current value
+    current_label =
+      Enum.find_value(assigns.options, fn {value, label} ->
+        if to_string(value) == to_string(assigns.current_value), do: label
+      end) || elem(List.first(assigns.options), 1)
+
+    # Determine if filter is active (not first option)
+    first_value = assigns.options |> List.first() |> elem(0)
+
+    is_active =
+      assigns.current_value != nil &&
+        assigns.current_value != "" &&
+        to_string(assigns.current_value) != to_string(first_value)
+
+    assigns =
+      assigns
+      |> assign(:current_label, current_label)
+      |> assign(:is_active, is_active)
+
+    ~H"""
+    <div
+      class={[
+        "hover-dropdown",
+        @open && "is-open",
+        @open_on_hover && "hover-dropdown--hover-open",
+        !@open_on_hover && "hover-dropdown--click-open"
+      ]}
+      id={@id}
+      phx-hook="HoverDropdown"
+    >
+      <button
+        type="button"
+        class={["hover-dropdown__trigger", @is_active && "hover-dropdown__trigger--active"]}
+        phx-click={@toggle_event}
+      >
+        <span class="hover-dropdown__label">{@current_label}</span>
+        <%= if @is_active && @clear_event do %>
+          <span
+            class="hover-dropdown__clear"
+            phx-click={@clear_event}
+            title="Clear filter"
+          >
+            ×
+          </span>
+        <% else %>
+          <svg
+            class="hover-dropdown__chevron"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <path d="m6 9 6 6 6-6" />
+          </svg>
+        <% end %>
+      </button>
+
+      <div class="hover-dropdown__menu">
+        <div class="hover-dropdown__list">
+          <%= for {opt_value, opt_label} <- @options do %>
+            <button
+              type="button"
+              class={[
+                "hover-dropdown__item",
+                to_string(@current_value) == to_string(opt_value) && "hover-dropdown__item--selected"
+              ]}
+              phx-click={@change_event}
+              phx-value-selection={to_string(opt_value)}
+            >
+              {opt_label}
+            </button>
+          <% end %>
+        </div>
+      </div>
+    </div>
+    """
+  end
+
+  @doc """
   Renders a generic filter dropdown with hover behavior.
 
   ## Attributes

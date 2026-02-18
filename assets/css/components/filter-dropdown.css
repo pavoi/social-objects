@@ -32,3 +32,134 @@
 [data-theme="dark"] .filter-select {
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23999' d='M6 9L1 4h10z'/%3E%3C/svg%3E");
 }
+
+/* ============================================================================
+   HOVER DROPDOWN COMPONENT
+   ============================================================================
+   Hover-triggered dropdown matching the Creators page style.
+   Desktop: CSS hover reveals dropdown.
+   Mobile: Click-toggle via is-open class.
+   ============================================================================ */
+
+.hover-dropdown {
+  @apply relative;
+}
+
+.hover-dropdown__trigger {
+  @apply inline-flex items-center justify-center gap-1.5 h-9 min-w-[120px] px-3;
+  @apply bg-surface-primary border border-border-primary rounded-md;
+  @apply text-sm text-text-secondary cursor-pointer;
+  transition: all 0.15s ease;
+}
+
+.hover-dropdown__trigger:hover {
+  @apply border-text-secondary;
+}
+
+.hover-dropdown__trigger:focus {
+  @apply outline-none border-primary;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.hover-dropdown__trigger--active {
+  @apply bg-primary text-white border-primary;
+}
+
+.hover-dropdown__trigger--active:hover {
+  @apply border-primary;
+}
+
+.hover-dropdown__label {
+  @apply truncate;
+  max-width: 140px;
+}
+
+.hover-dropdown__chevron {
+  @apply w-4 h-4 shrink-0 opacity-60;
+  transition: transform 0.15s ease;
+}
+
+.hover-dropdown--hover-open:hover .hover-dropdown__chevron,
+.hover-dropdown.is-open .hover-dropdown__chevron {
+  transform: rotate(180deg);
+}
+
+.hover-dropdown__clear {
+  @apply text-base font-bold leading-none opacity-80 cursor-pointer;
+  transition: opacity 0.15s ease;
+}
+
+.hover-dropdown__clear:hover {
+  @apply opacity-100;
+}
+
+.hover-dropdown__menu {
+  @apply absolute top-full left-0 mt-1 min-w-full w-max;
+  @apply bg-surface-primary border border-border-primary rounded-md;
+  @apply opacity-0 invisible z-50;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
+  transition: opacity 0.15s ease, visibility 0.15s ease;
+}
+
+/* Desktop: hover to show */
+.hover-dropdown--hover-open:hover .hover-dropdown__menu,
+.hover-dropdown.is-open .hover-dropdown__menu {
+  @apply opacity-100 visible;
+}
+
+.hover-dropdown__list {
+  @apply py-1 max-h-[280px] overflow-y-auto;
+}
+
+.hover-dropdown__item {
+  @apply flex items-center w-full py-2 px-3;
+  @apply bg-transparent border-none;
+  @apply text-sm text-text-primary cursor-pointer text-left whitespace-nowrap;
+  transition: background 0.15s ease;
+}
+
+.hover-dropdown__item:hover {
+  @apply bg-bg-hover;
+}
+
+.hover-dropdown__item--selected {
+  @apply font-medium text-primary;
+  background: rgba(59, 130, 246, 0.08);
+}
+
+.hover-dropdown__item--selected:hover {
+  background: rgba(59, 130, 246, 0.12);
+}
+
+/* Mobile: click to toggle via is-open class */
+@media (hover: none) {
+  .hover-dropdown--hover-open:hover .hover-dropdown__menu {
+    @apply opacity-0 invisible;
+  }
+
+  .hover-dropdown--hover-open:hover .hover-dropdown__chevron {
+    transform: none;
+  }
+}
+
+/* Dark mode */
+.dark .hover-dropdown__trigger {
+  @apply bg-surface-secondary;
+}
+
+.dark .hover-dropdown__menu {
+  @apply bg-surface-secondary;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.4);
+}
+
+.dark .hover-dropdown__item:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.dark .hover-dropdown__item--selected {
+  background: rgba(59, 130, 246, 0.15);
+}
+
+.dark .hover-dropdown__item--selected:hover {
+  background: rgba(59, 130, 246, 0.2);
+}
