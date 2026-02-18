@@ -52,7 +52,7 @@
     min-width: 180px;
   }
 
-  .page-header__filters .filter-select {
+  .page-header__filters .hover-dropdown__trigger {
     @apply min-w-[90px] pl-2;
   }
 }
@@ -71,7 +71,7 @@
     @apply shrink-0 gap-2;
   }
 
-  .page-header__filters .filter-select {
+  .page-header__filters .hover-dropdown__trigger {
     @apply min-w-[70px] pl-1.5 text-xs h-8;
   }
 }
@@ -81,7 +81,7 @@
     @apply min-w-[80px];
   }
 
-  .page-header__filters .filter-select {
+  .page-header__filters .hover-dropdown__trigger {
     @apply min-w-[60px] pl-1;
   }
 }

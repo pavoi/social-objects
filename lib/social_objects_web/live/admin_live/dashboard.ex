@@ -12,6 +12,7 @@ defmodule SocialObjectsWeb.AdminLive.Dashboard do
   use SocialObjectsWeb, :live_view
 
   import SocialObjectsWeb.AdminComponents
+  import SocialObjectsWeb.FilterComponents
   import SocialObjectsWeb.ParamHelpers
 
   alias SocialObjects.Catalog
@@ -67,7 +68,9 @@ defmodule SocialObjectsWeb.AdminLive.Dashboard do
   end
 
   @impl true
-  def handle_event("filter_brand", %{"brand_id" => brand_id_param}, socket) do
+  def handle_event("filter_brand", params, socket) do
+    brand_id_param = params["brand_id"] || params["selection"] || "all"
+
     brand_id =
       case brand_id_param do
         "" -> nil
@@ -399,19 +402,15 @@ defmodule SocialObjectsWeb.AdminLive.Dashboard do
         <div class="monitoring-panel">
           <div class="monitoring-panel__header">
             <h2 class="monitoring-panel__title">System Monitoring</h2>
-            <form class="brand-filter" phx-change="filter_brand">
+            <div class="brand-filter">
               <label class="brand-filter__label">Brand:</label>
-              <select class="brand-filter__select" name="brand_id">
-                <option value="all" selected={is_nil(@selected_brand_id)}>All Brands</option>
-                <option
-                  :for={brand <- @brands}
-                  value={brand.id}
-                  selected={@selected_brand_id == brand.id}
-                >
-                  {brand.name}
-                </option>
-              </select>
-            </form>
+              <.hover_dropdown
+                id="admin-brand-filter"
+                options={[{"all", "All Brands"} | Enum.map(@brands, &{&1.id, &1.name})]}
+                current_value={if @selected_brand_id, do: @selected_brand_id, else: "all"}
+                change_event="filter_brand"
+              />
+            </div>
           </div>
           <div class="monitoring-panel__body">
             <.queue_health_stats stats={@oban_stats} />

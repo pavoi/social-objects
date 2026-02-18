@@ -435,16 +435,15 @@
     <% "templates" -> %>
       <%!-- Template Type Filter & Actions --%>
       <div class="template-header">
-        <form phx-change="filter_template_type">
-          <select name="type" class="filter-select">
-            <option value="email" selected={@template_type_filter == "email"}>
-              Email Templates
-            </option>
-            <option value="page" selected={@template_type_filter == "page"}>
-              Page Templates
-            </option>
-          </select>
-        </form>
+        <.hover_dropdown
+          id="template-type-filter"
+          options={[
+            {"email", "Email Templates"},
+            {"page", "Page Templates"}
+          ]}
+          current_value={@template_type_filter}
+          change_event="filter_template_type"
+        />
       </div>
 
       <%= if Enum.empty?(@templates) do %>

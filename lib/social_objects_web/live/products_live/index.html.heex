@@ -548,32 +548,28 @@
         </div>
 
         <div class="page-header__filters">
-          <form phx-change="browse_platform_filter_changed">
-            <select name="platform" class="filter-select" value={@platform_filter}>
-              <option value="">All Products</option>
-              <option value="shopify" selected={@platform_filter == "shopify"}>Shopify</option>
-              <option value="tiktok" selected={@platform_filter == "tiktok"}>
-                TikTok Shop
-              </option>
-            </select>
-          </form>
+          <.hover_dropdown
+            id="products-platform-filter"
+            options={[
+              {"", "All Products"},
+              {"shopify", "Shopify"},
+              {"tiktok", "TikTok Shop"}
+            ]}
+            current_value={@platform_filter}
+            change_event="browse_platform_filter_changed"
+          />
 
-          <form phx-change="browse_sort_changed">
-            <select name="sort" class="filter-select" value={@browse_product_sort_by}>
-              <option value="most_sampled" selected={@browse_product_sort_by == "most_sampled"}>
-                Most Sampled
-              </option>
-              <option value="name" selected={@browse_product_sort_by == "name"}>
-                Name (A-Z)
-              </option>
-              <option value="price_asc" selected={@browse_product_sort_by == "price_asc"}>
-                Price: Low to High
-              </option>
-              <option value="price_desc" selected={@browse_product_sort_by == "price_desc"}>
-                Price: High to Low
-              </option>
-            </select>
-          </form>
+          <.hover_dropdown
+            id="products-sort-filter"
+            options={[
+              {"most_sampled", "Most Sampled"},
+              {"name", "Name (A-Z)"},
+              {"price_asc", "Price: Low to High"},
+              {"price_desc", "Price: High to Low"}
+            ]}
+            current_value={@browse_product_sort_by}
+            change_event="browse_sort_changed"
+          />
         </div>
       </div>
 

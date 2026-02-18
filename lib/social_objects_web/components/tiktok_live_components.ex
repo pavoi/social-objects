@@ -6,6 +6,7 @@ defmodule SocialObjectsWeb.TiktokLiveComponents do
 
   import SocialObjectsWeb.CoreComponents
   import SocialObjectsWeb.CreatorTableComponents, only: [sort_header: 1]
+  import SocialObjectsWeb.FilterComponents
   import SocialObjectsWeb.ViewHelpers
 
   alias Phoenix.LiveView.JS
@@ -1142,39 +1143,33 @@ defmodule SocialObjectsWeb.TiktokLiveComponents do
             />
           </div>
 
-          <form phx-change="analytics_filter_sentiment">
-            <select name="sentiment" class="filter-select">
-              <option value="" selected={is_nil(@sentiment_filter)}>All Sentiment</option>
-              <option value="positive" selected={@sentiment_filter == :positive}>Positive</option>
-              <option value="neutral" selected={@sentiment_filter == :neutral}>Neutral</option>
-              <option value="negative" selected={@sentiment_filter == :negative}>Negative</option>
-            </select>
-          </form>
+          <.hover_dropdown
+            id="analytics-sentiment-filter"
+            options={[
+              {"", "All Sentiment"},
+              {"positive", "Positive"},
+              {"neutral", "Neutral"},
+              {"negative", "Negative"}
+            ]}
+            current_value={if @sentiment_filter, do: Atom.to_string(@sentiment_filter), else: ""}
+            change_event="analytics_filter_sentiment"
+          />
 
-          <form phx-change="analytics_filter_category">
-            <select name="category" class="filter-select">
-              <option value="" selected={is_nil(@category_filter)}>All Categories</option>
-              <option value="praise_compliment" selected={@category_filter == :praise_compliment}>
-                Praise
-              </option>
-              <option value="question_confusion" selected={@category_filter == :question_confusion}>
-                Questions
-              </option>
-              <option value="product_request" selected={@category_filter == :product_request}>
-                Product Requests
-              </option>
-              <option value="concern_complaint" selected={@category_filter == :concern_complaint}>
-                Concerns
-              </option>
-              <option value="technical_issue" selected={@category_filter == :technical_issue}>
-                Technical Issues
-              </option>
-              <option value="flash_sale" selected={@category_filter == :flash_sale}>
-                Flash Sale
-              </option>
-              <option value="general" selected={@category_filter == :general}>General</option>
-            </select>
-          </form>
+          <.hover_dropdown
+            id="analytics-category-filter"
+            options={[
+              {"", "All Categories"},
+              {"praise_compliment", "Praise"},
+              {"question_confusion", "Questions"},
+              {"product_request", "Product Requests"},
+              {"concern_complaint", "Concerns"},
+              {"technical_issue", "Technical Issues"},
+              {"flash_sale", "Flash Sale"},
+              {"general", "General"}
+            ]}
+            current_value={if @category_filter, do: Atom.to_string(@category_filter), else: ""}
+            change_event="analytics_filter_category"
+          />
         </div>
       </div>
 

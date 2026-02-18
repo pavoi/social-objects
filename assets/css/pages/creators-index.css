@@ -209,7 +209,7 @@
     @apply max-w-[200px] min-w-[150px];
   }
 
-  .creators-index .filter-select {
+  .creators-index .hover-dropdown__trigger {
     @apply min-w-[100px] pl-2;
   }
 
@@ -258,7 +258,7 @@
     flex: 1 1 auto;
   }
 
-  .creators-index .filter-select {
+  .creators-index .hover-dropdown__trigger {
     @apply min-w-[80px] pl-2 text-xs h-8;
   }
 

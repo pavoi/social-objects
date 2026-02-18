@@ -6,16 +6,18 @@
         <% "analytics" -> %>
           <div class="analytics-stream-selector">
             <span class="analytics-stream-selector__label">Showing analytics for:</span>
-            <form phx-change="analytics_select_stream">
-              <select name="stream_id" class="filter-select">
-                <option value="" selected={is_nil(@analytics_stream_id)}>All Streams</option>
-                <%= for stream <- @all_streams_for_select do %>
-                  <option value={stream.id} selected={@analytics_stream_id == stream.id}>
-                    @{stream.unique_id} - {Calendar.strftime(stream.started_at, "%b %d")}
-                  </option>
-                <% end %>
-              </select>
-            </form>
+            <.hover_dropdown
+              id="analytics-stream-filter"
+              options={
+                [{"", "All Streams"}] ++
+                  Enum.map(@all_streams_for_select, fn stream ->
+                    {stream.id,
+                     "@#{stream.unique_id} - #{Calendar.strftime(stream.started_at, "%b %d")}"}
+                  end)
+              }
+              current_value={@analytics_stream_id}
+              change_event="analytics_select_stream"
+            />
           </div>
       <% end %>
     </:actions>
@@ -34,25 +36,29 @@
         </div>
 
         <div class="page-header__filters">
-          <form phx-change="filter_status">
-            <select name="status" class="filter-select" value={@status_filter}>
-              <option value="all" selected={@status_filter == "all"}>All Status</option>
-              <option value="capturing" selected={@status_filter == "capturing"}>
-                Live Now
-              </option>
-              <option value="ended" selected={@status_filter == "ended"}>Ended</option>
-              <option value="failed" selected={@status_filter == "failed"}>Failed</option>
-            </select>
-          </form>
+          <.hover_dropdown
+            id="streams-status-filter"
+            options={[
+              {"all", "All Status"},
+              {"capturing", "Live Now"},
+              {"ended", "Ended"},
+              {"failed", "Failed"}
+            ]}
+            current_value={@status_filter}
+            change_event="filter_status"
+          />
 
-          <form phx-change="filter_date">
-            <select name="date" class="filter-select" value={@date_filter}>
-              <option value="all" selected={@date_filter == "all"}>All Time</option>
-              <option value="today" selected={@date_filter == "today"}>Today</option>
-              <option value="week" selected={@date_filter == "week"}>Last 7 Days</option>
-              <option value="month" selected={@date_filter == "month"}>Last 30 Days</option>
-            </select>
-          </form>
+          <.hover_dropdown
+            id="streams-date-filter"
+            options={[
+              {"all", "All Time"},
+              {"today", "Today"},
+              {"week", "Last 7 Days"},
+              {"month", "Last 30 Days"}
+            ]}
+            current_value={@date_filter}
+            change_event="filter_date"
+          />
         </div>
       </div>
 

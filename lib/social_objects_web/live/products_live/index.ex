@@ -72,6 +72,7 @@ defmodule SocialObjectsWeb.ProductsLive.Index do
 
   import SocialObjectsWeb.AIComponents
   import SocialObjectsWeb.BrandPermissions
+  import SocialObjectsWeb.FilterComponents
   import SocialObjectsWeb.ParamHelpers
   import SocialObjectsWeb.ProductComponents
   import SocialObjectsWeb.ViewHelpers
@@ -1517,13 +1518,15 @@ defmodule SocialObjectsWeb.ProductsLive.Index do
   end
 
   @impl true
-  def handle_event("browse_sort_changed", %{"sort" => sort_by}, socket) do
+  def handle_event("browse_sort_changed", params, socket) do
+    sort_by = params["sort"] || params["selection"] || ""
     params = browse_query_params(socket, %{sort: sort_by})
     {:noreply, push_patch(socket, to: products_path(socket, params))}
   end
 
   @impl true
-  def handle_event("browse_platform_filter_changed", %{"platform" => platform}, socket) do
+  def handle_event("browse_platform_filter_changed", params, socket) do
+    platform = params["platform"] || params["selection"] || ""
     params = browse_query_params(socket, %{platform: platform})
     {:noreply, push_patch(socket, to: products_path(socket, params))}
   end

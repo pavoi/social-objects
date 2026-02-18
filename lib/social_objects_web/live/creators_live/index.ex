@@ -27,6 +27,7 @@ defmodule SocialObjectsWeb.CreatorsLive.Index do
 
   import SocialObjectsWeb.CreatorTagComponents
   import SocialObjectsWeb.CreatorTableComponents
+  import SocialObjectsWeb.FilterComponents
   import SocialObjectsWeb.ParamHelpers
   import SocialObjectsWeb.ViewHelpers
   import SocialObjectsWeb.BrandPermissions
@@ -998,7 +999,8 @@ defmodule SocialObjectsWeb.CreatorsLive.Index do
   end
 
   @impl true
-  def handle_event("filter_template_type", %{"type" => type}, socket) do
+  def handle_event("filter_template_type", params, socket) do
+    type = params["type"] || params["selection"] || "email"
     params = build_query_params(socket, template_type_filter: type)
     {:noreply, push_patch(socket, to: creators_path(socket, params))}
   end

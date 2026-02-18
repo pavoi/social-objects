@@ -19,6 +19,7 @@ defmodule SocialObjectsWeb.TiktokLive.Index do
   alias SocialObjects.Workers.StreamReportWorker
   alias SocialObjectsWeb.BrandRoutes
 
+  import SocialObjectsWeb.FilterComponents
   import SocialObjectsWeb.ParamHelpers
   import SocialObjectsWeb.TiktokLiveComponents
   import SocialObjectsWeb.ViewHelpers
@@ -122,13 +123,15 @@ defmodule SocialObjectsWeb.TiktokLive.Index do
   # Event handlers
 
   @impl true
-  def handle_event("filter_status", %{"status" => status}, socket) do
+  def handle_event("filter_status", params, socket) do
+    status = params["status"] || params["selection"] || "all"
     params = build_query_params(socket, status_filter: status, page: 1)
     {:noreply, push_patch(socket, to: streams_path(socket, params))}
   end
 
   @impl true
-  def handle_event("filter_date", %{"date" => date}, socket) do
+  def handle_event("filter_date", params, socket) do
+    date = params["date"] || params["selection"] || "all"
     params = build_query_params(socket, date_filter: date, page: 1)
     {:noreply, push_patch(socket, to: streams_path(socket, params))}
   end
@@ -344,21 +347,24 @@ defmodule SocialObjectsWeb.TiktokLive.Index do
   end
 
   @impl true
-  def handle_event("analytics_select_stream", %{"stream_id" => stream_id}, socket) do
+  def handle_event("analytics_select_stream", params, socket) do
+    stream_id = params["stream_id"] || params["selection"] || ""
     stream_id = parse_optional_int(stream_id)
     params = build_query_params(socket, analytics_stream_id: stream_id, analytics_page: 1)
     {:noreply, push_patch(socket, to: streams_path(socket, params))}
   end
 
   @impl true
-  def handle_event("analytics_filter_sentiment", %{"sentiment" => sentiment}, socket) do
+  def handle_event("analytics_filter_sentiment", params, socket) do
+    sentiment = params["sentiment"] || params["selection"] || ""
     sentiment = parse_sentiment(sentiment)
     params = build_query_params(socket, analytics_sentiment: sentiment, analytics_page: 1)
     {:noreply, push_patch(socket, to: streams_path(socket, params))}
   end
 
   @impl true
-  def handle_event("analytics_filter_category", %{"category" => category}, socket) do
+  def handle_event("analytics_filter_category", params, socket) do
+    category = params["category"] || params["selection"] || ""
     category = parse_category(category)
     params = build_query_params(socket, analytics_category: category, analytics_page: 1)
     {:noreply, push_patch(socket, to: streams_path(socket, params))}
