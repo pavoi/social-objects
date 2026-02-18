@@ -18,6 +18,7 @@ defmodule SocialObjects.Workers.StreamReportWorkerTest do
   import SocialObjects.TiktokLiveFixtures
 
   alias SocialObjects.Workers.StreamReportWorker
+  alias SocialObjects.Workers.TiktokLiveStreamWorker
 
   describe "report guards - stream status" do
     test "cancels job if stream is not ended (capturing)" do
@@ -186,6 +187,33 @@ defmodule SocialObjects.Workers.StreamReportWorkerTest do
       job = create_test_job(brand.id, source_stream.id)
 
       assert {:cancel, :superseded_by_continuation_stream} = StreamReportWorker.perform(job)
+    end
+  end
+
+  describe "report guards - active capture worker" do
+    test "snoozes when a capture worker is still active for the stream" do
+      brand = brand_fixture()
+
+      now = DateTime.utc_now() |> DateTime.truncate(:second)
+
+      stream =
+        stream_fixture(
+          brand: brand,
+          started_at: DateTime.add(now, -2 * 60 * 60, :second),
+          ended_at: DateTime.add(now, -60 * 60, :second),
+          status: :ended,
+          total_comments: 50
+        )
+
+      {:ok, _capture_job} =
+        %{stream_id: stream.id, unique_id: stream.unique_id, brand_id: brand.id}
+        |> TiktokLiveStreamWorker.new()
+        |> Oban.insert()
+
+      job = create_test_job(brand.id, stream.id)
+
+      assert {:snooze, seconds} = StreamReportWorker.perform(job)
+      assert seconds > 0
     end
   end
 

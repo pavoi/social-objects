@@ -95,9 +95,24 @@ defmodule SocialObjects.Workers.StreamReportWorker do
   end
 
   defp apply_stability_guards(stream) do
-    with :ok <- short_stream_stability_guard(stream),
+    with :ok <- capture_worker_guard(stream),
+         :ok <- short_stream_stability_guard(stream),
          :ok <- continuation_stream_guard(stream) do
       verify_stream_ended(stream)
+    end
+  end
+
+  # If a capture worker is still active for this stream, the stream is not fully done yet.
+  # Wait until the capture worker exits before attempting report generation.
+  defp capture_worker_guard(stream) do
+    if TiktokLive.capture_worker_active?(stream.id) do
+      Logger.warning(
+        "Stream #{stream.id} still has an active capture worker, delaying report until capture completes"
+      )
+
+      {:snooze, @live_check_retry_seconds}
+    else
+      :ok
     end
   end
 

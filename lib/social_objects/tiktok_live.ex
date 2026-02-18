@@ -726,6 +726,22 @@ defmodule SocialObjects.TiktokLive do
     Client.fetch_room_info(unique_id)
   end
 
+  @doc """
+  Returns true when a capture worker job is active for the stream.
+  """
+  def capture_worker_active?(stream_id) do
+    stream_id = Integer.to_string(stream_id)
+
+    from(j in Oban.Job,
+      where: j.worker == "SocialObjects.Workers.TiktokLiveStreamWorker",
+      where: j.state in ["available", "scheduled", "executing", "retryable"],
+      where: fragment("?->>'stream_id' = ?", j.args, ^stream_id),
+      select: j.id,
+      limit: 1
+    )
+    |> Repo.exists?()
+  end
+
   ## Manual Control
 
   @spec check_live_status_now(pos_integer(), String.t()) :: {:ok, Oban.Job.t()} | {:error, term()}

@@ -26,7 +26,7 @@ defmodule SocialObjects.Workers.TiktokLiveMonitorWorker do
 
   alias SocialObjects.Repo
   alias SocialObjects.Settings
-  alias SocialObjects.TiktokLive.{Client, Stream}
+  alias SocialObjects.TiktokLive.{Client, Stream, StreamReconciler}
   alias SocialObjects.Workers.{StreamReportWorker, TiktokLiveStreamWorker}
 
   @impl Oban.Worker
@@ -68,7 +68,7 @@ defmodule SocialObjects.Workers.TiktokLiveMonitorWorker do
   defp check_account(unique_id, brand_id) do
     Logger.debug("Checking if @#{unique_id} is live")
 
-    case Client.fetch_room_info(unique_id) do
+    case fetch_room_info(unique_id) do
       {:ok, %{is_live: true, room_id: room_id} = room_info} ->
         handle_live_detected(brand_id, unique_id, room_id, room_info)
 
@@ -139,23 +139,37 @@ defmodule SocialObjects.Workers.TiktokLiveMonitorWorker do
       |> Repo.all()
 
     Enum.each(capturing_streams, fn stream ->
-      Logger.info("Marking stream #{stream.id} as ended (account no longer live)")
-
-      case SocialObjects.TiktokLive.mark_stream_ended(brand_id, stream.id) do
-        {:ok, :ended} ->
-          # Enqueue Slack report job for the completed stream
-          # Delay 10 minutes to allow monitor to detect if stream is actually still live
-          # (handles false end detection during deploys/API blips)
-          Logger.info("Enqueueing stream report for stream #{stream.id} (scheduled in 10 min)")
-
-          %{stream_id: stream.id, brand_id: brand_id}
-          |> StreamReportWorker.new(schedule_in: 600)
-          |> Oban.insert()
-
-        {:error, :already_ended} ->
-          Logger.debug("Stream #{stream.id} already ended, skipping report enqueue")
-      end
+      maybe_mark_stream_ended(stream, brand_id, unique_id)
     end)
+  end
+
+  defp maybe_mark_stream_ended(stream, brand_id, unique_id) do
+    if SocialObjects.TiktokLive.capture_worker_active?(stream.id) do
+      Logger.warning(
+        "Monitor reported @#{unique_id} not live, but stream #{stream.id} still has an active capture worker; skipping end mark"
+      )
+    else
+      mark_stream_ended_and_enqueue_report(stream, brand_id)
+    end
+  end
+
+  defp mark_stream_ended_and_enqueue_report(stream, brand_id) do
+    Logger.info("Marking stream #{stream.id} as ended (account no longer live)")
+
+    case SocialObjects.TiktokLive.mark_stream_ended(brand_id, stream.id) do
+      {:ok, :ended} ->
+        # Enqueue Slack report job for the completed stream
+        # Delay 10 minutes to allow monitor to detect if stream is actually still live
+        # (handles false end detection during deploys/API blips)
+        Logger.info("Enqueueing stream report for stream #{stream.id} (scheduled in 10 min)")
+
+        %{stream_id: stream.id, brand_id: brand_id}
+        |> StreamReportWorker.new(schedule_in: 600)
+        |> Oban.insert()
+
+      {:error, :already_ended} ->
+        Logger.debug("Stream #{stream.id} already ended, skipping report enqueue")
+    end
   end
 
   defp start_capture(brand_id, unique_id, room_id, room_info) do
@@ -246,9 +260,10 @@ defmodule SocialObjects.Workers.TiktokLiveMonitorWorker do
   # Resume a previously-ended stream by setting it back to capturing
   defp resume_capture(stream, unique_id, brand_id) do
     Logger.info("Resuming stream #{stream.id} for @#{unique_id} (same room_id, ended recently)")
+    _ = StreamReconciler.cancel_pending_report_jobs(stream.id)
 
     case stream
-         |> Stream.changeset(%{status: :capturing, ended_at: nil})
+         |> Stream.changeset(%{status: :capturing, ended_at: nil, report_sent_at: nil})
          |> Repo.update() do
       {:ok, updated_stream} ->
         # Enqueue the stream worker to resume capture
@@ -324,6 +339,14 @@ defmodule SocialObjects.Workers.TiktokLiveMonitorWorker do
 
   defp monitored_accounts(brand_id) do
     Settings.get_tiktok_live_accounts(brand_id)
+  end
+
+  # Optional test hook to stub room-info fetching in worker tests.
+  defp fetch_room_info(unique_id) do
+    case Application.get_env(:social_objects, :tiktok_live_room_info_fetcher) do
+      fun when is_function(fun, 1) -> fun.(unique_id)
+      _ -> Client.fetch_room_info(unique_id)
+    end
   end
 
   defp normalize_brand_id(brand_id) when is_integer(brand_id), do: brand_id
