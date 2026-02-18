@@ -30,9 +30,11 @@ defmodule SocialObjects.Workers.VideoSyncWorker do
   alias SocialObjects.Catalog
   alias SocialObjects.Creators
   alias SocialObjects.Settings
+  alias SocialObjects.Storage
   alias SocialObjects.TiktokShop.Analytics
   alias SocialObjects.TiktokShop.OEmbed
   alias SocialObjects.TiktokShop.Parsers
+  alias SocialObjects.Workers.ThumbnailBackfillWorker
 
   @doc """
   Performs the video sync for a brand.
@@ -104,6 +106,8 @@ defmodule SocialObjects.Workers.VideoSyncWorker do
         stats = process_videos(brand_id, videos)
         # Fetch thumbnails for videos missing them (non-blocking, errors are logged)
         fetch_missing_thumbnails(brand_id)
+        # Enqueue backfill worker to migrate existing thumbnails to storage
+        _ = enqueue_thumbnail_backfill(brand_id)
         {:ok, stats}
 
       {:error, :rate_limited} ->
@@ -368,7 +372,7 @@ defmodule SocialObjects.Workers.VideoSyncWorker do
       Enum.reduce(videos, 0, fn video, count ->
         case OEmbed.fetch(video.video_url) do
           {:ok, %{thumbnail_url: url}} when is_binary(url) and url != "" ->
-            _ = Creators.update_video_thumbnail(video, url)
+            store_and_update_thumbnail(video, url)
             count + 1
 
           {:error, reason} ->
@@ -387,6 +391,21 @@ defmodule SocialObjects.Workers.VideoSyncWorker do
     if thumbnails_fetched > 0 do
       Logger.info("Fetched #{thumbnails_fetched} video thumbnails for brand #{brand_id}")
     end
+  end
+
+  defp store_and_update_thumbnail(video, url) do
+    _ =
+      case Storage.store_video_thumbnail(url, video.id) do
+        {:ok, key} -> Creators.update_video_thumbnail(video, url, key)
+        _ -> Creators.update_video_thumbnail(video, url, nil)
+      end
+
+    :ok
+  end
+
+  defp enqueue_thumbnail_backfill(brand_id) do
+    ThumbnailBackfillWorker.new(%{"brand_id" => brand_id})
+    |> Oban.insert()
   end
 
   defp page_size do
