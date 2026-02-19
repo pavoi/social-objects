@@ -82,7 +82,8 @@ config :social_objects, :tiktok_live_monitor, accounts: []
 # Worker tuning defaults (can be overridden per environment)
 config :social_objects, :worker_tuning,
   creator_enrichment: [
-    batch_size: 75,
+    # Reduced from 75 to 40 due to rate limiting
+    batch_size: 40,
     api_delay_ms: 300,
     rate_limit_max_consecutive: 3,
     rate_limit_initial_backoff_seconds: 15 * 60,
@@ -90,7 +91,8 @@ config :social_objects, :worker_tuning,
     rate_limit_cooldown_seconds: 10 * 60
   ],
   tiktok_sync: [page_size: 50],
-  product_performance_sync: [page_size: 100],
+  # Reduced from 100 to 50 due to rate limiting
+  product_performance_sync: [page_size: 50],
   video_sync: [page_size: 100, thumbnail_api_delay_ms: 100]
 
 # Configure esbuild (the version is required)

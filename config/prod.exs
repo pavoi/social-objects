@@ -39,18 +39,19 @@ config :social_objects, Oban,
        # Monitor TikTok live status every 2 minutes
        {"*/2 * * * *", SocialObjects.Workers.BrandCronWorker,
         args: %{task: "tiktok_live_monitor"}},
-       # Enrich creator profiles from TikTok Marketplace API every 30 minutes
-       # Small batches (75) complete quickly, avoiding rate limits
-       # 48 runs/day × 75 = 3600 creators/day (with margin for rate limit pauses)
-       {"*/30 * * * *", SocialObjects.Workers.BrandCronWorker,
+       # Enrich creator profiles from TikTok Marketplace API every hour
+       # Reduced from 30min due to rate limiting; smaller batches (40) per run
+       # 24 runs/day × 40 = 960 creators/day (conservative to avoid rate limits)
+       {"0 * * * *", SocialObjects.Workers.BrandCronWorker,
         args: %{task: "creator_enrichment"}},
        # Sync TikTok Shop Analytics data to streams every 6 hours
        {"0 */6 * * *", SocialObjects.Workers.BrandCronWorker,
         args: %{task: "stream_analytics_sync"}},
        # Sync video performance data daily at 4am UTC
        {"0 4 * * *", SocialObjects.Workers.BrandCronWorker, args: %{task: "video_sync"}},
-       # Sync product performance data daily at 5am UTC (after video sync)
-       {"0 5 * * *", SocialObjects.Workers.BrandCronWorker,
+       # Sync product performance data every 2 days at 5am UTC (after video sync)
+       # Reduced from daily due to persistent TikTok API rate limiting
+       {"0 5 */2 * *", SocialObjects.Workers.BrandCronWorker,
         args: %{task: "product_performance_sync"}},
        # Sync brand-specific content GMV daily at 6am UTC (after product performance sync)
        {"0 6 * * *", SocialObjects.Workers.BrandCronWorker, args: %{task: "brand_gmv_sync"}},
