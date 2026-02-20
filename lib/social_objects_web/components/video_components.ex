@@ -66,6 +66,10 @@ defmodule SocialObjectsWeb.VideoComponents do
             <span class="video-card__metric-label">GPM</span>
           </div>
           <div class="video-card__metric">
+            <span class="video-card__metric-value">{format_sales(@video.items_sold)}</span>
+            <span class="video-card__metric-label">Sales</span>
+          </div>
+          <div class="video-card__metric">
             <span class="video-card__metric-value">{format_views(@video.impressions)}</span>
             <span class="video-card__metric-label">Views</span>
           </div>
@@ -77,9 +81,6 @@ defmodule SocialObjectsWeb.VideoComponents do
 
         <div class="video-card__footer">
           <span class="video-card__date">{format_video_date(@video.posted_at)}</span>
-          <%= if @video.items_sold && @video.items_sold > 0 do %>
-            <span class="video-card__items-sold">{@video.items_sold} sold</span>
-          <% end %>
           <a
             href={video_url(@video)}
             target="_blank"
@@ -503,6 +504,19 @@ defmodule SocialObjectsWeb.VideoComponents do
   end
 
   defp format_views(num), do: Integer.to_string(num)
+
+  defp format_sales(nil), do: "-"
+  defp format_sales(0), do: "0"
+
+  defp format_sales(num) when num >= 1_000_000 do
+    "#{Float.round(num / 1_000_000, 1)}M"
+  end
+
+  defp format_sales(num) when num >= 1_000 do
+    "#{Float.round(num / 1_000, 1)}K"
+  end
+
+  defp format_sales(num), do: Integer.to_string(num)
 
   defp format_ctr(nil), do: "-"
 

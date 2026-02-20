@@ -230,7 +230,9 @@ defmodule SocialObjectsWeb.TiktokLiveComponents do
                     <span class="text-green-500">{format_gmv(stream.official_gmv_cents)}</span>
                     <.source_indicator source={:official} class="source-indicator--table" />
                   <% stream.status == :ended && is_nil(stream.analytics_synced_at) -> %>
-                    <span class="text-text-secondary text-xs">Pending official sync</span>
+                    <span class="text-text-secondary text-xs whitespace-normal">
+                      Pending official sync
+                    </span>
                   <% true -> %>
                     <span class="text-text-secondary">—</span>
                 <% end %>

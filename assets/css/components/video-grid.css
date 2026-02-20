@@ -147,7 +147,7 @@
 
 /* Metrics Grid */
 .video-card__metrics {
-  @apply grid grid-cols-4 gap-1;
+  @apply grid grid-cols-5 gap-1;
 }
 
 .video-card__metric {

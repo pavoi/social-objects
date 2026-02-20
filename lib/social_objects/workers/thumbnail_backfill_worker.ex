@@ -19,7 +19,7 @@ defmodule SocialObjects.Workers.ThumbnailBackfillWorker do
   alias SocialObjects.Storage
   alias SocialObjects.TiktokShop.OEmbed
 
-  @max_per_run 25
+  @max_per_run 100
 
   @impl Oban.Worker
   def perform(%Oban.Job{args: %{"brand_id" => brand_id}}) do

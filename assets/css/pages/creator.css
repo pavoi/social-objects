@@ -85,7 +85,7 @@
 }
 
 .tag-pills--table .tag-pill {
-  @apply shrink-0;
+  @apply shrink-0 max-w-full;
 }
 
 .tag-cell .tag-overflow-indicator {
@@ -366,7 +366,7 @@
 }
 
 .tag-cell .tag-pills--table {
-  @apply max-w-full overflow-hidden;
+  @apply w-full max-w-full min-w-0 overflow-hidden;
 }
 
 .tag-cell__placeholder {
