@@ -48,6 +48,8 @@ defmodule SocialObjectsWeb.VideosLiveTest do
           video
         end
 
+      insert_metric_snapshots(brand.id, videos)
+
       conn = log_in_user(conn, user)
       path = "/b/#{brand.slug}/videos"
 
@@ -157,6 +159,119 @@ defmodule SocialObjectsWeb.VideosLiveTest do
       assert has_element?(view, "button.preset-filter__btn--active[phx-value-amount='50000']")
     end
 
+    test "period filter switches metric source without filtering by posted_at", %{
+      conn: conn,
+      path: path,
+      brand: brand,
+      creator: creator
+    } do
+      now = DateTime.utc_now() |> DateTime.truncate(:second)
+
+      {:ok, all_time_leader} =
+        %Creators.CreatorVideo{brand_id: brand.id, creator_id: creator.id}
+        |> Creators.CreatorVideo.changeset(%{
+          tiktok_video_id: "all-time-leader",
+          title: "All Time Leader",
+          gmv_cents: 2_000_000,
+          gpm_cents: 50_000,
+          impressions: 5_000,
+          ctr: Decimal.new("4.5"),
+          items_sold: 100,
+          posted_at: DateTime.add(now, -220, :day)
+        })
+        |> Repo.insert()
+
+      {:ok, period_leader} =
+        %Creators.CreatorVideo{brand_id: brand.id, creator_id: creator.id}
+        |> Creators.CreatorVideo.changeset(%{
+          tiktok_video_id: "period-leader",
+          title: "Period Leader",
+          gmv_cents: 300_000,
+          gpm_cents: 20_000,
+          impressions: 4_000,
+          ctr: Decimal.new("3.2"),
+          items_sold: 20,
+          posted_at: DateTime.add(now, -3, :day)
+        })
+        |> Repo.insert()
+
+      _ =
+        Creators.upsert_video_metric_snapshots([
+          %{
+            brand_id: brand.id,
+            creator_video_id: all_time_leader.id,
+            tiktok_video_id: all_time_leader.tiktok_video_id,
+            snapshot_date: Date.utc_today(),
+            window_days: 30,
+            gmv_cents: 100_000,
+            views: 2_000,
+            items_sold: 10,
+            gpm_cents: 10_000,
+            ctr: Decimal.new("2.1")
+          },
+          %{
+            brand_id: brand.id,
+            creator_video_id: period_leader.id,
+            tiktok_video_id: period_leader.tiktok_video_id,
+            snapshot_date: Date.utc_today(),
+            window_days: 30,
+            gmv_cents: 800_000,
+            views: 9_000,
+            items_sold: 90,
+            gpm_cents: 45_000,
+            ctr: Decimal.new("6.5")
+          },
+          %{
+            brand_id: brand.id,
+            creator_video_id: all_time_leader.id,
+            tiktok_video_id: all_time_leader.tiktok_video_id,
+            snapshot_date: Date.utc_today(),
+            window_days: 90,
+            gmv_cents: 1_500_000,
+            views: 15_000,
+            items_sold: 120,
+            gpm_cents: 45_000,
+            ctr: Decimal.new("5.2")
+          },
+          %{
+            brand_id: brand.id,
+            creator_video_id: period_leader.id,
+            tiktok_video_id: period_leader.tiktok_video_id,
+            snapshot_date: Date.utc_today(),
+            window_days: 90,
+            gmv_cents: 400_000,
+            views: 5_000,
+            items_sold: 30,
+            gpm_cents: 15_000,
+            ctr: Decimal.new("3.4")
+          }
+        ])
+
+      {:ok, view, _html} = live(conn, path)
+      _ = render_async(view)
+
+      assert has_element?(
+               view,
+               "#videos-grid .video-card:first-child .video-card__title",
+               "All Time Leader"
+             )
+
+      view
+      |> element("button[phx-value-preset='30']")
+      |> render_click()
+
+      assert_patch(view, "#{path}?period=30")
+      _ = render_async(view)
+
+      assert has_element?(
+               view,
+               "#videos-grid .video-card:first-child .video-card__title",
+               "Period Leader"
+             )
+
+      assert has_element?(view, ".video-card__title", "All Time Leader")
+    end
+
     test "invalid URL params default safely", %{conn: conn, path: path} do
       # Invalid period should default to "all"
       {:ok, view, _html} = live(conn, "#{path}?period=invalid")
@@ -220,24 +335,29 @@ defmodule SocialObjectsWeb.VideosLiveTest do
     } do
       now = DateTime.utc_now() |> DateTime.truncate(:second)
 
-      for i <- 6..35 do
-        {:ok, _video} =
-          %Creators.CreatorVideo{
-            brand_id: brand.id,
-            creator_id: creator.id
-          }
-          |> Creators.CreatorVideo.changeset(%{
-            tiktok_video_id: "video_#{i}",
-            title: "Test Video #{i}",
-            gmv_cents: i * 100_000,
-            gpm_cents: i * 10_000,
-            impressions: i * 1000,
-            ctr: Decimal.new("#{i}.5"),
-            items_sold: i * 10,
-            posted_at: DateTime.add(now, -i, :day)
-          })
-          |> Repo.insert()
-      end
+      videos =
+        for i <- 6..35 do
+          {:ok, video} =
+            %Creators.CreatorVideo{
+              brand_id: brand.id,
+              creator_id: creator.id
+            }
+            |> Creators.CreatorVideo.changeset(%{
+              tiktok_video_id: "video_#{i}",
+              title: "Test Video #{i}",
+              gmv_cents: i * 100_000,
+              gpm_cents: i * 10_000,
+              impressions: i * 1000,
+              ctr: Decimal.new("#{i}.5"),
+              items_sold: i * 10,
+              posted_at: DateTime.add(now, -i, :day)
+            })
+            |> Repo.insert()
+
+          video
+        end
+
+      insert_metric_snapshots(brand.id, videos)
 
       {:ok, view, _html} = live(conn, "#{path}?period=30&sort=views_desc")
       _ = render_async(view)
@@ -256,8 +376,8 @@ defmodule SocialObjectsWeb.VideosLiveTest do
              )
 
       assert has_element?(view, "button.preset-filter__btn--active[phx-value-amount='100000']")
-      # This video is outside the 30-day range and should not appear
-      refute has_element?(view, ".video-card__title", "Test Video 5")
+      # Old videos remain visible when period changes because period swaps metric source only.
+      assert has_element?(view, ".video-card__title", "Test Video 5")
     end
   end
 
@@ -345,5 +465,28 @@ defmodule SocialObjectsWeb.VideosLiveTest do
     view
     |> element("#sort-filter button[phx-value-selection='#{value}']")
     |> render_click()
+  end
+
+  defp insert_metric_snapshots(brand_id, videos) do
+    snapshot_date = Date.utc_today()
+
+    rows =
+      for video <- videos, window_days <- [30, 90] do
+        %{
+          brand_id: brand_id,
+          creator_video_id: video.id,
+          tiktok_video_id: video.tiktok_video_id,
+          snapshot_date: snapshot_date,
+          window_days: window_days,
+          gmv_cents: video.gmv_cents || 0,
+          views: video.impressions || 0,
+          items_sold: video.items_sold || 0,
+          gpm_cents: video.gpm_cents,
+          ctr: video.ctr
+        }
+      end
+
+    _ = Creators.upsert_video_metric_snapshots(rows)
+    :ok
   end
 end

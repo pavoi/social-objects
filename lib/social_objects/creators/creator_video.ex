@@ -2,8 +2,12 @@ defmodule SocialObjects.Creators.CreatorVideo do
   @moduledoc """
   Tracks video content created by creators.
 
-  Captures TikTok video performance metrics including GMV, items sold,
-  impressions, engagement, and estimated commission.
+  Stores canonical creator video records plus best-known all-time metrics.
+
+  Note: `gmv_cents`, `items_sold`, `impressions`, and similar cumulative
+  metrics are maintained as monotonic all-time caches from sync runs.
+  Period-specific (30/90 day) values are stored separately in
+  `creator_video_metric_snapshots`.
   """
   use Ecto.Schema
   import Ecto.Changeset

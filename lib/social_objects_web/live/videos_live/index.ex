@@ -329,7 +329,6 @@ defmodule SocialObjectsWeb.VideosLive.Index do
 
     # Increment version to track this search request
     new_version = current_version + 1
-    posted_after = time_preset_to_date(time_preset)
 
     opts =
       [
@@ -337,11 +336,11 @@ defmodule SocialObjectsWeb.VideosLive.Index do
         per_page: per_page,
         sort_by: sort_by,
         sort_dir: sort_dir,
-        brand_id: brand_id
+        brand_id: brand_id,
+        period: time_preset
       ]
       |> maybe_add_opt(:search_query, search_query)
       |> maybe_add_opt(:creator_id, creator_id)
-      |> maybe_add_opt(:posted_after, posted_after)
       |> maybe_add_opt(:min_gmv, min_gmv)
 
     socket
@@ -367,19 +366,17 @@ defmodule SocialObjectsWeb.VideosLive.Index do
       min_gmv: min_gmv
     } = socket.assigns
 
-    posted_after = time_preset_to_date(time_preset)
-
     opts =
       [
         page: page,
         per_page: per_page,
         sort_by: sort_by,
         sort_dir: sort_dir,
-        brand_id: brand_id
+        brand_id: brand_id,
+        period: time_preset
       ]
       |> maybe_add_opt(:search_query, search_query)
       |> maybe_add_opt(:creator_id, creator_id)
-      |> maybe_add_opt(:posted_after, posted_after)
       |> maybe_add_opt(:min_gmv, min_gmv)
 
     result = Creators.search_videos_paginated(opts)
@@ -453,20 +450,6 @@ defmodule SocialObjectsWeb.VideosLive.Index do
   # Time preset validation and conversion
   defp validate_time_preset(preset) when preset in ["30", "90", "all"], do: preset
   defp validate_time_preset(_), do: "all"
-
-  defp time_preset_to_date("90") do
-    Date.utc_today() |> Date.add(-90) |> to_start_of_day_utc()
-  end
-
-  defp time_preset_to_date("30") do
-    Date.utc_today() |> Date.add(-30) |> to_start_of_day_utc()
-  end
-
-  defp time_preset_to_date(_), do: nil
-
-  defp to_start_of_day_utc(date) do
-    DateTime.new!(date, ~T[00:00:00], "Etc/UTC")
-  end
 
   # Min GMV validation - only allow specific preset values (stored in cents)
   @valid_min_gmv_values [50_000, 100_000, 500_000]
