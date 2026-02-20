@@ -182,6 +182,55 @@ defmodule SocialObjects.Creators.EngagementRankingsTest do
     assert vip_stable_bc.engagement_priority == :vip_stable
   end
 
+  test "assigns rising_star to non-VIP creators in L30 top 75" do
+    brand = brand_fixture()
+    _ = Settings.update_vip_cycle_started_at(brand.id, Date.utc_today())
+
+    # Non-VIP with L30 rank 60 -> rising_star
+    rising_creator = creator_for_brand(brand.id, brand_gmv_cents: 50_000, is_vip: false)
+    insert_snapshot(brand.id, rising_creator.id, Date.utc_today(), "brand_gmv", 50_000)
+
+    # Non-VIP with L30 rank 80 -> nil (outside cutoff)
+    unclassified_creator = creator_for_brand(brand.id, brand_gmv_cents: 10_000, is_vip: false)
+    insert_snapshot(brand.id, unclassified_creator.id, Date.utc_today(), "brand_gmv", 10_000)
+
+    # Create enough creators to push our test creators to appropriate ranks
+    for i <- 1..80 do
+      creator = creator_for_brand(brand.id, brand_gmv_cents: 100_000 - i * 1000)
+      insert_snapshot(brand.id, creator.id, Date.utc_today(), "brand_gmv", 100_000 - i * 1000)
+    end
+
+    assert {:ok, _stats} = EngagementRankings.refresh_brand(brand.id)
+
+    rising_bc = Repo.get_by!(BrandCreator, brand_id: brand.id, creator_id: rising_creator.id)
+    refute rising_bc.is_vip
+    assert rising_bc.l30d_rank <= 75
+    assert rising_bc.engagement_priority == :rising_star
+
+    unclassified_bc =
+      Repo.get_by!(BrandCreator, brand_id: brand.id, creator_id: unclassified_creator.id)
+
+    refute unclassified_bc.is_vip
+    assert unclassified_bc.l30d_rank > 75
+    assert is_nil(unclassified_bc.engagement_priority)
+  end
+
+  test "VIP creators are not classified as rising_star regardless of L30 rank" do
+    brand = brand_fixture()
+    _ = Settings.update_vip_cycle_started_at(brand.id, Date.add(Date.utc_today(), -95))
+
+    # High-performing creator who will become VIP
+    vip_creator = creator_for_brand(brand.id, brand_gmv_cents: 500_000)
+    insert_snapshot(brand.id, vip_creator.id, Date.utc_today(), "brand_gmv", 500_000)
+
+    assert {:ok, _stats} = EngagementRankings.refresh_brand(brand.id)
+
+    vip_bc = Repo.get_by!(BrandCreator, brand_id: brand.id, creator_id: vip_creator.id)
+    assert vip_bc.is_vip
+    assert vip_bc.engagement_priority in [:vip_elite, :vip_stable, :vip_at_risk]
+    refute vip_bc.engagement_priority == :rising_star
+  end
+
   defp creator_for_brand(brand_id, brand_creator_attrs, creator_attrs \\ %{}) do
     unique = System.unique_integer([:positive])
 

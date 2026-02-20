@@ -1844,7 +1844,7 @@ defmodule SocialObjectsWeb.CreatorsLive.Index do
 
   defp segment_descriptions do
     %{
-      "rising_star" => "Trending (L30 top 25) but not VIP \u2014 new breakout creators",
+      "rising_star" => "Non-VIP in L30 top 75 \u2014 high recent performers to watch",
       "vip_elite" => "VIP and Trending \u2014 top consistent performers currently surging",
       "vip_stable" =>
         "VIP, not trending, L90 rank \u2264 30 \u2014 reliable consistent performers",

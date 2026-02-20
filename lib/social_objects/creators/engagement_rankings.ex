@@ -13,6 +13,7 @@ defmodule SocialObjects.Creators.EngagementRankings do
   @vip_cycle_days 90
   @vip_slots 50
   @trending_slots 25
+  @rising_star_rank_cutoff 75
 
   @spec refresh_brand(pos_integer()) :: {:ok, map()} | {:error, term()}
   def refresh_brand(brand_id) do
@@ -205,17 +206,17 @@ defmodule SocialObjects.Creators.EngagementRankings do
     sql = """
     UPDATE brand_creators
     SET engagement_priority = CASE
-      WHEN is_trending = true AND is_vip = false THEN 'rising_star'
       WHEN is_vip = true AND is_trending = true THEN 'vip_elite'
       WHEN is_vip = true AND is_trending = false AND (l90d_rank IS NULL OR l90d_rank <= 30) THEN 'vip_stable'
       WHEN is_vip = true AND l90d_rank > 30 THEN 'vip_at_risk'
+      WHEN is_vip = false AND l30d_rank IS NOT NULL AND l30d_rank <= $2 THEN 'rising_star'
       ELSE NULL
     END,
     updated_at = NOW()
     WHERE brand_id = $1
     """
 
-    Repo.query!(sql, [brand_id])
+    Repo.query!(sql, [brand_id, @rising_star_rank_cutoff])
   end
 
   defp now_naive do
