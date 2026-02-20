@@ -1586,11 +1586,6 @@ defmodule SocialObjectsWeb.CreatorTableComponents do
       <%= if @creator.is_trending do %>
         <span class="badge badge--soft badge--teal">Trending</span>
       <% end %>
-      <%= if @creator.engagement_priority do %>
-        <span class={["badge badge--soft", priority_badge_class(@creator.engagement_priority)]}>
-          {format_priority(@creator.engagement_priority)}
-        </span>
-      <% end %>
     </div>
     """
   end
