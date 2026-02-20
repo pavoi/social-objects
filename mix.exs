@@ -10,7 +10,6 @@ defmodule SocialObjects.MixProject do
       start_permanent: Mix.env() == :prod,
       aliases: aliases(),
       deps: deps(),
-      compilers: [:phoenix_live_view] ++ Mix.compilers(),
       listeners: [Phoenix.CodeReloader],
       dialyzer: [
         plt_file: {:no_warn, "priv/plts/dialyzer.plt"},

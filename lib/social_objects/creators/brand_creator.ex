@@ -11,7 +11,9 @@ defmodule SocialObjects.Creators.BrandCreator do
   @type status :: :active | :inactive | :blocked
   @type last_touchpoint_type :: :email | :sms | :manual
   @type preferred_contact_channel :: :email | :sms | :tiktok_dm
-  @type engagement_priority :: :high | :medium | :monitor
+  # Phase 1: Accept both old and new values during transition
+  @type engagement_priority ::
+          :high | :medium | :monitor | :rising_star | :vip_elite | :vip_stable | :vip_at_risk
 
   @type t :: %__MODULE__{
           id: pos_integer() | nil,
@@ -51,7 +53,8 @@ defmodule SocialObjects.Creators.BrandCreator do
   @statuses ~w(active inactive blocked)a
   @touchpoint_types ~w(email sms manual)a
   @preferred_contact_channels ~w(email sms tiktok_dm)a
-  @engagement_priorities ~w(high medium monitor)a
+  # Phase 1: Accept both old and new values during transition
+  @engagement_priorities ~w(high medium monitor rising_star vip_elite vip_stable vip_at_risk)a
 
   schema "brand_creators" do
     belongs_to :brand, SocialObjects.Catalog.Brand

@@ -109,10 +109,11 @@ defmodule SocialObjectsWeb.CreatorsLive.Index do
       })
       |> assign(:segment_stats, %{
         total: 0,
-        vip: 0,
-        trending: 0,
-        high_priority: 0,
-        needs_attention: 0
+        rising_star: 0,
+        vip_elite: 0,
+        vip_stable: 0,
+        vip_at_risk: 0,
+        unclassified: 0
       })
       |> assign(:sent_today, 0)
       |> assign(:outreach_email_override, Keyword.get(features, :outreach_email_override))
@@ -1790,7 +1791,7 @@ defmodule SocialObjectsWeb.CreatorsLive.Index do
   defp parse_segment_filter("all"), do: nil
 
   defp parse_segment_filter(segment)
-       when segment in ["vip", "trending", "high_priority", "needs_attention"],
+       when segment in ["rising_star", "vip_elite", "vip_stable", "vip_at_risk"],
        do: segment
 
   defp parse_segment_filter(_), do: nil
@@ -1834,11 +1835,21 @@ defmodule SocialObjectsWeb.CreatorsLive.Index do
   defp creator_status_filter_options(segment_stats) do
     [
       {"all", "All Creators (#{Map.get(segment_stats, :total, 0)})"},
-      {"vip", "VIP (#{Map.get(segment_stats, :vip, 0)})"},
-      {"trending", "Trending (#{Map.get(segment_stats, :trending, 0)})"},
-      {"high_priority", "High Priority (#{Map.get(segment_stats, :high_priority, 0)})"},
-      {"needs_attention", "Needs Attention (#{Map.get(segment_stats, :needs_attention, 0)})"}
+      {"rising_star", "Rising Star (#{Map.get(segment_stats, :rising_star, 0)})"},
+      {"vip_elite", "VIP Elite (#{Map.get(segment_stats, :vip_elite, 0)})"},
+      {"vip_stable", "VIP Stable (#{Map.get(segment_stats, :vip_stable, 0)})"},
+      {"vip_at_risk", "At Risk (#{Map.get(segment_stats, :vip_at_risk, 0)})"}
     ]
+  end
+
+  defp segment_descriptions do
+    %{
+      "rising_star" => "Trending (L30 top 25) but not VIP \u2014 new breakout creators",
+      "vip_elite" => "VIP and Trending \u2014 top consistent performers currently surging",
+      "vip_stable" =>
+        "VIP, not trending, L90 rank \u2264 30 \u2014 reliable consistent performers",
+      "vip_at_risk" => "VIP with L90 rank > 30 \u2014 slipping, may need re-engagement"
+    }
   end
 
   defp parse_tag_ids(nil), do: []

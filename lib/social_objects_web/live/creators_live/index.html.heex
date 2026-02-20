@@ -292,6 +292,8 @@
               id="segment-filter"
               trigger_label="Creator Status"
               options={creator_status_filter_options(@segment_stats)}
+              descriptions={segment_descriptions()}
+              menu_class="hover-dropdown__menu--wide"
               current_value={@segment_filter || "all"}
               change_event="change_segment_filter"
               clear_event="clear_segment_filter"

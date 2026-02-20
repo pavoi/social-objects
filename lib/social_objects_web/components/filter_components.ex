@@ -49,6 +49,8 @@ defmodule SocialObjectsWeb.FilterComponents do
   attr :searchable, :boolean, default: false
   attr :search_placeholder, :string, default: "Search..."
   attr :empty_label, :string, default: "No results"
+  attr :descriptions, :map, default: %{}
+  attr :menu_class, :string, default: nil
 
   def hover_dropdown(assigns) do
     # Find the label for the current value
@@ -111,7 +113,7 @@ defmodule SocialObjectsWeb.FilterComponents do
         <% end %>
       </button>
 
-      <div class="hover-dropdown__menu">
+      <div class={["hover-dropdown__menu", @menu_class]}>
         <%= if @searchable do %>
           <div class="hover-dropdown__search">
             <input
@@ -130,14 +132,18 @@ defmodule SocialObjectsWeb.FilterComponents do
               type="button"
               class={[
                 "hover-dropdown__item",
-                to_string(@current_value) == to_string(opt_value) && "hover-dropdown__item--selected"
+                to_string(@current_value) == to_string(opt_value) && "hover-dropdown__item--selected",
+                @descriptions != %{} && "hover-dropdown__item--with-description"
               ]}
               phx-click={@change_event}
               phx-value-selection={to_string(opt_value)}
               data-hover-dropdown-option
               data-label={String.downcase(to_string(opt_label))}
             >
-              {opt_label}
+              <span class="hover-dropdown__item-label">{opt_label}</span>
+              <%= if desc = Map.get(@descriptions, to_string(opt_value)) do %>
+                <span class="hover-dropdown__item-description">{desc}</span>
+              <% end %>
             </button>
           <% end %>
         </div>

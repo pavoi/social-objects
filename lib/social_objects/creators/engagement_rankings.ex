@@ -6,16 +6,13 @@ defmodule SocialObjects.Creators.EngagementRankings do
   import Ecto.Query
 
   alias SocialObjects.Creators.BrandCreator
-  alias SocialObjects.Creators.Creator
   alias SocialObjects.Creators.CreatorPerformanceSnapshot
-  alias SocialObjects.Creators.CreatorSample
   alias SocialObjects.Repo
   alias SocialObjects.Settings
 
   @vip_cycle_days 90
   @vip_slots 50
   @trending_slots 25
-  @high_priority_badges [:ruby, :emerald]
 
   @spec refresh_brand(pos_integer()) :: {:ok, map()} | {:error, term()}
   def refresh_brand(brand_id) do
@@ -204,50 +201,21 @@ defmodule SocialObjects.Creators.EngagementRankings do
   end
 
   defp assign_priorities(brand_id) do
-    high_priority_boost_ids = high_priority_boost_ids(brand_id)
+    # Single bulk UPDATE using CASE for MECE segment assignment
+    sql = """
+    UPDATE brand_creators
+    SET engagement_priority = CASE
+      WHEN is_trending = true AND is_vip = false THEN 'rising_star'
+      WHEN is_vip = true AND is_trending = true THEN 'vip_elite'
+      WHEN is_vip = true AND is_trending = false AND (l90d_rank IS NULL OR l90d_rank <= 30) THEN 'vip_stable'
+      WHEN is_vip = true AND l90d_rank > 30 THEN 'vip_at_risk'
+      ELSE NULL
+    END,
+    updated_at = NOW()
+    WHERE brand_id = $1
+    """
 
-    from(bc in BrandCreator, where: bc.brand_id == ^brand_id)
-    |> Repo.all()
-    |> Enum.each(fn bc ->
-      priority =
-        cond do
-          bc.is_trending or MapSet.member?(high_priority_boost_ids, bc.creator_id) ->
-            :high
-
-          bc.is_vip and not is_nil(bc.l90d_rank) and bc.l90d_rank > 30 ->
-            :monitor
-
-          bc.is_vip and not bc.is_trending ->
-            :medium
-
-          true ->
-            nil
-        end
-
-      from(row in BrandCreator, where: row.id == ^bc.id)
-      |> Repo.update_all(set: [engagement_priority: priority, updated_at: now_naive()])
-    end)
-  end
-
-  defp high_priority_boost_ids(brand_id) do
-    now = DateTime.utc_now() |> DateTime.truncate(:second)
-    cutoff = DateTime.add(now, -30 * 86_400, :second)
-    cutoff_naive = DateTime.to_naive(cutoff)
-
-    from(c in Creator,
-      join: bc in BrandCreator,
-      on: bc.creator_id == c.id and bc.brand_id == ^brand_id,
-      join: s in CreatorSample,
-      on: s.creator_id == c.id and s.brand_id == ^brand_id,
-      where: c.tiktok_badge_level in ^@high_priority_badges,
-      where:
-        (not is_nil(s.ordered_at) and s.ordered_at >= ^cutoff) or
-          (is_nil(s.ordered_at) and s.inserted_at >= ^cutoff_naive),
-      distinct: true,
-      select: c.id
-    )
-    |> Repo.all()
-    |> MapSet.new()
+    Repo.query!(sql, [brand_id])
   end
 
   defp now_naive do

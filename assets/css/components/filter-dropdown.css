@@ -144,6 +144,24 @@
   @apply px-3 py-2 text-sm text-text-secondary;
 }
 
+/* Wide menu for dropdowns with descriptions */
+.hover-dropdown__menu--wide {
+  min-width: 300px;
+}
+
+/* Item with description layout */
+.hover-dropdown__item--with-description {
+  @apply flex-col items-start gap-1 py-2.5 px-3;
+}
+
+.hover-dropdown__item-label {
+  @apply font-medium;
+}
+
+.hover-dropdown__item-description {
+  @apply text-xs text-text-secondary leading-snug;
+}
+
 /* Mobile: click to toggle via is-open class */
 @media (hover: none) {
   .hover-dropdown--hover-open:hover .hover-dropdown__menu {

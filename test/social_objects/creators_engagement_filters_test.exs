@@ -3,33 +3,37 @@ defmodule SocialObjects.CreatorsEngagementFiltersTest do
 
   alias SocialObjects.Creators
 
-  test "search_creators_unified supports segment filters" do
+  test "search_creators_unified supports MECE segment filters" do
     brand = brand_fixture()
 
-    vip_creator = creator_with_brand_creator(brand.id, %{is_vip: true})
-    trending_creator = creator_with_brand_creator(brand.id, %{is_trending: true})
-    high_priority_creator = creator_with_brand_creator(brand.id, %{engagement_priority: :high})
+    rising_star_creator =
+      creator_with_brand_creator(brand.id, %{engagement_priority: :rising_star})
 
-    monitor_creator =
-      creator_with_brand_creator(brand.id, %{engagement_priority: :monitor, is_vip: true})
+    vip_elite_creator = creator_with_brand_creator(brand.id, %{engagement_priority: :vip_elite})
+    vip_stable_creator = creator_with_brand_creator(brand.id, %{engagement_priority: :vip_stable})
+
+    vip_at_risk_creator =
+      creator_with_brand_creator(brand.id, %{engagement_priority: :vip_at_risk})
 
     _other_creator = creator_with_brand_creator(brand.id, %{})
 
-    vip_result = Creators.search_creators_unified(brand_id: brand.id, segment: "vip")
-    assert Enum.any?(vip_result.creators, &(&1.id == vip_creator.id))
+    rising_star_result =
+      Creators.search_creators_unified(brand_id: brand.id, segment: "rising_star")
 
-    trending_result = Creators.search_creators_unified(brand_id: brand.id, segment: "trending")
-    assert Enum.any?(trending_result.creators, &(&1.id == trending_creator.id))
+    assert Enum.any?(rising_star_result.creators, &(&1.id == rising_star_creator.id))
 
-    high_priority_result =
-      Creators.search_creators_unified(brand_id: brand.id, segment: "high_priority")
+    vip_elite_result = Creators.search_creators_unified(brand_id: brand.id, segment: "vip_elite")
+    assert Enum.any?(vip_elite_result.creators, &(&1.id == vip_elite_creator.id))
 
-    assert Enum.any?(high_priority_result.creators, &(&1.id == high_priority_creator.id))
+    vip_stable_result =
+      Creators.search_creators_unified(brand_id: brand.id, segment: "vip_stable")
 
-    attention_result =
-      Creators.search_creators_unified(brand_id: brand.id, segment: "needs_attention")
+    assert Enum.any?(vip_stable_result.creators, &(&1.id == vip_stable_creator.id))
 
-    assert Enum.any?(attention_result.creators, &(&1.id == monitor_creator.id))
+    vip_at_risk_result =
+      Creators.search_creators_unified(brand_id: brand.id, segment: "vip_at_risk")
+
+    assert Enum.any?(vip_at_risk_result.creators, &(&1.id == vip_at_risk_creator.id))
   end
 
   test "search_creators_unified supports touchpoint filters and next_touchpoint sorting" do

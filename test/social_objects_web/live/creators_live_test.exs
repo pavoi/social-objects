@@ -24,24 +24,27 @@ defmodule SocialObjectsWeb.CreatorsLiveTest do
     brand: brand,
     path: path
   } do
-    vip_creator = creator_for_brand(brand.id, %{is_vip: true, brand_gmv_cents: 100_000})
-    _other_creator = creator_for_brand(brand.id, %{is_vip: false, brand_gmv_cents: 50_000})
+    vip_elite_creator =
+      creator_for_brand(brand.id, %{engagement_priority: :vip_elite, brand_gmv_cents: 100_000})
+
+    _other_creator =
+      creator_for_brand(brand.id, %{engagement_priority: nil, brand_gmv_cents: 50_000})
 
     {:ok, view, _html} = live(conn, path)
 
     view
-    |> element("#segment-filter [phx-value-selection='vip']")
+    |> element("#segment-filter [phx-value-selection='vip_elite']")
     |> render_click()
 
-    assert_patch(view, "#{path}?segment=vip")
-    assert has_element?(view, "tr[phx-value-id='#{vip_creator.id}']")
+    assert_patch(view, "#{path}?segment=vip_elite")
+    assert has_element?(view, "tr[phx-value-id='#{vip_elite_creator.id}']")
 
     view
     |> element("button[phx-click='set_time_preset'][phx-value-preset='30d']")
     |> render_click()
 
     patched_path = assert_patch(view)
-    assert patched_path =~ "segment=vip"
+    assert patched_path =~ "segment=vip_elite"
     assert patched_path =~ "period=30"
   end
 
@@ -50,7 +53,7 @@ defmodule SocialObjectsWeb.CreatorsLiveTest do
       creator_for_brand(brand.id, %{
         is_vip: true,
         is_trending: true,
-        engagement_priority: :high
+        engagement_priority: :vip_elite
       })
 
     {:ok, tag} =
@@ -66,7 +69,7 @@ defmodule SocialObjectsWeb.CreatorsLiveTest do
 
     assert has_element?(view, "#system-badges-#{creator.id}", "VIP")
     assert has_element?(view, "#system-badges-#{creator.id}", "Trending")
-    assert has_element?(view, "#system-badges-#{creator.id}", "High")
+    assert has_element?(view, "#system-badges-#{creator.id}", "VIP Elite")
 
     assert has_element?(view, "#tag-cell-#{creator.id} [data-tag]", "ManualTag")
     refute has_element?(view, "#tag-cell-#{creator.id} .badge", "VIP")

@@ -130,40 +130,56 @@ defmodule SocialObjects.Creators.EngagementRankingsTest do
     refute bc_b.is_vip
   end
 
-  test "assigns high priority to active high-tier creators with recent samples even when not trending" do
+  test "assigns MECE engagement priorities based on VIP and trending status" do
     brand = brand_fixture()
+    _ = Settings.update_vip_cycle_started_at(brand.id, Date.add(Date.utc_today(), -95))
 
-    sampled_high_tier_creator =
-      creator_for_brand(
-        brand.id,
-        [brand_gmv_cents: 0, cumulative_brand_gmv_cents: 0],
-        %{tiktok_badge_level: :ruby}
+    # Create VIP creators with different trending/L90 status
+    # vip_trending_creator: highest L30 GMV (trending) and high L90 score (VIP) -> vip_elite
+    vip_trending_creator =
+      creator_for_brand(brand.id,
+        brand_gmv_cents: 500_000,
+        cumulative_brand_gmv_cents: 2_000_000
       )
 
-    now = DateTime.utc_now() |> DateTime.truncate(:second)
+    insert_snapshot(brand.id, vip_trending_creator.id, Date.utc_today(), "brand_gmv", 500_000)
 
-    assert {:ok, _sample} =
-             Creators.create_creator_sample(%{
-               creator_id: sampled_high_tier_creator.id,
-               brand_id: brand.id,
-               ordered_at: now
-             })
+    # vip_stable_creator: moderate L30 GMV (not trending) but high L90 score (VIP) -> vip_stable
+    vip_stable_creator =
+      creator_for_brand(brand.id,
+        brand_gmv_cents: 50_000,
+        cumulative_brand_gmv_cents: 400_000
+      )
 
+    insert_snapshot(brand.id, vip_stable_creator.id, Date.utc_today(), "brand_gmv", 400_000)
+
+    # Create 26 other creators to fill trending (top 25) - all with lower L30 GMV than vip_trending_creator
+    # but higher than vip_stable_creator's brand_gmv_cents (50,000)
     for i <- 1..26 do
-      _ =
+      creator =
         creator_for_brand(brand.id,
-          brand_gmv_cents: 100_000 - i,
-          cumulative_brand_gmv_cents: 200_000 - i
+          brand_gmv_cents: 100_000 + i,
+          cumulative_brand_gmv_cents: 200_000 + i
         )
+
+      insert_snapshot(brand.id, creator.id, Date.utc_today(), "brand_gmv", 200_000 + i)
     end
 
     assert {:ok, _stats} = EngagementRankings.refresh_brand(brand.id)
 
-    sampled_bc =
-      Repo.get_by!(BrandCreator, brand_id: brand.id, creator_id: sampled_high_tier_creator.id)
+    vip_trending_bc =
+      Repo.get_by!(BrandCreator, brand_id: brand.id, creator_id: vip_trending_creator.id)
 
-    refute sampled_bc.is_trending
-    assert sampled_bc.engagement_priority == :high
+    assert vip_trending_bc.is_vip
+    assert vip_trending_bc.is_trending
+    assert vip_trending_bc.engagement_priority == :vip_elite
+
+    vip_stable_bc =
+      Repo.get_by!(BrandCreator, brand_id: brand.id, creator_id: vip_stable_creator.id)
+
+    assert vip_stable_bc.is_vip
+    refute vip_stable_bc.is_trending
+    assert vip_stable_bc.engagement_priority == :vip_stable
   end
 
   defp creator_for_brand(brand_id, brand_creator_attrs, creator_attrs \\ %{}) do

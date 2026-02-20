@@ -152,26 +152,40 @@ defmodule SocialObjects.Creators do
 
   @spec get_creator_segment_stats(pos_integer()) :: %{
           total: non_neg_integer(),
-          vip: non_neg_integer(),
-          trending: non_neg_integer(),
-          high_priority: non_neg_integer(),
-          needs_attention: non_neg_integer()
+          rising_star: non_neg_integer(),
+          vip_elite: non_neg_integer(),
+          vip_stable: non_neg_integer(),
+          vip_at_risk: non_neg_integer(),
+          unclassified: non_neg_integer()
         }
   def get_creator_segment_stats(brand_id) do
     from(bc in BrandCreator,
       where: bc.brand_id == ^brand_id,
       select: %{
         total: count(bc.id),
-        vip: fragment("COALESCE(SUM(CASE WHEN ? THEN 1 ELSE 0 END), 0)", bc.is_vip),
-        trending: fragment("COALESCE(SUM(CASE WHEN ? THEN 1 ELSE 0 END), 0)", bc.is_trending),
-        high_priority:
+        rising_star:
           fragment(
-            "COALESCE(SUM(CASE WHEN ? = 'high' THEN 1 ELSE 0 END), 0)",
+            "COALESCE(SUM(CASE WHEN ? = 'rising_star' THEN 1 ELSE 0 END), 0)",
             bc.engagement_priority
           ),
-        needs_attention:
+        vip_elite:
           fragment(
-            "COALESCE(SUM(CASE WHEN ? = 'monitor' THEN 1 ELSE 0 END), 0)",
+            "COALESCE(SUM(CASE WHEN ? = 'vip_elite' THEN 1 ELSE 0 END), 0)",
+            bc.engagement_priority
+          ),
+        vip_stable:
+          fragment(
+            "COALESCE(SUM(CASE WHEN ? = 'vip_stable' THEN 1 ELSE 0 END), 0)",
+            bc.engagement_priority
+          ),
+        vip_at_risk:
+          fragment(
+            "COALESCE(SUM(CASE WHEN ? = 'vip_at_risk' THEN 1 ELSE 0 END), 0)",
+            bc.engagement_priority
+          ),
+        unclassified:
+          fragment(
+            "COALESCE(SUM(CASE WHEN ? IS NULL THEN 1 ELSE 0 END), 0)",
             bc.engagement_priority
           )
       }
@@ -245,40 +259,40 @@ defmodule SocialObjects.Creators do
   defp apply_segment_filter(query, "", _brand_id), do: query
   defp apply_segment_filter(query, _segment, nil), do: query
 
-  defp apply_segment_filter(query, "vip", brand_id) do
+  defp apply_segment_filter(query, "rising_star", brand_id) do
     creator_ids_query =
       from(bc in BrandCreator,
-        where: bc.brand_id == ^brand_id and bc.is_vip == true,
+        where: bc.brand_id == ^brand_id and bc.engagement_priority == :rising_star,
         select: bc.creator_id
       )
 
     from(c in query, where: c.id in subquery(creator_ids_query))
   end
 
-  defp apply_segment_filter(query, "trending", brand_id) do
+  defp apply_segment_filter(query, "vip_elite", brand_id) do
     creator_ids_query =
       from(bc in BrandCreator,
-        where: bc.brand_id == ^brand_id and bc.is_trending == true,
+        where: bc.brand_id == ^brand_id and bc.engagement_priority == :vip_elite,
         select: bc.creator_id
       )
 
     from(c in query, where: c.id in subquery(creator_ids_query))
   end
 
-  defp apply_segment_filter(query, "high_priority", brand_id) do
+  defp apply_segment_filter(query, "vip_stable", brand_id) do
     creator_ids_query =
       from(bc in BrandCreator,
-        where: bc.brand_id == ^brand_id and bc.engagement_priority == :high,
+        where: bc.brand_id == ^brand_id and bc.engagement_priority == :vip_stable,
         select: bc.creator_id
       )
 
     from(c in query, where: c.id in subquery(creator_ids_query))
   end
 
-  defp apply_segment_filter(query, "needs_attention", brand_id) do
+  defp apply_segment_filter(query, "vip_at_risk", brand_id) do
     creator_ids_query =
       from(bc in BrandCreator,
-        where: bc.brand_id == ^brand_id and bc.engagement_priority == :monitor,
+        where: bc.brand_id == ^brand_id and bc.engagement_priority == :vip_at_risk,
         select: bc.creator_id
       )
 
@@ -544,13 +558,29 @@ defmodule SocialObjects.Creators do
   end
 
   defp apply_unified_sort(query, "priority", dir, brand_id) do
+    # CASE-based custom sort to ensure business-meaningful order:
+    # rising_star=1, vip_elite=2, vip_stable=3, vip_at_risk=4, nil=5
+    direction = if dir == "asc", do: :asc, else: :desc
+
     query
     |> join(:left, [c], bc in BrandCreator,
       on: bc.creator_id == c.id and bc.brand_id == ^brand_id,
       as: :brand_creator_priority
     )
     |> order_by([brand_creator_priority: bc], [
-      {^sort_dir_nulls_last(dir), bc.engagement_priority}
+      {^direction,
+       fragment(
+         """
+         CASE ?
+           WHEN 'rising_star' THEN 1
+           WHEN 'vip_elite' THEN 2
+           WHEN 'vip_stable' THEN 3
+           WHEN 'vip_at_risk' THEN 4
+           ELSE 5
+         END
+         """,
+         bc.engagement_priority
+       )}
     ])
   end
 
