@@ -105,7 +105,13 @@
   --color-accent-amber-10: color-mix(in srgb, var(--color-accent-amber) 10%, transparent);
   --color-accent-amber-15: color-mix(in srgb, var(--color-accent-amber) 15%, transparent);
   --color-accent-amber-20: color-mix(in srgb, var(--color-accent-amber) 20%, transparent);
+  --color-accent-purple-10: color-mix(in srgb, var(--color-accent-purple) 10%, transparent);
   --color-accent-purple-15: color-mix(in srgb, var(--color-accent-purple) 15%, transparent);
+  --color-accent-purple-20: color-mix(in srgb, var(--color-accent-purple) 20%, transparent);
+  --color-accent-teal: #14B8A6;
+  --color-accent-teal-10: color-mix(in srgb, var(--color-accent-teal) 10%, transparent);
+  --color-accent-teal-15: color-mix(in srgb, var(--color-accent-teal) 15%, transparent);
+  --color-accent-teal-20: color-mix(in srgb, var(--color-accent-teal) 20%, transparent);
 
   --color-warning-50: #FFFBEB;
   --color-warning-100: #FEF3C7;
@@ -305,6 +311,7 @@
   --color-accent-yellow: var(--color-accent-amber);
   --color-accent-gold: #FBBF24;
   --color-accent-purple: #A78BFA;
+  --color-accent-teal: #2DD4BF;
   --color-green-500: var(--color-accent-green);
   --color-red-500: var(--color-accent-red);
   --color-warning-rgb: 251, 191, 36;

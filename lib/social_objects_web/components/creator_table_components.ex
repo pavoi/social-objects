@@ -240,6 +240,7 @@ defmodule SocialObjectsWeb.CreatorTableComponents do
               current={@sort_by}
               dir={@sort_dir}
               on_sort={@on_sort}
+              min_width={280}
               tooltip="TikTok username and display name"
               freshness_source="Creator Profiles"
             />
@@ -1580,7 +1581,7 @@ defmodule SocialObjectsWeb.CreatorTableComponents do
     ~H"""
     <div id={"system-badges-#{@creator.id}"} class="flex flex-wrap gap-1">
       <%= if @creator.is_vip do %>
-        <span class="badge badge--soft badge--success">VIP</span>
+        <span class="badge badge--soft badge--purple">VIP</span>
       <% end %>
       <%= if @creator.is_trending do %>
         <span class="badge badge--soft badge--teal">Trending</span>

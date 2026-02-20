@@ -102,10 +102,15 @@
 }
 
 .badge--soft.badge--teal {
-  /* Teal uses green as closest match in our token system */
-  background: var(--color-accent-green-10);
-  color: var(--color-accent-green);
-  border-color: var(--color-accent-green-20);
+  background: var(--color-accent-teal-10);
+  color: var(--color-accent-teal);
+  border-color: var(--color-accent-teal-20);
+}
+
+.badge--soft.badge--purple {
+  background: var(--color-accent-purple-10);
+  color: var(--color-accent-purple);
+  border-color: var(--color-accent-purple-20);
 }
 
 .badge--soft.badge--success-bright {
@@ -126,9 +131,16 @@
 
 /* Dark mode - slightly stronger backgrounds for visibility on dark surfaces */
 .dark .badge--soft.badge--success,
-.dark .badge--soft.badge--teal,
 .dark .badge--soft.badge--success-bright {
   background: var(--color-accent-green-15);
+}
+
+.dark .badge--soft.badge--teal {
+  background: var(--color-accent-teal-15);
+}
+
+.dark .badge--soft.badge--purple {
+  background: var(--color-accent-purple-15);
 }
 
 .dark .badge--soft.badge--warning {
