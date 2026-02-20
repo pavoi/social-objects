@@ -184,6 +184,16 @@
             Batch Select
           </button>
 
+          <label class="hide-inactive-toggle" for="hide-inactive-checkbox">
+            <input
+              id="hide-inactive-checkbox"
+              type="checkbox"
+              checked={@hide_inactive}
+              phx-click="toggle_hide_inactive"
+            />
+            <span>Hide Inactive</span>
+          </label>
+
           <%!-- Data Freshness Indicator --%>
           <.data_freshness_panel
             videos_last_import_at={@videos_last_import_at}
@@ -281,60 +291,44 @@
           <span class="engagement-tracking-filters__label">Engagement Tracking</span>
           <div class="engagement-tracking-filters__controls">
             <.hover_dropdown
-              id="contact-status-filter"
-              trigger_label="Contact Status"
-              options={contact_status_filter_options(@outreach_stats)}
-              current_value={@outreach_status || "all"}
-              change_event="change_outreach_status"
-              clear_event="clear_status_filter"
-            />
-            <.hover_dropdown
               id="segment-filter"
               trigger_label="Creator Status"
               options={creator_status_filter_options(@segment_stats)}
               descriptions={segment_descriptions()}
               menu_class="hover-dropdown__menu--wide"
-              current_value={@segment_filter || "all"}
+              current_value={@segment_filter}
               change_event="change_segment_filter"
               clear_event="clear_segment_filter"
             />
             <.hover_dropdown
+              id="contact-status-filter"
+              trigger_label="Contact Status"
+              options={contact_status_filter_options(@outreach_stats)}
+              current_value={@outreach_status}
+              change_event="change_outreach_status"
+              clear_event="clear_status_filter"
+            />
+            <.hover_dropdown
               id="last-touchpoint-type-filter"
-              options={[
-                {"all", "All"},
-                {"email", "Email"},
-                {"sms", "SMS"},
-                {"manual", "Manual"}
-              ]}
+              options={last_touchpoint_filter_options(@engagement_filter_stats)}
               trigger_label="Last Touchpoint"
-              current_value={@last_touchpoint_type_filter || "all"}
+              current_value={@last_touchpoint_type_filter}
               change_event="change_last_touchpoint_type_filter"
               clear_event="clear_last_touchpoint_type_filter"
             />
             <.hover_dropdown
               id="preferred-contact-channel-filter"
-              options={[
-                {"all", "All"},
-                {"email", "Email"},
-                {"sms", "SMS"},
-                {"tiktok_dm", "TikTok DM"}
-              ]}
+              options={preferred_contact_channel_filter_options(@engagement_filter_stats)}
               trigger_label="Preferred Channel"
-              current_value={@preferred_contact_channel_filter || "all"}
+              current_value={@preferred_contact_channel_filter}
               change_event="change_preferred_contact_channel_filter"
               clear_event="clear_preferred_contact_channel_filter"
             />
             <.hover_dropdown
               id="next-touchpoint-state-filter"
-              options={[
-                {"all", "All"},
-                {"due_this_week", "Due This Week"},
-                {"scheduled", "Scheduled"},
-                {"overdue", "Overdue"},
-                {"unscheduled", "Unscheduled"}
-              ]}
+              options={next_touchpoint_state_filter_options(@engagement_filter_stats)}
               trigger_label="Schedule"
-              current_value={@next_touchpoint_state_filter || "all"}
+              current_value={@next_touchpoint_state_filter}
               change_event="change_next_touchpoint_state_filter"
               clear_event="clear_next_touchpoint_state_filter"
             />
@@ -357,7 +351,7 @@
             <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M23 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" />
           </svg>
           <p class="empty-state__title">No creators found</p>
-          <%= if @search_query != "" || @badge_filter != "" || @outreach_status || @segment_filter || @last_touchpoint_type_filter || @preferred_contact_channel_filter || @next_touchpoint_state_filter do %>
+          <%= if @search_query != "" || @outreach_status || @segment_filter || @last_touchpoint_type_filter || @preferred_contact_channel_filter || @next_touchpoint_state_filter do %>
             <p class="empty-state__description">Try adjusting your search or filters</p>
           <% end %>
         </div>

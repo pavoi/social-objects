@@ -216,7 +216,7 @@ defmodule SocialObjectsWeb.CreatorTableComponents do
         <thead>
           <tr>
             <%!-- 1. Checkbox --%>
-            <th class="col-checkbox" data-resizable="false" data-column-id="checkbox">
+            <th class="col-checkbox" data-resizable="false" data-column-id="checkbox" style="width: 53px">
               <input
                 type="checkbox"
                 checked={@all_selected}
@@ -232,6 +232,7 @@ defmodule SocialObjectsWeb.CreatorTableComponents do
               dir={@sort_dir}
               on_sort={@on_sort}
               tooltip="Outreach email engagement status"
+              default_width={132}
             />
             <%!-- 3. Avatar + Username --%>
             <.sort_header
@@ -241,6 +242,7 @@ defmodule SocialObjectsWeb.CreatorTableComponents do
               dir={@sort_dir}
               on_sort={@on_sort}
               min_width={280}
+              default_width={280}
               tooltip="TikTok username and display name"
               freshness_source="Creator Profiles"
             />
@@ -253,9 +255,10 @@ defmodule SocialObjectsWeb.CreatorTableComponents do
               on_sort={@on_sort}
               tooltip="Contact email (may be TikTok forwarding). Also from External Imports."
               freshness_source="Shop Orders"
+              default_width={174}
             />
             <%!-- 5. Tags --%>
-            <th class="col-tags" data-column-id="tags" title="Custom tags for organization">
+            <th class="col-tags" data-column-id="tags" title="Custom tags for organization" style="width: 198px">
               Tags
             </th>
             <%!-- 6. Brand GMV (Total) - Brand-specific --%>
@@ -268,6 +271,7 @@ defmodule SocialObjectsWeb.CreatorTableComponents do
               tooltip="Cumulative GMV from this creator's content for your brand. Also seeded from External Imports."
               time_filtered={@time_filter_active}
               freshness_source="Brand GMV"
+              default_width={188}
             />
             <%!-- 7. Brand GMV (30d) - Brand-specific --%>
             <.sort_header
@@ -279,6 +283,7 @@ defmodule SocialObjectsWeb.CreatorTableComponents do
               tooltip="GMV from this creator's videos and lives for your brand in the last 30 days. Based on matched content only."
               time_filtered={@time_filter_active}
               freshness_source="Brand GMV"
+              default_width={169}
             />
             <%!-- 8. Cumulative GMV --%>
             <.sort_header
@@ -290,6 +295,7 @@ defmodule SocialObjectsWeb.CreatorTableComponents do
               tooltip="Creator's total TikTok Shop GMV (all brands) since tracking started. Also seeded from External Imports."
               time_filtered={@time_filter_active}
               freshness_source="Creator Profiles"
+              default_width={174}
             />
             <%!-- 9. Followers --%>
             <.sort_header
@@ -301,6 +307,7 @@ defmodule SocialObjectsWeb.CreatorTableComponents do
               tooltip="TikTok follower count. Also from External Imports."
               time_filtered={@time_filter_active}
               freshness_source="Creator Profiles"
+              default_width={123}
             />
             <%!-- 10. Avg Views --%>
             <.sort_header
@@ -311,6 +318,7 @@ defmodule SocialObjectsWeb.CreatorTableComponents do
               on_sort={@on_sort}
               tooltip="Average video views. Also from External Imports."
               freshness_source="Creator Profiles"
+              default_width={123}
             />
             <%!-- 11. Samples --%>
             <.sort_header
@@ -321,6 +329,7 @@ defmodule SocialObjectsWeb.CreatorTableComponents do
               on_sort={@on_sort}
               tooltip="Sample products sent"
               freshness_source="Shop Orders"
+              default_width={119}
             />
             <%!-- 12. Videos Posted --%>
             <.sort_header
@@ -331,6 +340,7 @@ defmodule SocialObjectsWeb.CreatorTableComponents do
               on_sort={@on_sort}
               tooltip="Videos with GMV for your brand"
               freshness_source="Brand GMV"
+              default_width={122}
             />
             <%!-- 13. Commission --%>
             <.sort_header
@@ -341,6 +351,7 @@ defmodule SocialObjectsWeb.CreatorTableComponents do
               on_sort={@on_sort}
               tooltip="Total commission earned. Also from External Imports."
               freshness_source="Video Performance"
+              default_width={176}
             />
             <%!-- 14. Last Sample --%>
             <.sort_header
@@ -351,6 +362,7 @@ defmodule SocialObjectsWeb.CreatorTableComponents do
               on_sort={@on_sort}
               tooltip="Most recent sample received"
               freshness_source="Shop Orders"
+              default_width={190}
             />
             <%!-- 15. Last Touchpoint At --%>
             <.sort_header
@@ -360,6 +372,7 @@ defmodule SocialObjectsWeb.CreatorTableComponents do
               dir={@sort_dir}
               on_sort={@on_sort}
               min_width={220}
+              default_width={220}
               tooltip="Last successful outreach touchpoint for this brand"
             />
             <%!-- 16. Last Touchpoint Type --%>
@@ -367,6 +380,7 @@ defmodule SocialObjectsWeb.CreatorTableComponents do
               class="col-touchpoint-type"
               data-column-id="last_touchpoint_type"
               data-min-width="180"
+              style="width: 195px"
               title="Type of last successful touchpoint"
             >
               Last Touchpoint Type
@@ -376,6 +390,7 @@ defmodule SocialObjectsWeb.CreatorTableComponents do
               class="col-preferred-channel"
               data-column-id="preferred_contact_channel"
               data-min-width="180"
+              style="width: 180px"
               title="Preferred contact channel for this brand relationship"
             >
               Preferred Channel
@@ -388,6 +403,7 @@ defmodule SocialObjectsWeb.CreatorTableComponents do
               dir={@sort_dir}
               on_sort={@on_sort}
               min_width={220}
+              default_width={220}
               tooltip="Scheduled next outreach touchpoint for this brand"
             />
             <%!-- 19. Priority --%>
@@ -398,6 +414,7 @@ defmodule SocialObjectsWeb.CreatorTableComponents do
               dir={@sort_dir}
               on_sort={@on_sort}
               min_width={145}
+              default_width={222}
               tooltip="System-calculated engagement priority"
             />
           </tr>
@@ -722,6 +739,7 @@ defmodule SocialObjectsWeb.CreatorTableComponents do
   attr :manual_import, :boolean, default: false
   attr :freshness_source, :string, default: nil
   attr :min_width, :integer, default: nil
+  attr :default_width, :integer, default: nil
 
   def sort_header(assigns) do
     is_active = assigns.current == assigns.field
@@ -741,6 +759,7 @@ defmodule SocialObjectsWeb.CreatorTableComponents do
         @time_filtered && "sortable-header--time-filtered",
         @manual_import && "sortable-header--manual-import"
       ]}
+      style={@default_width && "width: #{@default_width}px"}
       data-column-id={@field}
       data-min-width={@min_width}
     >
@@ -1202,7 +1221,6 @@ defmodule SocialObjectsWeb.CreatorTableComponents do
                     </a>
                   <% end %>
                   <.whitelisted_badge is_whitelisted={@creator.is_whitelisted} />
-                  <.badge_pill level={@creator.tiktok_badge_level} />
                 </div>
                 <%= if @creator.tiktok_nickname do %>
                   <div class="creator-modal-header__nickname">{@creator.tiktok_nickname}</div>
@@ -1585,6 +1603,12 @@ defmodule SocialObjectsWeb.CreatorTableComponents do
       <% end %>
       <%= if @creator.is_trending do %>
         <span class="badge badge--soft badge--teal">Trending</span>
+      <% end %>
+      <%= if @creator.engagement_priority in [:rising_star, "rising_star"] do %>
+        <span class="badge badge--soft badge--info">Rising Star</span>
+      <% end %>
+      <%= if @creator.engagement_priority in [:vip_at_risk, "vip_at_risk"] do %>
+        <span class="badge badge--soft badge--warning">At Risk</span>
       <% end %>
     </div>
     """

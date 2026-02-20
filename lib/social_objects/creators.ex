@@ -45,7 +45,6 @@ defmodule SocialObjects.Creators do
   ## Options
     - search_query: Search by username, email, first/last name (default: "")
     - brand_id: Filter by brand relationship
-    - badge_level: Filter by TikTok badge level
     - page: Current page number (default: 1)
     - per_page: Items per page (default: 50)
 
@@ -62,7 +61,6 @@ defmodule SocialObjects.Creators do
     query =
       from(c in Creator)
       |> apply_creator_search_filter(Keyword.get(opts, :search_query, ""))
-      |> apply_creator_badge_filter(Keyword.get(opts, :badge_level))
       |> apply_creator_tag_filter(Keyword.get(opts, :tag_ids))
       |> apply_creator_brand_filter(brand_id)
 
@@ -96,9 +94,9 @@ defmodule SocialObjects.Creators do
 
   ## Options
     - search_query: Search by username, email, first/last name
-    - badge_level: Filter by TikTok badge level
     - tag_ids: Filter by tag IDs
     - outreach_status: Filter by contact status (nil = all, or "never_contacted"/"contacted"/"opted_out")
+    - hide_inactive: Hide creators with zero samples and zero GMV signals (default: false)
     - sort_by: Column to sort (supports all CRM and outreach columns)
     - sort_dir: "asc" or "desc"
     - page: Page number (default: 1)
@@ -117,7 +115,6 @@ defmodule SocialObjects.Creators do
     query =
       from(c in Creator)
       |> apply_creator_search_filter(Keyword.get(opts, :search_query, ""))
-      |> apply_creator_badge_filter(Keyword.get(opts, :badge_level))
       |> apply_creator_tag_filter(Keyword.get(opts, :tag_ids))
       |> apply_outreach_status_filter(Keyword.get(opts, :outreach_status), brand_id)
       |> apply_segment_filter(Keyword.get(opts, :segment), brand_id)
@@ -127,6 +124,7 @@ defmodule SocialObjects.Creators do
         brand_id
       )
       |> apply_next_touchpoint_state_filter(Keyword.get(opts, :next_touchpoint_state), brand_id)
+      |> apply_inactive_filter(Keyword.get(opts, :hide_inactive, false), brand_id)
       |> apply_added_after_filter(Keyword.get(opts, :added_after))
       |> apply_added_before_filter(Keyword.get(opts, :added_before))
       |> apply_creator_brand_filter(brand_id)
@@ -191,6 +189,119 @@ defmodule SocialObjects.Creators do
       }
     )
     |> Repo.one()
+  end
+
+  @spec get_engagement_filter_stats(pos_integer()) :: %{
+          last_touchpoint_type: %{
+            email: non_neg_integer(),
+            sms: non_neg_integer(),
+            manual: non_neg_integer()
+          },
+          preferred_contact_channel: %{
+            email: non_neg_integer(),
+            sms: non_neg_integer(),
+            tiktok_dm: non_neg_integer()
+          },
+          next_touchpoint_state: %{
+            scheduled: non_neg_integer(),
+            due_this_week: non_neg_integer(),
+            overdue: non_neg_integer(),
+            unscheduled: non_neg_integer()
+          }
+        }
+  def get_engagement_filter_stats(brand_id) do
+    now = touchpoint_filter_now()
+    week_window_end = DateTime.add(now, 7 * 86_400, :second)
+
+    stats =
+      from(bc in BrandCreator,
+        where: bc.brand_id == ^brand_id,
+        select: %{
+          last_touchpoint_email:
+            fragment(
+              "COALESCE(SUM(CASE WHEN ? = 'email' THEN 1 ELSE 0 END), 0)",
+              bc.last_touchpoint_type
+            ),
+          last_touchpoint_sms:
+            fragment(
+              "COALESCE(SUM(CASE WHEN ? = 'sms' THEN 1 ELSE 0 END), 0)",
+              bc.last_touchpoint_type
+            ),
+          last_touchpoint_manual:
+            fragment(
+              "COALESCE(SUM(CASE WHEN ? = 'manual' THEN 1 ELSE 0 END), 0)",
+              bc.last_touchpoint_type
+            ),
+          preferred_contact_email:
+            fragment(
+              "COALESCE(SUM(CASE WHEN ? = 'email' THEN 1 ELSE 0 END), 0)",
+              bc.preferred_contact_channel
+            ),
+          preferred_contact_sms:
+            fragment(
+              "COALESCE(SUM(CASE WHEN ? = 'sms' THEN 1 ELSE 0 END), 0)",
+              bc.preferred_contact_channel
+            ),
+          preferred_contact_tiktok_dm:
+            fragment(
+              "COALESCE(SUM(CASE WHEN ? = 'tiktok_dm' THEN 1 ELSE 0 END), 0)",
+              bc.preferred_contact_channel
+            ),
+          next_touchpoint_scheduled:
+            fragment(
+              "COALESCE(SUM(CASE WHEN ? IS NOT NULL AND ? >= ? THEN 1 ELSE 0 END), 0)",
+              bc.next_touchpoint_at,
+              bc.next_touchpoint_at,
+              ^now
+            ),
+          next_touchpoint_due_this_week:
+            fragment(
+              """
+              COALESCE(
+                SUM(CASE WHEN ? IS NOT NULL AND ? >= ? AND ? < ? THEN 1 ELSE 0 END),
+                0
+              )
+              """,
+              bc.next_touchpoint_at,
+              bc.next_touchpoint_at,
+              ^now,
+              bc.next_touchpoint_at,
+              ^week_window_end
+            ),
+          next_touchpoint_overdue:
+            fragment(
+              "COALESCE(SUM(CASE WHEN ? IS NOT NULL AND ? < ? THEN 1 ELSE 0 END), 0)",
+              bc.next_touchpoint_at,
+              bc.next_touchpoint_at,
+              ^now
+            ),
+          next_touchpoint_unscheduled:
+            fragment(
+              "COALESCE(SUM(CASE WHEN ? IS NULL THEN 1 ELSE 0 END), 0)",
+              bc.next_touchpoint_at
+            )
+        }
+      )
+      |> Repo.one()
+
+    %{
+      last_touchpoint_type: %{
+        email: stats.last_touchpoint_email,
+        sms: stats.last_touchpoint_sms,
+        manual: stats.last_touchpoint_manual
+      },
+      preferred_contact_channel: %{
+        email: stats.preferred_contact_email,
+        sms: stats.preferred_contact_sms,
+        tiktok_dm: stats.preferred_contact_tiktok_dm
+      },
+      next_touchpoint_state: %{
+        scheduled: stats.next_touchpoint_scheduled,
+        due_this_week: stats.next_touchpoint_due_this_week,
+        overdue: stats.next_touchpoint_overdue,
+        unscheduled: stats.next_touchpoint_unscheduled
+      }
+    }
   end
 
   defp apply_outreach_status_filter(query, nil, _brand_id), do: query
@@ -432,6 +543,53 @@ defmodule SocialObjects.Creators do
 
   defp touchpoint_filter_now do
     DateTime.utc_now() |> DateTime.truncate(:second)
+  end
+
+  defp apply_inactive_filter(query, hide_inactive, _brand_id)
+       when hide_inactive in [nil, false, "false", "0", "off"],
+       do: query
+
+  defp apply_inactive_filter(query, _hide_inactive, nil) do
+    sample_counts =
+      from(cs in CreatorSample,
+        group_by: cs.creator_id,
+        select: %{creator_id: cs.creator_id, sample_count: count(cs.id)}
+      )
+
+    query
+    |> join(:left, [c], sc in subquery(sample_counts),
+      on: sc.creator_id == c.id,
+      as: :inactive_samples
+    )
+    |> where(
+      [c, inactive_samples: sc],
+      coalesce(c.cumulative_gmv_cents, 0) > 0 or coalesce(sc.sample_count, 0) > 0
+    )
+  end
+
+  defp apply_inactive_filter(query, _hide_inactive, brand_id) do
+    sample_counts =
+      from(cs in CreatorSample,
+        where: cs.brand_id == ^brand_id,
+        group_by: cs.creator_id,
+        select: %{creator_id: cs.creator_id, sample_count: count(cs.id)}
+      )
+
+    query
+    |> join(:left, [c], sc in subquery(sample_counts),
+      on: sc.creator_id == c.id,
+      as: :inactive_samples
+    )
+    |> join(:left, [c], bc in BrandCreator,
+      on: bc.creator_id == c.id and bc.brand_id == ^brand_id,
+      as: :inactive_brand_creator
+    )
+    |> where(
+      [c, inactive_samples: sc, inactive_brand_creator: bc],
+      coalesce(c.cumulative_gmv_cents, 0) > 0 or
+        coalesce(sc.sample_count, 0) > 0 or
+        coalesce(bc.cumulative_brand_gmv_cents, 0) > 0
+    )
   end
 
   # Helper to conditionally filter by brand_id without causing PostgreSQL type inference issues
@@ -726,11 +884,6 @@ defmodule SocialObjects.Creators do
     )
   end
 
-  defp apply_creator_badge_filter(query, nil), do: query
-
-  defp apply_creator_badge_filter(query, badge_level),
-    do: where(query, [c], c.tiktok_badge_level == ^badge_level)
-
   defp apply_creator_brand_filter(query, nil), do: query
 
   defp apply_creator_brand_filter(query, brand_id) do
@@ -1012,7 +1165,6 @@ defmodule SocialObjects.Creators do
       state: existing.state || get_attr(new, :state),
       zipcode: existing.zipcode || get_attr(new, :zipcode),
       tiktok_profile_url: existing.tiktok_profile_url || get_attr(new, :tiktok_profile_url),
-      tiktok_badge_level: get_attr(new, :tiktok_badge_level) || existing.tiktok_badge_level,
       follower_count: get_attr(new, :follower_count) || existing.follower_count,
       total_gmv_cents: get_attr(new, :total_gmv_cents) || existing.total_gmv_cents,
       total_videos: get_attr(new, :total_videos) || existing.total_videos

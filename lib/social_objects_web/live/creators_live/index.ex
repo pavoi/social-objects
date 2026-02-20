@@ -64,7 +64,6 @@ defmodule SocialObjectsWeb.CreatorsLive.Index do
       socket
       |> assign(:creators, [])
       |> assign(:search_query, "")
-      |> assign(:badge_filter, "")
       |> assign(:sort_by, "cumulative_brand_gmv")
       |> assign(:sort_dir, "desc")
       |> assign(:page, 1)
@@ -115,6 +114,11 @@ defmodule SocialObjectsWeb.CreatorsLive.Index do
         vip_at_risk: 0,
         unclassified: 0
       })
+      |> assign(:engagement_filter_stats, %{
+        last_touchpoint_type: %{email: 0, sms: 0, manual: 0},
+        preferred_contact_channel: %{email: 0, sms: 0, tiktok_dm: 0},
+        next_touchpoint_state: %{scheduled: 0, due_this_week: 0, overdue: 0, unscheduled: 0}
+      })
       |> assign(:sent_today, 0)
       |> assign(:outreach_email_override, Keyword.get(features, :outreach_email_override))
       |> assign(:outreach_email_enabled, SocialObjects.FeatureFlags.enabled?("outreach_email"))
@@ -144,6 +148,7 @@ defmodule SocialObjectsWeb.CreatorsLive.Index do
       |> assign(:batch_select_input, "")
       |> assign(:batch_select_results, nil)
       |> assign(:batch_select_preview_ids, MapSet.new())
+      |> assign(:hide_inactive, true)
       # Time filter state (delta period in days: nil, 7, 30, 90)
       |> assign(:delta_period, nil)
       |> assign(:time_preset, "all")
@@ -178,12 +183,6 @@ defmodule SocialObjectsWeb.CreatorsLive.Index do
   @impl true
   def handle_event("search", %{"value" => query}, socket) do
     params = build_query_params(socket, search_query: query, page: 1)
-    {:noreply, push_patch(socket, to: creators_path(socket, params))}
-  end
-
-  @impl true
-  def handle_event("filter_badge", %{"badge" => badge}, socket) do
-    params = build_query_params(socket, badge_filter: badge, page: 1)
     {:noreply, push_patch(socket, to: creators_path(socket, params))}
   end
 
@@ -933,6 +932,12 @@ defmodule SocialObjectsWeb.CreatorsLive.Index do
     {:noreply, push_patch(socket, to: creators_path(socket, params))}
   end
 
+  @impl true
+  def handle_event("toggle_hide_inactive", _params, socket) do
+    params = build_query_params(socket, hide_inactive: !socket.assigns.hide_inactive, page: 1)
+    {:noreply, push_patch(socket, to: creators_path(socket, params))}
+  end
+
   # Batch tag handlers
   @impl true
   def handle_event("show_batch_tag_picker", _params, socket) do
@@ -1635,10 +1640,10 @@ defmodule SocialObjectsWeb.CreatorsLive.Index do
 
     socket
     |> assign(:search_query, params["q"] || "")
-    |> assign(:badge_filter, params["badge"] || "")
     |> assign(:sort_by, params["sort"] || "cumulative_brand_gmv")
     |> assign(:sort_dir, params["dir"] || "desc")
     |> assign(:page, parse_page(params["page"]))
+    |> assign(:hide_inactive, parse_hide_inactive(params["hi"]))
     |> assign(:outreach_status, parse_outreach_status(params["status"]))
     |> assign(:segment_filter, parse_segment_filter(params["segment"]))
     |> assign(:last_touchpoint_type_filter, engagement_filters.last_touchpoint_type_filter)
@@ -1771,6 +1776,13 @@ defmodule SocialObjectsWeb.CreatorsLive.Index do
   defp parse_delta_period("90"), do: 90
   defp parse_delta_period(_), do: nil
 
+  defp parse_hide_inactive(nil), do: true
+  defp parse_hide_inactive(""), do: true
+  defp parse_hide_inactive(value) when value in ["true", "1", "on"], do: true
+  defp parse_hide_inactive(value) when value in ["false", "0", "off"], do: false
+  defp parse_hide_inactive(value) when is_boolean(value), do: value
+  defp parse_hide_inactive(_), do: true
+
   defp derive_time_preset_from_delta(nil), do: "all"
   defp derive_time_preset_from_delta(7), do: "7d"
   defp derive_time_preset_from_delta(30), do: "30d"
@@ -1824,7 +1836,6 @@ defmodule SocialObjectsWeb.CreatorsLive.Index do
 
   defp contact_status_filter_options(outreach_stats) do
     [
-      {"all", "All Creators (#{Map.get(outreach_stats, :total, 0)})"},
       {"sampled", "Sampled (#{Map.get(outreach_stats, :sampled, 0)})"},
       {"never_contacted", "Never Contacted (#{Map.get(outreach_stats, :never_contacted, 0)})"},
       {"contacted", "Contacted (#{Map.get(outreach_stats, :contacted, 0)})"},
@@ -1834,11 +1845,43 @@ defmodule SocialObjectsWeb.CreatorsLive.Index do
 
   defp creator_status_filter_options(segment_stats) do
     [
-      {"all", "All Creators (#{Map.get(segment_stats, :total, 0)})"},
-      {"rising_star", "High: Rising Star (#{Map.get(segment_stats, :rising_star, 0)})"},
-      {"vip_elite", "High: VIP Elite (#{Map.get(segment_stats, :vip_elite, 0)})"},
-      {"vip_stable", "Medium: VIP Stable (#{Map.get(segment_stats, :vip_stable, 0)})"},
-      {"vip_at_risk", "Monitor: At Risk (#{Map.get(segment_stats, :vip_at_risk, 0)})"}
+      {"rising_star", "Rising Star (#{Map.get(segment_stats, :rising_star, 0)})"},
+      {"vip_elite", "VIP Elite (#{Map.get(segment_stats, :vip_elite, 0)})"},
+      {"vip_stable", "VIP Stable (#{Map.get(segment_stats, :vip_stable, 0)})"},
+      {"vip_at_risk", "At Risk (#{Map.get(segment_stats, :vip_at_risk, 0)})"}
+    ]
+  end
+
+  defp last_touchpoint_filter_options(engagement_filter_stats) do
+    last_touchpoint_type_stats = Map.get(engagement_filter_stats, :last_touchpoint_type, %{})
+
+    [
+      {"email", "Email (#{Map.get(last_touchpoint_type_stats, :email, 0)})"},
+      {"sms", "SMS (#{Map.get(last_touchpoint_type_stats, :sms, 0)})"},
+      {"manual", "Manual (#{Map.get(last_touchpoint_type_stats, :manual, 0)})"}
+    ]
+  end
+
+  defp preferred_contact_channel_filter_options(engagement_filter_stats) do
+    preferred_contact_channel_stats =
+      Map.get(engagement_filter_stats, :preferred_contact_channel, %{})
+
+    [
+      {"email", "Email (#{Map.get(preferred_contact_channel_stats, :email, 0)})"},
+      {"sms", "SMS (#{Map.get(preferred_contact_channel_stats, :sms, 0)})"},
+      {"tiktok_dm", "TikTok DM (#{Map.get(preferred_contact_channel_stats, :tiktok_dm, 0)})"}
+    ]
+  end
+
+  defp next_touchpoint_state_filter_options(engagement_filter_stats) do
+    next_touchpoint_state_stats = Map.get(engagement_filter_stats, :next_touchpoint_state, %{})
+
+    [
+      {"due_this_week",
+       "Due This Week (#{Map.get(next_touchpoint_state_stats, :due_this_week, 0)})"},
+      {"scheduled", "Scheduled (#{Map.get(next_touchpoint_state_stats, :scheduled, 0)})"},
+      {"overdue", "Overdue (#{Map.get(next_touchpoint_state_stats, :overdue, 0)})"},
+      {"unscheduled", "Unscheduled (#{Map.get(next_touchpoint_state_stats, :unscheduled, 0)})"}
     ]
   end
 
@@ -1846,8 +1889,7 @@ defmodule SocialObjectsWeb.CreatorsLive.Index do
     %{
       "rising_star" => "High Priority — Non-VIP in L30 top 75, high recent performers",
       "vip_elite" => "High Priority — VIP and Trending, top performers currently surging",
-      "vip_stable" =>
-        "Medium Priority — VIP, not trending, L90 rank ≤ 30, reliable performers",
+      "vip_stable" => "Medium Priority — VIP, not trending, L90 rank ≤ 30, reliable performers",
       "vip_at_risk" => "Monitor — VIP with L90 rank > 30, slipping, needs re-engagement"
     }
   end
@@ -1869,7 +1911,6 @@ defmodule SocialObjectsWeb.CreatorsLive.Index do
   defp load_creators(socket) do
     %{
       search_query: search_query,
-      badge_filter: badge_filter,
       sort_by: sort_by,
       sort_dir: sort_dir,
       page: page,
@@ -1881,13 +1922,13 @@ defmodule SocialObjectsWeb.CreatorsLive.Index do
       preferred_contact_channel_filter: preferred_contact_channel_filter,
       next_touchpoint_state_filter: next_touchpoint_state_filter,
       brand_id: brand_id,
-      delta_period: delta_period
+      delta_period: delta_period,
+      hide_inactive: hide_inactive
     } = socket.assigns
 
     opts =
       [page: page, per_page: per_page]
       |> maybe_add_opt(:search_query, search_query)
-      |> maybe_add_opt(:badge_level, badge_filter)
       |> maybe_add_opt(:sort_by, sort_by)
       |> maybe_add_opt(:sort_dir, sort_dir)
       |> maybe_add_opt(:outreach_status, outreach_status)
@@ -1895,6 +1936,7 @@ defmodule SocialObjectsWeb.CreatorsLive.Index do
       |> maybe_add_opt(:last_touchpoint_type, last_touchpoint_type_filter)
       |> maybe_add_opt(:preferred_contact_channel, preferred_contact_channel_filter)
       |> maybe_add_opt(:next_touchpoint_state, next_touchpoint_state_filter)
+      |> maybe_add_opt(:hide_inactive, hide_inactive)
       |> maybe_add_tag_filter(filter_tag_ids)
       |> Keyword.put(:brand_id, brand_id)
 
@@ -1990,6 +2032,7 @@ defmodule SocialObjectsWeb.CreatorsLive.Index do
     stats = Outreach.get_outreach_stats(socket.assigns.brand_id)
     sampled_count = Creators.count_sampled_creators(socket.assigns.brand_id)
     segment_stats = Creators.get_creator_segment_stats(socket.assigns.brand_id)
+    engagement_filter_stats = Creators.get_engagement_filter_stats(socket.assigns.brand_id)
     sent_today = Outreach.count_sent_today(socket.assigns.brand_id)
 
     # Merge sampled count into stats
@@ -1998,6 +2041,7 @@ defmodule SocialObjectsWeb.CreatorsLive.Index do
     socket
     |> assign(:outreach_stats, stats)
     |> assign(:segment_stats, segment_stats)
+    |> assign(:engagement_filter_stats, engagement_filter_stats)
     |> assign(:sent_today, sent_today)
   end
 
@@ -2007,7 +2051,6 @@ defmodule SocialObjectsWeb.CreatorsLive.Index do
 
   @override_key_mapping %{
     search_query: :q,
-    badge_filter: :badge,
     sort_by: :sort,
     sort_dir: :dir,
     page: :page,
@@ -2019,6 +2062,7 @@ defmodule SocialObjectsWeb.CreatorsLive.Index do
     preferred_contact_channel_filter: :preferred_contact_channel,
     next_touchpoint_state_filter: :next_touchpoint_state,
     filter_tag_ids: :tags,
+    hide_inactive: :hi,
     delta_period: :period,
     page_tab: :pt,
     template_type_filter: :tt
@@ -2027,7 +2071,6 @@ defmodule SocialObjectsWeb.CreatorsLive.Index do
   defp build_query_params(socket, overrides) do
     base = %{
       q: socket.assigns.search_query,
-      badge: socket.assigns.badge_filter,
       sort: socket.assigns.sort_by,
       dir: socket.assigns.sort_dir,
       page: socket.assigns.page,
@@ -2039,6 +2082,7 @@ defmodule SocialObjectsWeb.CreatorsLive.Index do
       preferred_contact_channel: socket.assigns.preferred_contact_channel_filter,
       next_touchpoint_state: socket.assigns.next_touchpoint_state_filter,
       tags: format_tag_ids(socket.assigns.filter_tag_ids),
+      hi: socket.assigns.hide_inactive,
       period: socket.assigns.delta_period,
       pt: socket.assigns.page_tab,
       tt: socket.assigns.template_type_filter
@@ -2079,6 +2123,7 @@ defmodule SocialObjectsWeb.CreatorsLive.Index do
   defp default_value?({:tab, "contact"}), do: true
   defp default_value?({:pt, "creators"}), do: true
   defp default_value?({:tt, "email"}), do: true
+  defp default_value?({:hi, true}), do: true
   # Note: nil is now the default for status (show all), so specific statuses are kept in URL
   defp default_value?(_), do: false
 

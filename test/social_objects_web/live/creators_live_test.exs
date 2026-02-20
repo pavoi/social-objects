@@ -69,7 +69,6 @@ defmodule SocialObjectsWeb.CreatorsLiveTest do
 
     assert has_element?(view, "#system-badges-#{creator.id}", "VIP")
     assert has_element?(view, "#system-badges-#{creator.id}", "Trending")
-    assert has_element?(view, "#system-badges-#{creator.id}", "VIP Elite")
 
     assert has_element?(view, "#tag-cell-#{creator.id} [data-tag]", "ManualTag")
     refute has_element?(view, "#tag-cell-#{creator.id} .badge", "VIP")
@@ -137,6 +136,30 @@ defmodule SocialObjectsWeb.CreatorsLiveTest do
     assert brand_creator.last_touchpoint_type == :email
   end
 
+  test "hide inactive is enabled by default and can be toggled off", %{
+    conn: conn,
+    brand: brand,
+    path: path
+  } do
+    active_creator = creator_for_brand(brand.id, %{cumulative_brand_gmv_cents: 10_000})
+
+    inactive_creator =
+      creator_for_brand(brand.id, %{cumulative_brand_gmv_cents: 0, brand_gmv_cents: 0})
+
+    {:ok, view, _html} = live(conn, path)
+
+    assert has_element?(view, "#hide-inactive-checkbox[checked]")
+    assert has_element?(view, "tr[phx-value-id='#{active_creator.id}']")
+    refute has_element?(view, "tr[phx-value-id='#{inactive_creator.id}']")
+
+    view
+    |> element("#hide-inactive-checkbox")
+    |> render_click()
+
+    assert_patch(view, "#{path}?hi=false")
+    assert has_element?(view, "tr[phx-value-id='#{inactive_creator.id}']")
+  end
+
   defp creator_for_brand(brand_id, brand_creator_attrs) do
     unique = System.unique_integer([:positive])
 
@@ -148,7 +171,12 @@ defmodule SocialObjectsWeb.CreatorsLiveTest do
     _ = Creators.add_creator_to_brand(creator.id, brand_id)
 
     brand_creator = Creators.get_brand_creator(brand_id, creator.id)
-    {:ok, _updated} = Creators.update_brand_creator(brand_creator, brand_creator_attrs)
+
+    attrs =
+      %{cumulative_brand_gmv_cents: 1}
+      |> Map.merge(brand_creator_attrs)
+
+    {:ok, _updated} = Creators.update_brand_creator(brand_creator, attrs)
 
     creator
   end

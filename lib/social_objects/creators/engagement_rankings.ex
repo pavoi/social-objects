@@ -32,7 +32,7 @@ defmodule SocialObjects.Creators.EngagementRankings do
 
       vip_refreshed? = maybe_refresh_vip_roster(brand_id, l90_ranked, today)
       trending_ids = assign_trending(brand_id, l30_ranked)
-      assign_priorities(brand_id)
+      :ok = assign_priorities(brand_id)
 
       %{
         creators_ranked: length(brand_creators),
@@ -216,7 +216,8 @@ defmodule SocialObjects.Creators.EngagementRankings do
     WHERE brand_id = $1
     """
 
-    Repo.query!(sql, [brand_id, @rising_star_rank_cutoff])
+    _ = Repo.query!(sql, [brand_id, @rising_star_rank_cutoff])
+    :ok
   end
 
   defp now_naive do
