@@ -169,6 +169,20 @@ defmodule SocialObjects.Workers.Registry do
       requirements: [hard: :tiktok_auth],
       freshness_mode: :scheduled
     },
+    %{
+      key: :creator_engagement_ranking,
+      module: SocialObjects.Workers.CreatorEngagementRankingWorker,
+      name: "Creator Engagement Ranking",
+      description: "Recomputes creator L30/L90 ranks and system engagement badges",
+      category: :creators,
+      schedule: "Daily @ 7 AM",
+      queue: :analytics,
+      status_key: nil,
+      triggerable: true,
+      brand_scoped: true,
+      requirements: [hard: :tiktok_auth],
+      freshness_mode: :scheduled
+    },
 
     # Streaming
     %{

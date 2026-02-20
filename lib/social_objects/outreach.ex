@@ -9,6 +9,7 @@ defmodule SocialObjects.Outreach do
   import Ecto.Query, warn: false
   alias SocialObjects.Repo
 
+  alias SocialObjects.Creators
   alias SocialObjects.Creators.Creator
   alias SocialObjects.Outreach.EmailEvent
   alias SocialObjects.Outreach.OutreachLog
@@ -221,7 +222,36 @@ defmodule SocialObjects.Outreach do
       sent_at: Keyword.get(opts, :sent_at, DateTime.utc_now() |> DateTime.truncate(:second))
     })
     |> Repo.insert()
+    |> maybe_update_touchpoint_summary(brand_id, creator_id, channel, status)
   end
+
+  defp maybe_update_touchpoint_summary(
+         {:ok, %OutreachLog{} = log} = result,
+         brand_id,
+         creator_id,
+         channel,
+         status
+       ) do
+    with {:ok, touchpoint_type} <- normalize_touchpoint_type(channel),
+         true <- successful_touchpoint_status?(status) do
+      _ = Creators.record_outreach_touchpoint(brand_id, creator_id, touchpoint_type, log.sent_at)
+      result
+    else
+      _ -> result
+    end
+  end
+
+  defp maybe_update_touchpoint_summary(result, _brand_id, _creator_id, _channel, _status),
+    do: result
+
+  defp successful_touchpoint_status?(status),
+    do: status in [:sent, :delivered, "sent", "delivered"]
+
+  defp normalize_touchpoint_type(:email), do: {:ok, :email}
+  defp normalize_touchpoint_type(:sms), do: {:ok, :sms}
+  defp normalize_touchpoint_type("email"), do: {:ok, :email}
+  defp normalize_touchpoint_type("sms"), do: {:ok, :sms}
+  defp normalize_touchpoint_type(_), do: :error
 
   @doc """
   Lists outreach history for a creator, most recent first.

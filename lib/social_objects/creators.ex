@@ -18,6 +18,7 @@ defmodule SocialObjects.Creators do
     CreatorTag,
     CreatorTagAssignment,
     CreatorVideo,
+    CreatorVideoMetricSnapshot,
     CreatorVideoProduct
   }
 
@@ -62,7 +63,6 @@ defmodule SocialObjects.Creators do
       from(c in Creator)
       |> apply_creator_search_filter(Keyword.get(opts, :search_query, ""))
       |> apply_creator_badge_filter(Keyword.get(opts, :badge_level))
-      |> apply_creator_brand_filter(Keyword.get(opts, :brand_id))
       |> apply_creator_tag_filter(Keyword.get(opts, :tag_ids))
       |> apply_creator_brand_filter(brand_id)
 
@@ -120,6 +120,13 @@ defmodule SocialObjects.Creators do
       |> apply_creator_badge_filter(Keyword.get(opts, :badge_level))
       |> apply_creator_tag_filter(Keyword.get(opts, :tag_ids))
       |> apply_outreach_status_filter(Keyword.get(opts, :outreach_status), brand_id)
+      |> apply_segment_filter(Keyword.get(opts, :segment), brand_id)
+      |> apply_last_touchpoint_type_filter(Keyword.get(opts, :last_touchpoint_type), brand_id)
+      |> apply_preferred_contact_channel_filter(
+        Keyword.get(opts, :preferred_contact_channel),
+        brand_id
+      )
+      |> apply_next_touchpoint_state_filter(Keyword.get(opts, :next_touchpoint_state), brand_id)
       |> apply_added_after_filter(Keyword.get(opts, :added_after))
       |> apply_added_before_filter(Keyword.get(opts, :added_before))
       |> apply_creator_brand_filter(brand_id)
@@ -141,6 +148,35 @@ defmodule SocialObjects.Creators do
       per_page: per_page,
       has_more: total > page * per_page
     }
+  end
+
+  @spec get_creator_segment_stats(pos_integer()) :: %{
+          total: non_neg_integer(),
+          vip: non_neg_integer(),
+          trending: non_neg_integer(),
+          high_priority: non_neg_integer(),
+          needs_attention: non_neg_integer()
+        }
+  def get_creator_segment_stats(brand_id) do
+    from(bc in BrandCreator,
+      where: bc.brand_id == ^brand_id,
+      select: %{
+        total: count(bc.id),
+        vip: fragment("COALESCE(SUM(CASE WHEN ? THEN 1 ELSE 0 END), 0)", bc.is_vip),
+        trending: fragment("COALESCE(SUM(CASE WHEN ? THEN 1 ELSE 0 END), 0)", bc.is_trending),
+        high_priority:
+          fragment(
+            "COALESCE(SUM(CASE WHEN ? = 'high' THEN 1 ELSE 0 END), 0)",
+            bc.engagement_priority
+          ),
+        needs_attention:
+          fragment(
+            "COALESCE(SUM(CASE WHEN ? = 'monitor' THEN 1 ELSE 0 END), 0)",
+            bc.engagement_priority
+          )
+      }
+    )
+    |> Repo.one()
   end
 
   defp apply_outreach_status_filter(query, nil, _brand_id), do: query
@@ -204,6 +240,185 @@ defmodule SocialObjects.Creators do
   end
 
   defp apply_outreach_status_filter(query, _, _brand_id), do: query
+
+  defp apply_segment_filter(query, nil, _brand_id), do: query
+  defp apply_segment_filter(query, "", _brand_id), do: query
+  defp apply_segment_filter(query, _segment, nil), do: query
+
+  defp apply_segment_filter(query, "vip", brand_id) do
+    creator_ids_query =
+      from(bc in BrandCreator,
+        where: bc.brand_id == ^brand_id and bc.is_vip == true,
+        select: bc.creator_id
+      )
+
+    from(c in query, where: c.id in subquery(creator_ids_query))
+  end
+
+  defp apply_segment_filter(query, "trending", brand_id) do
+    creator_ids_query =
+      from(bc in BrandCreator,
+        where: bc.brand_id == ^brand_id and bc.is_trending == true,
+        select: bc.creator_id
+      )
+
+    from(c in query, where: c.id in subquery(creator_ids_query))
+  end
+
+  defp apply_segment_filter(query, "high_priority", brand_id) do
+    creator_ids_query =
+      from(bc in BrandCreator,
+        where: bc.brand_id == ^brand_id and bc.engagement_priority == :high,
+        select: bc.creator_id
+      )
+
+    from(c in query, where: c.id in subquery(creator_ids_query))
+  end
+
+  defp apply_segment_filter(query, "needs_attention", brand_id) do
+    creator_ids_query =
+      from(bc in BrandCreator,
+        where: bc.brand_id == ^brand_id and bc.engagement_priority == :monitor,
+        select: bc.creator_id
+      )
+
+    from(c in query, where: c.id in subquery(creator_ids_query))
+  end
+
+  defp apply_segment_filter(query, _segment, _brand_id), do: query
+
+  defp apply_last_touchpoint_type_filter(query, nil, _brand_id), do: query
+  defp apply_last_touchpoint_type_filter(query, "", _brand_id), do: query
+  defp apply_last_touchpoint_type_filter(query, _type, nil), do: query
+
+  defp apply_last_touchpoint_type_filter(query, type, brand_id) do
+    case type do
+      "email" ->
+        creator_ids_query =
+          from(bc in BrandCreator,
+            where: bc.brand_id == ^brand_id and bc.last_touchpoint_type == :email,
+            select: bc.creator_id
+          )
+
+        from(c in query, where: c.id in subquery(creator_ids_query))
+
+      "sms" ->
+        creator_ids_query =
+          from(bc in BrandCreator,
+            where: bc.brand_id == ^brand_id and bc.last_touchpoint_type == :sms,
+            select: bc.creator_id
+          )
+
+        from(c in query, where: c.id in subquery(creator_ids_query))
+
+      "manual" ->
+        creator_ids_query =
+          from(bc in BrandCreator,
+            where: bc.brand_id == ^brand_id and bc.last_touchpoint_type == :manual,
+            select: bc.creator_id
+          )
+
+        from(c in query, where: c.id in subquery(creator_ids_query))
+
+      _ ->
+        query
+    end
+  end
+
+  defp apply_preferred_contact_channel_filter(query, nil, _brand_id), do: query
+  defp apply_preferred_contact_channel_filter(query, "", _brand_id), do: query
+  defp apply_preferred_contact_channel_filter(query, _channel, nil), do: query
+
+  defp apply_preferred_contact_channel_filter(query, channel, brand_id) do
+    case channel do
+      "email" ->
+        creator_ids_query =
+          from(bc in BrandCreator,
+            where: bc.brand_id == ^brand_id and bc.preferred_contact_channel == :email,
+            select: bc.creator_id
+          )
+
+        from(c in query, where: c.id in subquery(creator_ids_query))
+
+      "sms" ->
+        creator_ids_query =
+          from(bc in BrandCreator,
+            where: bc.brand_id == ^brand_id and bc.preferred_contact_channel == :sms,
+            select: bc.creator_id
+          )
+
+        from(c in query, where: c.id in subquery(creator_ids_query))
+
+      "tiktok_dm" ->
+        creator_ids_query =
+          from(bc in BrandCreator,
+            where: bc.brand_id == ^brand_id and bc.preferred_contact_channel == :tiktok_dm,
+            select: bc.creator_id
+          )
+
+        from(c in query, where: c.id in subquery(creator_ids_query))
+
+      _ ->
+        query
+    end
+  end
+
+  defp apply_next_touchpoint_state_filter(query, nil, _brand_id), do: query
+  defp apply_next_touchpoint_state_filter(query, "", _brand_id), do: query
+  defp apply_next_touchpoint_state_filter(query, _state, nil), do: query
+
+  defp apply_next_touchpoint_state_filter(query, state, brand_id) do
+    case next_touchpoint_creator_ids_query(state, brand_id) do
+      nil -> query
+      creator_ids_query -> from(c in query, where: c.id in subquery(creator_ids_query))
+    end
+  end
+
+  defp next_touchpoint_creator_ids_query("scheduled", brand_id) do
+    now = touchpoint_filter_now()
+
+    from(bc in BrandCreator,
+      where: bc.brand_id == ^brand_id,
+      where: not is_nil(bc.next_touchpoint_at) and bc.next_touchpoint_at >= ^now,
+      select: bc.creator_id
+    )
+  end
+
+  defp next_touchpoint_creator_ids_query("due_this_week", brand_id) do
+    now = touchpoint_filter_now()
+    week_window_end = DateTime.add(now, 7 * 86_400, :second)
+
+    from(bc in BrandCreator,
+      where: bc.brand_id == ^brand_id,
+      where:
+        not is_nil(bc.next_touchpoint_at) and bc.next_touchpoint_at >= ^now and
+          bc.next_touchpoint_at < ^week_window_end,
+      select: bc.creator_id
+    )
+  end
+
+  defp next_touchpoint_creator_ids_query("overdue", brand_id) do
+    now = touchpoint_filter_now()
+
+    from(bc in BrandCreator,
+      where: bc.brand_id == ^brand_id,
+      where: not is_nil(bc.next_touchpoint_at) and bc.next_touchpoint_at < ^now,
+      select: bc.creator_id
+    )
+  end
+
+  defp next_touchpoint_creator_ids_query("unscheduled", brand_id) do
+    from(bc in BrandCreator,
+      where: bc.brand_id == ^brand_id and is_nil(bc.next_touchpoint_at),
+      select: bc.creator_id
+    )
+  end
+
+  defp next_touchpoint_creator_ids_query(_, _brand_id), do: nil
+
+  defp touchpoint_filter_now do
+    DateTime.utc_now() |> DateTime.truncate(:second)
+  end
 
   # Helper to conditionally filter by brand_id without causing PostgreSQL type inference issues
   defp maybe_filter_by_brand(query, _field, nil), do: query
@@ -303,6 +518,39 @@ defmodule SocialObjects.Creators do
     )
     |> order_by([brand_creator_cumulative_gmv: bc], [
       {^sort_dir_nulls_last(dir), bc.cumulative_brand_gmv_cents}
+    ])
+  end
+
+  defp apply_unified_sort(query, "last_touchpoint", dir, brand_id) do
+    query
+    |> join(:left, [c], bc in BrandCreator,
+      on: bc.creator_id == c.id and bc.brand_id == ^brand_id,
+      as: :brand_creator_last_touchpoint
+    )
+    |> order_by([brand_creator_last_touchpoint: bc], [
+      {^sort_dir_nulls_last(dir), bc.last_touchpoint_at}
+    ])
+  end
+
+  defp apply_unified_sort(query, "next_touchpoint", dir, brand_id) do
+    query
+    |> join(:left, [c], bc in BrandCreator,
+      on: bc.creator_id == c.id and bc.brand_id == ^brand_id,
+      as: :brand_creator_next_touchpoint
+    )
+    |> order_by([brand_creator_next_touchpoint: bc], [
+      {^sort_dir_nulls_last(dir), bc.next_touchpoint_at}
+    ])
+  end
+
+  defp apply_unified_sort(query, "priority", dir, brand_id) do
+    query
+    |> join(:left, [c], bc in BrandCreator,
+      on: bc.creator_id == c.id and bc.brand_id == ^brand_id,
+      as: :brand_creator_priority
+    )
+    |> order_by([brand_creator_priority: bc], [
+      {^sort_dir_nulls_last(dir), bc.engagement_priority}
     ])
   end
 
@@ -858,6 +1106,202 @@ defmodule SocialObjects.Creators do
     |> Repo.update()
   end
 
+  @spec batch_load_brand_creator_fields(pos_integer(), [pos_integer()]) :: %{
+          optional(pos_integer()) => map()
+        }
+  def batch_load_brand_creator_fields(brand_id, creator_ids) when is_list(creator_ids) do
+    if creator_ids == [] do
+      %{}
+    else
+      from(bc in BrandCreator,
+        where: bc.brand_id == ^brand_id and bc.creator_id in ^creator_ids,
+        select:
+          {bc.creator_id,
+           %{
+             brand_gmv_cents: bc.brand_gmv_cents,
+             brand_video_gmv_cents: bc.brand_video_gmv_cents,
+             brand_live_gmv_cents: bc.brand_live_gmv_cents,
+             cumulative_brand_gmv_cents: bc.cumulative_brand_gmv_cents,
+             cumulative_brand_video_gmv_cents: bc.cumulative_brand_video_gmv_cents,
+             cumulative_brand_live_gmv_cents: bc.cumulative_brand_live_gmv_cents,
+             brand_gmv_tracking_started_at: bc.brand_gmv_tracking_started_at,
+             video_count: bc.video_count,
+             live_count: bc.live_count,
+             last_touchpoint_at: bc.last_touchpoint_at,
+             last_touchpoint_type: bc.last_touchpoint_type,
+             preferred_contact_channel: bc.preferred_contact_channel,
+             next_touchpoint_at: bc.next_touchpoint_at,
+             is_vip: bc.is_vip,
+             is_trending: bc.is_trending,
+             l30d_rank: bc.l30d_rank,
+             l90d_rank: bc.l90d_rank,
+             l30d_gmv_cents: bc.l30d_gmv_cents,
+             stability_score: bc.stability_score,
+             engagement_priority: bc.engagement_priority,
+             vip_locked: bc.vip_locked
+           }}
+      )
+      |> Repo.all()
+      |> Map.new()
+    end
+  end
+
+  @spec update_brand_creator_engagement(pos_integer(), pos_integer(), map()) ::
+          {:ok, BrandCreator.t()} | {:error, Ecto.Changeset.t()}
+  def update_brand_creator_engagement(brand_id, creator_id, attrs) do
+    brand_creator = get_or_create_brand_creator!(brand_id, creator_id)
+
+    brand_creator
+    |> BrandCreator.changeset(normalize_engagement_attrs(attrs))
+    |> Repo.update()
+  end
+
+  @spec record_outreach_touchpoint(
+          pos_integer(),
+          pos_integer(),
+          BrandCreator.last_touchpoint_type(),
+          DateTime.t()
+        ) :: {:ok, BrandCreator.t()} | {:error, Ecto.Changeset.t()}
+  def record_outreach_touchpoint(brand_id, creator_id, touchpoint_type, %DateTime{} = touched_at)
+      when touchpoint_type in [:email, :sms] do
+    brand_creator = get_or_create_brand_creator!(brand_id, creator_id)
+
+    should_update? =
+      is_nil(brand_creator.last_touchpoint_at) or
+        DateTime.compare(touched_at, brand_creator.last_touchpoint_at) == :gt
+
+    if should_update? do
+      update_brand_creator(brand_creator, %{
+        last_touchpoint_at: touched_at,
+        last_touchpoint_type: touchpoint_type
+      })
+    else
+      {:ok, brand_creator}
+    end
+  end
+
+  @spec normalize_engagement_attrs(map()) :: map()
+  def normalize_engagement_attrs(attrs) when is_map(attrs) do
+    Enum.reduce(attrs, %{}, fn
+      {"last_touchpoint_at", value}, acc ->
+        put_engagement_datetime_value(acc, :last_touchpoint_at, value)
+
+      {"last_touchpoint_type", value}, acc ->
+        put_engagement_value(acc, :last_touchpoint_type, value)
+
+      {"preferred_contact_channel", value}, acc ->
+        put_engagement_value(acc, :preferred_contact_channel, value)
+
+      {"next_touchpoint_at", value}, acc ->
+        put_engagement_datetime_value(acc, :next_touchpoint_at, value)
+
+      {:last_touchpoint_at, value}, acc ->
+        put_engagement_datetime_value(acc, :last_touchpoint_at, value)
+
+      {:last_touchpoint_type, value}, acc ->
+        put_engagement_value(acc, :last_touchpoint_type, value)
+
+      {:preferred_contact_channel, value}, acc ->
+        put_engagement_value(acc, :preferred_contact_channel, value)
+
+      {:next_touchpoint_at, value}, acc ->
+        put_engagement_datetime_value(acc, :next_touchpoint_at, value)
+
+      _, acc ->
+        acc
+    end)
+  end
+
+  defp put_engagement_value(acc, key, ""), do: Map.put(acc, key, nil)
+  defp put_engagement_value(acc, key, value), do: Map.put(acc, key, value)
+
+  defp put_engagement_datetime_value(acc, key, ""), do: Map.put(acc, key, nil)
+  defp put_engagement_datetime_value(acc, key, nil), do: Map.put(acc, key, nil)
+
+  defp put_engagement_datetime_value(acc, key, %DateTime{} = value),
+    do: Map.put(acc, key, DateTime.truncate(value, :second))
+
+  defp put_engagement_datetime_value(acc, key, %NaiveDateTime{} = value) do
+    value
+    |> NaiveDateTime.truncate(:second)
+    |> DateTime.from_naive!("Etc/UTC")
+    |> then(&Map.put(acc, key, &1))
+  end
+
+  defp put_engagement_datetime_value(acc, key, %Date{} = value) do
+    value
+    |> DateTime.new!(~T[00:00:00], "Etc/UTC")
+    |> then(&Map.put(acc, key, &1))
+  end
+
+  defp put_engagement_datetime_value(acc, key, value) when is_binary(value) do
+    case parse_engagement_date_value(value) do
+      {:ok, parsed} -> Map.put(acc, key, parsed)
+      :error -> Map.put(acc, key, value)
+    end
+  end
+
+  defp put_engagement_datetime_value(acc, key, value), do: Map.put(acc, key, value)
+
+  defp parse_engagement_date_value(""), do: {:ok, nil}
+
+  defp parse_engagement_date_value(value) when is_binary(value) do
+    parsed =
+      parse_engagement_iso_datetime(value) ||
+        parse_naive_date_time(value) ||
+        parse_engagement_date_only(value)
+
+    case parsed do
+      nil -> :error
+      datetime -> {:ok, datetime}
+    end
+  end
+
+  defp parse_engagement_iso_datetime(value) do
+    case DateTime.from_iso8601(value) do
+      {:ok, datetime, _offset} -> DateTime.truncate(datetime, :second)
+      {:error, _} -> nil
+    end
+  end
+
+  defp parse_naive_date_time(value) do
+    normalized =
+      case String.length(value) do
+        16 -> value <> ":00"
+        _ -> value
+      end
+
+    with {:ok, naive} <- NaiveDateTime.from_iso8601(normalized),
+         {:ok, datetime} <- DateTime.from_naive(naive, "Etc/UTC") do
+      DateTime.truncate(datetime, :second)
+    else
+      _ -> nil
+    end
+  end
+
+  defp parse_engagement_date_only(value) do
+    case Date.from_iso8601(value) do
+      {:ok, date} -> DateTime.new!(date, ~T[00:00:00], "Etc/UTC")
+      {:error, _} -> nil
+    end
+  end
+
+  defp get_or_create_brand_creator!(brand_id, creator_id) do
+    case get_brand_creator(brand_id, creator_id) do
+      nil ->
+        case add_creator_to_brand(creator_id, brand_id) do
+          {:ok, %BrandCreator{} = created} ->
+            created
+
+          {:error, _} ->
+            Repo.get_by!(BrandCreator, brand_id: brand_id, creator_id: creator_id)
+        end
+
+      %BrandCreator{} = brand_creator ->
+        brand_creator
+    end
+  end
+
   ## Creator Samples
 
   @spec create_creator_sample(map()) ::
@@ -1093,42 +1537,287 @@ defmodule SocialObjects.Creators do
   @doc """
   Upserts a video by TikTok video ID.
 
-  If a video with the given tiktok_video_id exists for the brand, updates it.
-  Otherwise, creates a new video record.
-
-  Uses `on_conflict` to handle race conditions atomically.
+  The metrics on `creator_videos` are treated as best-known all-time values.
+  Monotonic metrics (GMV, views, items sold, orders, etc.) only move upward.
+  Non-monotonic fields (like CTR/GPM) update only when incoming GMV is at least
+  as strong as the existing all-time GMV, preventing low-quality rows from
+  clobbering stronger historical values.
 
   Returns `{:ok, video}` or `{:error, changeset}`.
   """
   def upsert_video_by_tiktok_id(brand_id, tiktok_video_id, attrs) do
     attrs_with_id = Map.put(attrs, :tiktok_video_id, tiktok_video_id)
-
-    # Fields to update on conflict (exclude immutable fields)
-    update_fields = [
-      :title,
-      :video_url,
-      :posted_at,
-      :gmv_cents,
-      :items_sold,
-      :affiliate_orders,
-      :impressions,
-      :likes,
-      :comments,
-      :shares,
-      :ctr,
-      :est_commission_cents,
-      :gpm_cents,
-      :duration,
-      :hash_tags,
-      :updated_at
-    ]
+    conflict_query = creator_video_upsert_conflict_query()
 
     %CreatorVideo{brand_id: brand_id}
     |> CreatorVideo.changeset(attrs_with_id)
     |> Repo.insert(
-      on_conflict: {:replace, update_fields},
+      on_conflict: conflict_query,
       conflict_target: :tiktok_video_id,
       returning: true
+    )
+  end
+
+  @spec list_video_metric_snapshots_by_keys(pos_integer(), Date.t(), pos_integer(), [String.t()]) ::
+          %{optional(String.t()) => map()}
+  @doc """
+  Loads existing metric snapshots for a specific `{date, window}` keyed by TikTok video id.
+  """
+  def list_video_metric_snapshots_by_keys(
+        _brand_id,
+        _snapshot_date,
+        _window_days,
+        []
+      ) do
+    %{}
+  end
+
+  def list_video_metric_snapshots_by_keys(brand_id, snapshot_date, window_days, tiktok_video_ids)
+      when is_list(tiktok_video_ids) do
+    from(s in CreatorVideoMetricSnapshot,
+      where: s.brand_id == ^brand_id,
+      where: s.snapshot_date == ^snapshot_date,
+      where: s.window_days == ^window_days,
+      where: s.tiktok_video_id in ^tiktok_video_ids,
+      select: %{
+        creator_video_id: s.creator_video_id,
+        tiktok_video_id: s.tiktok_video_id,
+        gmv_cents: s.gmv_cents,
+        views: s.views,
+        items_sold: s.items_sold,
+        gpm_cents: s.gpm_cents,
+        ctr: s.ctr
+      }
+    )
+    |> Repo.all()
+    |> Map.new(fn snapshot -> {snapshot.tiktok_video_id, snapshot} end)
+  end
+
+  @spec upsert_video_metric_snapshots([map()]) :: {non_neg_integer(), nil | [term()]}
+  @doc """
+  Bulk upserts video metric snapshots.
+
+  For same-day conflicts, keeps the stronger metric row (highest GMV, with
+  monotonic safeguards for cumulative metrics).
+  """
+  def upsert_video_metric_snapshots([]), do: {0, nil}
+
+  def upsert_video_metric_snapshots(rows) when is_list(rows) do
+    now = NaiveDateTime.utc_now() |> NaiveDateTime.truncate(:second)
+    conflict_query = creator_video_snapshot_upsert_conflict_query()
+
+    rows =
+      Enum.map(rows, fn row ->
+        row
+        |> Map.put(:updated_at, now)
+        |> Map.put_new(:inserted_at, now)
+      end)
+
+    Repo.insert_all(CreatorVideoMetricSnapshot, rows,
+      on_conflict: conflict_query,
+      conflict_target: [:brand_id, :tiktok_video_id, :snapshot_date, :window_days]
+    )
+  end
+
+  defp creator_video_upsert_conflict_query do
+    from(v in CreatorVideo,
+      update: [
+        set: [
+          title:
+            fragment(
+              """
+              CASE
+                WHEN COALESCE(EXCLUDED.gmv_cents, 0) >= COALESCE(?, 0)
+                THEN EXCLUDED.title
+                ELSE ?
+              END
+              """,
+              v.gmv_cents,
+              v.title
+            ),
+          video_url:
+            fragment(
+              """
+              CASE
+                WHEN COALESCE(EXCLUDED.gmv_cents, 0) >= COALESCE(?, 0)
+                THEN EXCLUDED.video_url
+                ELSE ?
+              END
+              """,
+              v.gmv_cents,
+              v.video_url
+            ),
+          posted_at: fragment("COALESCE(?, EXCLUDED.posted_at)", v.posted_at),
+          gmv_cents:
+            fragment(
+              "GREATEST(COALESCE(?, 0), COALESCE(EXCLUDED.gmv_cents, 0))",
+              v.gmv_cents
+            ),
+          items_sold:
+            fragment(
+              "GREATEST(COALESCE(?, 0), COALESCE(EXCLUDED.items_sold, 0))",
+              v.items_sold
+            ),
+          affiliate_orders:
+            fragment(
+              "GREATEST(COALESCE(?, 0), COALESCE(EXCLUDED.affiliate_orders, 0))",
+              v.affiliate_orders
+            ),
+          impressions:
+            fragment(
+              "GREATEST(COALESCE(?, 0), COALESCE(EXCLUDED.impressions, 0))",
+              v.impressions
+            ),
+          likes: fragment("GREATEST(COALESCE(?, 0), COALESCE(EXCLUDED.likes, 0))", v.likes),
+          comments:
+            fragment(
+              "GREATEST(COALESCE(?, 0), COALESCE(EXCLUDED.comments, 0))",
+              v.comments
+            ),
+          shares: fragment("GREATEST(COALESCE(?, 0), COALESCE(EXCLUDED.shares, 0))", v.shares),
+          ctr:
+            fragment(
+              """
+              CASE
+                WHEN COALESCE(EXCLUDED.gmv_cents, 0) >= COALESCE(?, 0)
+                THEN EXCLUDED.ctr
+                ELSE ?
+              END
+              """,
+              v.gmv_cents,
+              v.ctr
+            ),
+          est_commission_cents:
+            fragment(
+              """
+              GREATEST(
+                COALESCE(?, 0),
+                COALESCE(EXCLUDED.est_commission_cents, 0)
+              )
+              """,
+              v.est_commission_cents
+            ),
+          gpm_cents:
+            fragment(
+              """
+              CASE
+                WHEN COALESCE(EXCLUDED.gmv_cents, 0) >= COALESCE(?, 0)
+                THEN EXCLUDED.gpm_cents
+                ELSE ?
+              END
+              """,
+              v.gmv_cents,
+              v.gpm_cents
+            ),
+          duration:
+            fragment(
+              """
+              CASE
+                WHEN COALESCE(EXCLUDED.gmv_cents, 0) >= COALESCE(?, 0)
+                THEN EXCLUDED.duration
+                ELSE ?
+              END
+              """,
+              v.gmv_cents,
+              v.duration
+            ),
+          hash_tags:
+            fragment(
+              """
+              CASE
+                WHEN COALESCE(EXCLUDED.gmv_cents, 0) >= COALESCE(?, 0)
+                THEN EXCLUDED.hash_tags
+                ELSE ?
+              END
+              """,
+              v.gmv_cents,
+              v.hash_tags
+            ),
+          updated_at: fragment("NOW()")
+        ]
+      ]
+    )
+  end
+
+  defp creator_video_snapshot_upsert_conflict_query do
+    from(s in CreatorVideoMetricSnapshot,
+      update: [
+        set: [
+          creator_video_id:
+            fragment("COALESCE(EXCLUDED.creator_video_id, ?)", s.creator_video_id),
+          gmv_cents:
+            fragment(
+              """
+              GREATEST(
+                COALESCE(?, 0),
+                COALESCE(EXCLUDED.gmv_cents, 0)
+              )
+              """,
+              s.gmv_cents
+            ),
+          views:
+            fragment(
+              """
+              GREATEST(
+                COALESCE(?, 0),
+                COALESCE(EXCLUDED.views, 0)
+              )
+              """,
+              s.views
+            ),
+          items_sold:
+            fragment(
+              """
+              GREATEST(
+                COALESCE(?, 0),
+                COALESCE(EXCLUDED.items_sold, 0)
+              )
+              """,
+              s.items_sold
+            ),
+          gpm_cents:
+            fragment(
+              """
+              CASE
+                WHEN COALESCE(EXCLUDED.gmv_cents, 0) >=
+                     COALESCE(?, 0)
+                THEN EXCLUDED.gpm_cents
+                ELSE ?
+              END
+              """,
+              s.gmv_cents,
+              s.gpm_cents
+            ),
+          ctr:
+            fragment(
+              """
+              CASE
+                WHEN COALESCE(EXCLUDED.gmv_cents, 0) >=
+                     COALESCE(?, 0)
+                THEN EXCLUDED.ctr
+                ELSE ?
+              END
+              """,
+              s.gmv_cents,
+              s.ctr
+            ),
+          source_run_id: fragment("COALESCE(EXCLUDED.source_run_id, ?)", s.source_run_id),
+          raw_payload:
+            fragment(
+              """
+              CASE
+                WHEN COALESCE(EXCLUDED.gmv_cents, 0) >=
+                     COALESCE(?, 0)
+                THEN EXCLUDED.raw_payload
+                ELSE ?
+              END
+              """,
+              s.gmv_cents,
+              s.raw_payload
+            ),
+          updated_at: fragment("NOW()")
+        ]
+      ]
     )
   end
 
@@ -1212,9 +1901,10 @@ defmodule SocialObjects.Creators do
 
   ## Options
     - brand_id: Filter by brand (required)
+    - period: "all", "30", or "90" (default: "all")
     - search_query: Search by title, creator username, or hashtags
     - creator_id: Filter by specific creator
-    - min_gmv: Minimum GMV in cents
+    - min_gmv: Minimum GMV in cents (applies to selected metric source)
     - posted_after: Filter videos posted after date
     - posted_before: Filter videos posted before date
     - hashtags: List of hashtags to filter by
@@ -1232,37 +1922,14 @@ defmodule SocialObjects.Creators do
     sort_by = Keyword.get(opts, :sort_by, "gmv")
     sort_dir = Keyword.get(opts, :sort_dir, "desc")
     brand_id = Keyword.get(opts, :brand_id)
+    metric_period = normalize_video_metric_period(Keyword.get(opts, :period, "all"))
+
+    {base_query, metric_source} = build_video_search_query(brand_id, metric_period)
 
     query =
-      from(v in CreatorVideo,
-        where: v.brand_id == ^brand_id,
-        join: c in assoc(v, :creator),
-        # Only select fields needed for video card display to reduce payload size
-        select: %{
-          id: v.id,
-          thumbnail_url: v.thumbnail_url,
-          thumbnail_storage_key: v.thumbnail_storage_key,
-          duration: v.duration,
-          title: v.title,
-          gmv_cents: v.gmv_cents,
-          gpm_cents: v.gpm_cents,
-          impressions: v.impressions,
-          ctr: v.ctr,
-          posted_at: v.posted_at,
-          items_sold: v.items_sold,
-          tiktok_video_id: v.tiktok_video_id,
-          video_url: v.video_url,
-          creator: %{
-            id: c.id,
-            tiktok_username: c.tiktok_username,
-            tiktok_avatar_url: c.tiktok_avatar_url,
-            tiktok_avatar_storage_key: c.tiktok_avatar_storage_key,
-            tiktok_nickname: c.tiktok_nickname
-          }
-        }
-      )
+      base_query
       |> apply_video_search_filter(Keyword.get(opts, :search_query, ""))
-      |> apply_video_min_gmv_filter(Keyword.get(opts, :min_gmv))
+      |> apply_video_min_gmv_filter(Keyword.get(opts, :min_gmv), metric_source)
       |> apply_video_creator_filter(Keyword.get(opts, :creator_id))
       |> apply_video_date_filter(
         Keyword.get(opts, :posted_after),
@@ -1278,7 +1945,7 @@ defmodule SocialObjects.Creators do
     # Fetch one extra row to determine if there are more results
     videos =
       query
-      |> apply_video_sort(sort_by, sort_dir)
+      |> apply_video_sort(sort_by, sort_dir, metric_source)
       |> limit(^(per_page + 1))
       |> offset(^((page - 1) * per_page))
       |> Repo.all()
@@ -1297,22 +1964,10 @@ defmodule SocialObjects.Creators do
           (page - 1) * per_page + length(videos)
         end
       else
-        # Build count query without select clause
-        count_query =
-          from(v in CreatorVideo,
-            where: v.brand_id == ^brand_id,
-            join: c in assoc(v, :creator)
-          )
-          |> apply_video_search_filter(Keyword.get(opts, :search_query, ""))
-          |> apply_video_min_gmv_filter(Keyword.get(opts, :min_gmv))
-          |> apply_video_creator_filter(Keyword.get(opts, :creator_id))
-          |> apply_video_date_filter(
-            Keyword.get(opts, :posted_after),
-            Keyword.get(opts, :posted_before)
-          )
-          |> apply_video_hashtag_filter(Keyword.get(opts, :hashtags))
-
-        Repo.aggregate(count_query, :count)
+        query
+        |> exclude(:select)
+        |> exclude(:order_by)
+        |> Repo.aggregate(:count)
       end
 
     %{
@@ -1343,13 +1998,107 @@ defmodule SocialObjects.Creators do
   end
 
   # Video search filter helpers
+  defp normalize_video_metric_period("30"), do: {:snapshot, 30}
+  defp normalize_video_metric_period("90"), do: {:snapshot, 90}
+  defp normalize_video_metric_period("all"), do: :all_time
+  defp normalize_video_metric_period(_), do: :all_time
+
+  defp build_video_search_query(brand_id, :all_time) do
+    query =
+      from(v in CreatorVideo,
+        as: :video,
+        where: v.brand_id == ^brand_id,
+        join: c in assoc(v, :creator),
+        as: :creator,
+        select: %{
+          id: v.id,
+          thumbnail_url: v.thumbnail_url,
+          thumbnail_storage_key: v.thumbnail_storage_key,
+          duration: v.duration,
+          title: v.title,
+          gmv_cents: v.gmv_cents,
+          gpm_cents: v.gpm_cents,
+          impressions: v.impressions,
+          ctr: v.ctr,
+          posted_at: v.posted_at,
+          items_sold: v.items_sold,
+          tiktok_video_id: v.tiktok_video_id,
+          video_url: v.video_url,
+          creator: %{
+            id: c.id,
+            tiktok_username: c.tiktok_username,
+            tiktok_avatar_url: c.tiktok_avatar_url,
+            tiktok_avatar_storage_key: c.tiktok_avatar_storage_key,
+            tiktok_nickname: c.tiktok_nickname
+          }
+        }
+      )
+
+    {query, :all_time}
+  end
+
+  defp build_video_search_query(brand_id, {:snapshot, window_days}) do
+    latest_snapshot_query = latest_video_metric_snapshots_query(brand_id, window_days)
+
+    query =
+      from(v in CreatorVideo,
+        as: :video,
+        where: v.brand_id == ^brand_id,
+        join: c in assoc(v, :creator),
+        as: :creator,
+        left_join: s in subquery(latest_snapshot_query),
+        as: :snapshot,
+        on: s.tiktok_video_id == v.tiktok_video_id,
+        select: %{
+          id: v.id,
+          thumbnail_url: v.thumbnail_url,
+          thumbnail_storage_key: v.thumbnail_storage_key,
+          duration: v.duration,
+          title: v.title,
+          gmv_cents: coalesce(s.gmv_cents, 0),
+          gpm_cents: s.gpm_cents,
+          impressions: coalesce(s.views, 0),
+          ctr: s.ctr,
+          posted_at: v.posted_at,
+          items_sold: coalesce(s.items_sold, 0),
+          tiktok_video_id: v.tiktok_video_id,
+          video_url: v.video_url,
+          creator: %{
+            id: c.id,
+            tiktok_username: c.tiktok_username,
+            tiktok_avatar_url: c.tiktok_avatar_url,
+            tiktok_avatar_storage_key: c.tiktok_avatar_storage_key,
+            tiktok_nickname: c.tiktok_nickname
+          }
+        }
+      )
+
+    {query, :snapshot}
+  end
+
+  defp latest_video_metric_snapshots_query(brand_id, window_days) do
+    from(s in CreatorVideoMetricSnapshot,
+      where: s.brand_id == ^brand_id and s.window_days == ^window_days,
+      distinct: s.tiktok_video_id,
+      order_by: [asc: s.tiktok_video_id, desc: s.snapshot_date, desc: s.id],
+      select: %{
+        tiktok_video_id: s.tiktok_video_id,
+        gmv_cents: s.gmv_cents,
+        gpm_cents: s.gpm_cents,
+        views: s.views,
+        ctr: s.ctr,
+        items_sold: s.items_sold
+      }
+    )
+  end
+
   defp apply_video_search_filter(query, ""), do: query
   defp apply_video_search_filter(query, nil), do: query
 
   defp apply_video_search_filter(query, search_query) do
     pattern = "%#{search_query}%"
 
-    from([v, c] in query,
+    from([video: v, creator: c] in query,
       where:
         ilike(v.title, ^pattern) or
           ilike(c.tiktok_username, ^pattern) or
@@ -1361,17 +2110,21 @@ defmodule SocialObjects.Creators do
     )
   end
 
-  defp apply_video_min_gmv_filter(query, nil), do: query
-  defp apply_video_min_gmv_filter(query, 0), do: query
+  defp apply_video_min_gmv_filter(query, nil, _metric_source), do: query
+  defp apply_video_min_gmv_filter(query, 0, _metric_source), do: query
 
-  defp apply_video_min_gmv_filter(query, min_gmv) when is_integer(min_gmv) do
-    where(query, [v], v.gmv_cents >= ^min_gmv)
+  defp apply_video_min_gmv_filter(query, min_gmv, :all_time) when is_integer(min_gmv) do
+    where(query, [video: v], v.gmv_cents >= ^min_gmv)
+  end
+
+  defp apply_video_min_gmv_filter(query, min_gmv, :snapshot) when is_integer(min_gmv) do
+    where(query, [snapshot: s], coalesce(s.gmv_cents, 0) >= ^min_gmv)
   end
 
   defp apply_video_creator_filter(query, nil), do: query
 
   defp apply_video_creator_filter(query, creator_id) do
-    where(query, [v], v.creator_id == ^creator_id)
+    where(query, [video: v], v.creator_id == ^creator_id)
   end
 
   defp apply_video_date_filter(query, nil, nil), do: query
@@ -1383,55 +2136,89 @@ defmodule SocialObjects.Creators do
   end
 
   defp maybe_apply_posted_after(query, nil), do: query
-  defp maybe_apply_posted_after(query, date), do: where(query, [v], v.posted_at >= ^date)
+  defp maybe_apply_posted_after(query, date), do: where(query, [video: v], v.posted_at >= ^date)
 
   defp maybe_apply_posted_before(query, nil), do: query
-  defp maybe_apply_posted_before(query, date), do: where(query, [v], v.posted_at <= ^date)
+  defp maybe_apply_posted_before(query, date), do: where(query, [video: v], v.posted_at <= ^date)
 
   defp apply_video_hashtag_filter(query, nil), do: query
   defp apply_video_hashtag_filter(query, []), do: query
 
   defp apply_video_hashtag_filter(query, hashtags) when is_list(hashtags) do
-    where(query, [v], fragment("? && ?", v.hash_tags, ^hashtags))
+    where(query, [video: v], fragment("? && ?", v.hash_tags, ^hashtags))
   end
 
-  defp apply_video_sort(query, "gmv", "desc"),
-    do: order_by(query, [v], desc_nulls_last: v.gmv_cents)
+  defp apply_video_sort(query, "gmv", "desc", :all_time),
+    do: order_by(query, [video: v], desc_nulls_last: v.gmv_cents)
 
-  defp apply_video_sort(query, "gmv", "asc"),
-    do: order_by(query, [v], asc_nulls_last: v.gmv_cents)
+  defp apply_video_sort(query, "gmv", "asc", :all_time),
+    do: order_by(query, [video: v], asc_nulls_last: v.gmv_cents)
 
-  defp apply_video_sort(query, "gpm", "desc"),
-    do: order_by(query, [v], desc_nulls_last: v.gpm_cents)
+  defp apply_video_sort(query, "gpm", "desc", :all_time),
+    do: order_by(query, [video: v], desc_nulls_last: v.gpm_cents)
 
-  defp apply_video_sort(query, "gpm", "asc"),
-    do: order_by(query, [v], asc_nulls_last: v.gpm_cents)
+  defp apply_video_sort(query, "gpm", "asc", :all_time),
+    do: order_by(query, [video: v], asc_nulls_last: v.gpm_cents)
 
-  defp apply_video_sort(query, "views", "desc"),
-    do: order_by(query, [v], desc_nulls_last: v.impressions)
+  defp apply_video_sort(query, "views", "desc", :all_time),
+    do: order_by(query, [video: v], desc_nulls_last: v.impressions)
 
-  defp apply_video_sort(query, "views", "asc"),
-    do: order_by(query, [v], asc_nulls_last: v.impressions)
+  defp apply_video_sort(query, "views", "asc", :all_time),
+    do: order_by(query, [video: v], asc_nulls_last: v.impressions)
 
-  defp apply_video_sort(query, "ctr", "desc"),
-    do: order_by(query, [v], desc_nulls_last: v.ctr)
+  defp apply_video_sort(query, "ctr", "desc", :all_time),
+    do: order_by(query, [video: v], desc_nulls_last: v.ctr)
 
-  defp apply_video_sort(query, "ctr", "asc"),
-    do: order_by(query, [v], asc_nulls_last: v.ctr)
+  defp apply_video_sort(query, "ctr", "asc", :all_time),
+    do: order_by(query, [video: v], asc_nulls_last: v.ctr)
 
-  defp apply_video_sort(query, "items_sold", "desc"),
-    do: order_by(query, [v], desc_nulls_last: v.items_sold)
+  defp apply_video_sort(query, "items_sold", "desc", :all_time),
+    do: order_by(query, [video: v], desc_nulls_last: v.items_sold)
 
-  defp apply_video_sort(query, "items_sold", "asc"),
-    do: order_by(query, [v], asc_nulls_last: v.items_sold)
+  defp apply_video_sort(query, "items_sold", "asc", :all_time),
+    do: order_by(query, [video: v], asc_nulls_last: v.items_sold)
 
-  defp apply_video_sort(query, "posted_at", "desc"),
-    do: order_by(query, [v], desc_nulls_last: v.posted_at)
+  defp apply_video_sort(query, "gmv", "desc", :snapshot),
+    do: order_by(query, [snapshot: s], desc_nulls_last: s.gmv_cents)
 
-  defp apply_video_sort(query, "posted_at", "asc"),
-    do: order_by(query, [v], asc_nulls_last: v.posted_at)
+  defp apply_video_sort(query, "gmv", "asc", :snapshot),
+    do: order_by(query, [snapshot: s], asc_nulls_last: s.gmv_cents)
 
-  defp apply_video_sort(query, _, _), do: order_by(query, [v], desc_nulls_last: v.gmv_cents)
+  defp apply_video_sort(query, "gpm", "desc", :snapshot),
+    do: order_by(query, [snapshot: s], desc_nulls_last: s.gpm_cents)
+
+  defp apply_video_sort(query, "gpm", "asc", :snapshot),
+    do: order_by(query, [snapshot: s], asc_nulls_last: s.gpm_cents)
+
+  defp apply_video_sort(query, "views", "desc", :snapshot),
+    do: order_by(query, [snapshot: s], desc_nulls_last: s.views)
+
+  defp apply_video_sort(query, "views", "asc", :snapshot),
+    do: order_by(query, [snapshot: s], asc_nulls_last: s.views)
+
+  defp apply_video_sort(query, "ctr", "desc", :snapshot),
+    do: order_by(query, [snapshot: s], desc_nulls_last: s.ctr)
+
+  defp apply_video_sort(query, "ctr", "asc", :snapshot),
+    do: order_by(query, [snapshot: s], asc_nulls_last: s.ctr)
+
+  defp apply_video_sort(query, "items_sold", "desc", :snapshot),
+    do: order_by(query, [snapshot: s], desc_nulls_last: s.items_sold)
+
+  defp apply_video_sort(query, "items_sold", "asc", :snapshot),
+    do: order_by(query, [snapshot: s], asc_nulls_last: s.items_sold)
+
+  defp apply_video_sort(query, "posted_at", "desc", _metric_source),
+    do: order_by(query, [video: v], desc_nulls_last: v.posted_at)
+
+  defp apply_video_sort(query, "posted_at", "asc", _metric_source),
+    do: order_by(query, [video: v], asc_nulls_last: v.posted_at)
+
+  defp apply_video_sort(query, _, _, :all_time),
+    do: order_by(query, [video: v], desc_nulls_last: v.gmv_cents)
+
+  defp apply_video_sort(query, _, _, :snapshot),
+    do: order_by(query, [snapshot: s], desc_nulls_last: s.gmv_cents)
 
   @spec batch_load_snapshot_deltas([pos_integer()], pos_integer()) :: %{
           optional(pos_integer()) => %{

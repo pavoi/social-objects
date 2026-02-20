@@ -251,7 +251,8 @@ defmodule SocialObjects.Workers.RequirementsConsistencyTest do
       "video_sync",
       "product_performance_sync",
       "brand_gmv_sync",
-      "creator_purchase_sync"
+      "creator_purchase_sync",
+      "creator_engagement_ranking"
     ]
 
     test "all cron tasks map to valid workers" do

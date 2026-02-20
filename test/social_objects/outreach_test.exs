@@ -147,6 +147,76 @@ defmodule SocialObjects.OutreachTest do
     end
   end
 
+  describe "touchpoint summary automation" do
+    test "updates brand_creator touchpoint only for successful sends and newer timestamps" do
+      {:ok, brand} =
+        Catalog.create_brand(%{name: "Touchpoint Brand", slug: unique_brand_slug("touchpoint")})
+
+      {:ok, creator} =
+        Creators.create_creator(%{
+          tiktok_username: "touchpoint_test",
+          email: "touchpoint@example.com"
+        })
+
+      _ = Creators.add_creator_to_brand(creator.id, brand.id)
+
+      sent_at_old =
+        DateTime.utc_now() |> DateTime.add(-3600, :second) |> DateTime.truncate(:second)
+
+      sent_at_new = DateTime.utc_now() |> DateTime.truncate(:second)
+
+      assert {:ok, _} =
+               Outreach.log_outreach(brand.id, creator.id, :email, :sent, sent_at: sent_at_old)
+
+      bc = Creators.get_brand_creator(brand.id, creator.id)
+      assert bc.last_touchpoint_type == :email
+      assert DateTime.compare(bc.last_touchpoint_at, sent_at_old) == :eq
+
+      # Older successful touchpoint should not override summary
+      older_sms = DateTime.add(sent_at_old, -600, :second)
+
+      assert {:ok, _} =
+               Outreach.log_outreach(brand.id, creator.id, :sms, :delivered, sent_at: older_sms)
+
+      bc = Creators.get_brand_creator(brand.id, creator.id)
+      assert bc.last_touchpoint_type == :email
+      assert DateTime.compare(bc.last_touchpoint_at, sent_at_old) == :eq
+
+      # Newer successful touchpoint should update summary
+      assert {:ok, _} =
+               Outreach.log_outreach(brand.id, creator.id, :sms, :delivered, sent_at: sent_at_new)
+
+      bc = Creators.get_brand_creator(brand.id, creator.id)
+      assert bc.last_touchpoint_type == :sms
+      assert DateTime.compare(bc.last_touchpoint_at, sent_at_new) == :eq
+    end
+
+    test "ignores failed and bounced statuses for touchpoint summary" do
+      {:ok, brand} =
+        Catalog.create_brand(%{
+          name: "Touchpoint Brand 2",
+          slug: unique_brand_slug("touchpoint-2")
+        })
+
+      {:ok, creator} =
+        Creators.create_creator(%{
+          tiktok_username: "touchpoint_ignore",
+          email: "touchpoint-ignore@example.com"
+        })
+
+      _ = Creators.add_creator_to_brand(creator.id, brand.id)
+
+      now = DateTime.utc_now() |> DateTime.truncate(:second)
+
+      assert {:ok, _} = Outreach.log_outreach(brand.id, creator.id, :email, :failed, sent_at: now)
+      assert {:ok, _} = Outreach.log_outreach(brand.id, creator.id, :sms, :bounced, sent_at: now)
+
+      bc = Creators.get_brand_creator(brand.id, creator.id)
+      assert is_nil(bc.last_touchpoint_at)
+      assert is_nil(bc.last_touchpoint_type)
+    end
+  end
+
   defp unique_brand_slug(prefix) do
     "#{prefix}-#{System.unique_integer([:positive])}"
   end

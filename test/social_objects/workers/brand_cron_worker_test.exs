@@ -178,6 +178,27 @@ defmodule SocialObjects.Workers.BrandCronWorkerTest do
     end
   end
 
+  describe "perform/1 with creator_engagement_ranking task" do
+    test "enqueues jobs only for brands with TikTok auth" do
+      brand_with_auth = brand_fixture()
+      create_tiktok_shop_auth(brand_with_auth.id)
+
+      brand_without_auth = brand_fixture()
+
+      assert :ok = perform_job(BrandCronWorker, %{"task" => "creator_engagement_ranking"})
+
+      assert_enqueued(
+        worker: SocialObjects.Workers.CreatorEngagementRankingWorker,
+        args: %{"brand_id" => brand_with_auth.id}
+      )
+
+      refute_enqueued(
+        worker: SocialObjects.Workers.CreatorEngagementRankingWorker,
+        args: %{"brand_id" => brand_without_auth.id}
+      )
+    end
+  end
+
   describe "perform/1 with weekly_stream_recap task" do
     test "enqueues jobs for all brands regardless of configuration" do
       brand1 = brand_fixture()

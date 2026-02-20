@@ -39,7 +39,8 @@ defmodule SocialObjects.Workers.BrandCronWorker do
     "video_sync" => :video_sync,
     "product_performance_sync" => :product_performance_sync,
     "brand_gmv_sync" => :brand_gmv_sync,
-    "creator_purchase_sync" => :creator_purchase_sync
+    "creator_purchase_sync" => :creator_purchase_sync,
+    "creator_engagement_ranking" => :creator_engagement_ranking
   }
 
   @impl Oban.Worker

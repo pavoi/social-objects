@@ -354,6 +354,28 @@ defmodule SocialObjects.Settings do
     upsert_setting(brand_id, "brand_gmv_last_sync_at", now_iso(), "datetime")
   end
 
+  @spec get_vip_cycle_started_at(pos_integer()) :: Date.t() | nil
+  @doc """
+  Gets the VIP cycle start date for a brand.
+
+  Returns nil when no cycle start has been configured.
+  """
+  def get_vip_cycle_started_at(brand_id) do
+    case Repo.get_by(SystemSetting, brand_id: brand_id, key: "vip_cycle_started_at") do
+      nil -> nil
+      setting -> parse_date(setting.value)
+    end
+  end
+
+  @spec update_vip_cycle_started_at(pos_integer(), Date.t()) ::
+          {:ok, SystemSetting.t()} | {:error, Ecto.Changeset.t()}
+  @doc """
+  Sets the VIP cycle start date for a brand.
+  """
+  def update_vip_cycle_started_at(brand_id, %Date{} = date) do
+    upsert_setting(brand_id, "vip_cycle_started_at", Date.to_iso8601(date), "date")
+  end
+
   @spec get_setting(pos_integer(), String.t()) :: String.t() | nil
   @doc """
   Gets a generic string setting by key.
@@ -796,6 +818,15 @@ defmodule SocialObjects.Settings do
   defp parse_datetime(value) when is_binary(value) do
     case DateTime.from_iso8601(value) do
       {:ok, datetime, _offset} -> datetime
+      {:error, _} -> nil
+    end
+  end
+
+  defp parse_date(nil), do: nil
+
+  defp parse_date(value) when is_binary(value) do
+    case Date.from_iso8601(value) do
+      {:ok, date} -> date
       {:error, _} -> nil
     end
   end

@@ -101,6 +101,18 @@ defmodule SocialObjects.SettingsTest do
     assert Settings.get_tiktok_live_accounts(brand.id) == ["alpha", "beta"]
   end
 
+  test "vip cycle started_at is stored per brand" do
+    brand_a = catalog_brand_fixture()
+    brand_b = catalog_brand_fixture()
+
+    assert is_nil(Settings.get_vip_cycle_started_at(brand_a.id))
+    assert is_nil(Settings.get_vip_cycle_started_at(brand_b.id))
+
+    assert {:ok, _} = Settings.update_vip_cycle_started_at(brand_a.id, ~D[2026-01-01])
+    assert Settings.get_vip_cycle_started_at(brand_a.id) == ~D[2026-01-01]
+    assert is_nil(Settings.get_vip_cycle_started_at(brand_b.id))
+  end
+
   defp catalog_brand_fixture do
     unique = System.unique_integer([:positive])
 
