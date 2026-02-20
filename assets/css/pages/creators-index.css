@@ -74,6 +74,23 @@
   box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
 }
 
+.hide-inactive-toggle {
+  @apply inline-flex items-center gap-2 h-9 px-3 bg-surface-primary text-sm text-text-secondary whitespace-nowrap cursor-pointer;
+  border: 1px solid var(--color-border-primary);
+  border-radius: var(--radius-md);
+  transition: all 0.15s ease;
+}
+
+.hide-inactive-toggle:hover {
+  @apply text-text-primary;
+  border-color: var(--color-text-secondary);
+}
+
+.hide-inactive-toggle input[type="checkbox"] {
+  @apply w-4 h-4 m-0 cursor-pointer;
+  accent-color: var(--color-primary);
+}
+
 .creators-index .page-header__right {
   @apply flex flex-col items-end gap-2 shrink-0;
   transition: all 0.2s ease;
@@ -338,6 +355,14 @@
     @apply min-w-[32px] h-8 p-0;
   }
 
+  .hide-inactive-toggle {
+    @apply h-8 px-2 text-xs gap-1.5;
+  }
+
+  .hide-inactive-toggle input[type="checkbox"] {
+    @apply w-3.5 h-3.5;
+  }
+
   .creators-index .engagement-tracking-filters {
     @apply w-full flex-col items-start gap-2 px-2.5;
   }
@@ -364,13 +389,13 @@
    ============================================ */
 
 .time-preset-filter {
-  @apply relative flex items-center h-[30px];
+  @apply relative flex items-center h-9;
 }
 
 .time-preset-filter__trigger {
-  @apply flex items-center justify-center h-[30px] px-2 bg-surface-primary text-text-secondary cursor-pointer;
+  @apply flex items-center justify-center h-9 w-9 bg-surface-primary text-text-secondary cursor-pointer;
   border-radius: var(--radius-md);
-  border: 1px solid var(--color-border);
+  border: 1px solid var(--color-border-primary);
   transition: all 0.15s ease;
 }
 
@@ -388,8 +413,8 @@
 }
 
 .time-preset-filter__content {
-  @apply absolute right-0 top-0 flex items-center gap-2 h-[30px] px-1 bg-surface-primary opacity-0 invisible z-10;
-  border: 1px solid var(--color-border);
+  @apply absolute right-0 top-0 flex items-center gap-2 h-9 px-1 bg-surface-primary opacity-0 invisible z-10;
+  border: 1px solid var(--color-border-primary);
   border-radius: var(--radius-md);
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
   transform: translateX(4px);
@@ -432,12 +457,12 @@
 
 .dark .time-preset-filter__trigger {
   @apply bg-surface-secondary;
-  border-color: var(--color-border);
+  border-color: var(--color-border-primary);
 }
 
 .dark .time-preset-filter__content {
   @apply bg-surface-secondary;
-  border-color: var(--color-border);
+  border-color: var(--color-border-primary);
 }
 
 .dark .preset-buttons {

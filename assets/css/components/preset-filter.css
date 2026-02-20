@@ -7,14 +7,13 @@
 
 .preset-filter {
   --preset-expanded-width: 220px;
-  @apply flex items-center h-[30px] shrink-0;
+  @apply flex items-center h-9 shrink-0;
 }
 
 .preset-filter__trigger {
-  @apply flex items-center justify-center gap-1 h-[30px] px-2 bg-surface-primary text-text-secondary cursor-pointer shrink-0 overflow-hidden;
-  min-width: 32px;
+  @apply flex items-center justify-center gap-1 h-9 w-9 bg-surface-primary text-text-secondary cursor-pointer shrink-0 overflow-hidden;
   border-radius: var(--radius-md);
-  border: 1px solid var(--color-border);
+  border: 1px solid var(--color-border-primary);
   transition: all 0.18s ease;
 }
 
@@ -32,7 +31,7 @@
 }
 
 .preset-filter__content {
-  @apply flex items-center gap-2 h-[30px] bg-surface-primary overflow-hidden whitespace-nowrap;
+  @apply flex items-center gap-2 h-9 bg-surface-primary overflow-hidden whitespace-nowrap;
   max-width: 0;
   opacity: 0;
   margin-left: 0;
@@ -61,7 +60,7 @@
   margin-left: 4px;
   padding-left: 4px;
   padding-right: 4px;
-  border-color: var(--color-border);
+  border-color: var(--color-border-primary);
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
   pointer-events: auto;
   transform: translateX(0);
@@ -145,11 +144,8 @@
   }
 
   .preset-filter:hover .preset-filter__trigger {
-    min-width: 32px;
-    width: auto;
+    width: 36px;
     opacity: 1;
-    padding-left: 8px;
-    padding-right: 8px;
     border-width: 1px;
   }
 
@@ -159,7 +155,7 @@
     margin-left: 4px;
     padding-left: 4px;
     padding-right: 4px;
-    border-color: var(--color-border);
+    border-color: var(--color-border-primary);
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
     pointer-events: auto;
     transform: translateX(0);
@@ -178,12 +174,12 @@
 /* Dark mode */
 .dark .preset-filter__trigger {
   @apply bg-surface-secondary;
-  border-color: var(--color-border);
+  border-color: var(--color-border-primary);
 }
 
 .dark .preset-filter__content {
   @apply bg-surface-secondary;
-  border-color: var(--color-border);
+  border-color: var(--color-border-primary);
 }
 
 .dark .preset-filter__buttons {

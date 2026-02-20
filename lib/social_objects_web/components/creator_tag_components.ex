@@ -227,7 +227,7 @@ defmodule SocialObjectsWeb.CreatorTagComponents do
             clip-rule="evenodd"
           />
         </svg>
-        <span>
+        <span class="tag-filter__label">
           <%= if @selected_count > 0 do %>
             Tags ({@selected_count})
           <% else %>
