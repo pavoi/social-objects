@@ -30,9 +30,11 @@ defmodule SocialObjectsWeb.FilterComponents do
 
       <.hover_dropdown
         id="creator-filter"
-        options={[{"", "All Creators"} | Enum.map(@creators, &{&1.id, "@" <> &1.username})]}
+        options={Enum.map(@creators, &{&1.id, "@" <> &1.username})}
+        trigger_label="Creator"
         current_value={@selected_creator_id}
         change_event="filter_creator"
+        clear_event="filter_creator"
         toggle_event="toggle_creator_filter"
         open={@creator_filter_open}
       />
@@ -53,20 +55,24 @@ defmodule SocialObjectsWeb.FilterComponents do
   attr :menu_class, :string, default: nil
 
   def hover_dropdown(assigns) do
-    # Find the label for the current value
-    current_label =
-      assigns.trigger_label ||
-        Enum.find_value(assigns.options, fn {value, label} ->
-          if to_string(value) == to_string(assigns.current_value), do: label
-        end) || elem(List.first(assigns.options), 1)
-
-    # Determine if filter is active (not first option)
-    first_value = assigns.options |> List.first() |> elem(0)
+    # Determine if filter is active (has a non-empty value that's in options)
+    selected_label =
+      Enum.find_value(assigns.options, fn {value, label} ->
+        if to_string(value) == to_string(assigns.current_value), do: label
+      end)
 
     is_active =
       assigns.current_value != nil &&
         assigns.current_value != "" &&
-        to_string(assigns.current_value) != to_string(first_value)
+        selected_label != nil
+
+    # Show selected option label when active, otherwise show trigger_label or first option
+    current_label =
+      if is_active do
+        selected_label
+      else
+        assigns.trigger_label || elem(List.first(assigns.options), 1)
+      end
 
     assigns =
       assigns

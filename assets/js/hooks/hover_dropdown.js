@@ -1,21 +1,16 @@
 const HoverDropdown = {
   mounted() {
-    this.trigger = this.el.querySelector(".hover-dropdown__trigger")
-    this.menu = this.el.querySelector(".hover-dropdown__menu")
-
-    if (!this.trigger || !this.menu) {
-      return
-    }
-
     this.handleTriggerClick = this.handleTriggerClick.bind(this)
+    this.handleTriggerPointerUp = this.handleTriggerPointerUp.bind(this)
     this.handleDocumentClick = this.handleDocumentClick.bind(this)
     this.handleMenuClick = this.handleMenuClick.bind(this)
     this.handleEscape = this.handleEscape.bind(this)
     this.handleSearchInput = this.handleSearchInput.bind(this)
     this.handleSearchKeydown = this.handleSearchKeydown.bind(this)
+    this.lastPointerTriggerAt = 0
 
-    this.trigger.addEventListener("click", this.handleTriggerClick)
-    this.menu.addEventListener("click", this.handleMenuClick)
+    this.rebindInteractiveElements()
+
     document.addEventListener("click", this.handleDocumentClick)
     document.addEventListener("keydown", this.handleEscape)
 
@@ -24,30 +19,79 @@ const HoverDropdown = {
   },
 
   updated() {
-    if (!this.trigger || !this.menu) {
-      return
-    }
-
+    this.rebindInteractiveElements()
     this.refreshSearchElements()
     this.syncOpenState()
   },
 
   destroyed() {
-    if (this.trigger) {
-      this.trigger.removeEventListener("click", this.handleTriggerClick)
-    }
-
-    if (this.menu) {
-      this.menu.removeEventListener("click", this.handleMenuClick)
-    }
+    this.teardownInteractiveElements()
 
     document.removeEventListener("click", this.handleDocumentClick)
     document.removeEventListener("keydown", this.handleEscape)
     this.teardownSearchInput()
   },
 
+  rebindInteractiveElements() {
+    const nextTrigger = this.el.querySelector(".hover-dropdown__trigger")
+    const nextMenu = this.el.querySelector(".hover-dropdown__menu")
+
+    if (nextTrigger !== this.trigger) {
+      if (this.trigger) {
+        this.trigger.removeEventListener("click", this.handleTriggerClick)
+        this.trigger.removeEventListener("pointerup", this.handleTriggerPointerUp)
+      }
+
+      this.trigger = nextTrigger
+
+      if (this.trigger) {
+        this.trigger.addEventListener("click", this.handleTriggerClick)
+        this.trigger.addEventListener("pointerup", this.handleTriggerPointerUp)
+      }
+    }
+
+    if (nextMenu !== this.menu) {
+      if (this.menu) {
+        this.menu.removeEventListener("click", this.handleMenuClick)
+      }
+
+      this.menu = nextMenu
+
+      if (this.menu) {
+        this.menu.addEventListener("click", this.handleMenuClick)
+      }
+    }
+  },
+
+  teardownInteractiveElements() {
+    if (this.trigger) {
+      this.trigger.removeEventListener("click", this.handleTriggerClick)
+      this.trigger.removeEventListener("pointerup", this.handleTriggerPointerUp)
+    }
+
+    if (this.menu) {
+      this.menu.removeEventListener("click", this.handleMenuClick)
+    }
+  },
+
+  handleTriggerPointerUp(event) {
+    // Use pointerup for tap reliability and ignore the synthetic click that follows.
+    this.lastPointerTriggerAt = Date.now()
+    this.handleTriggerClick(event)
+  },
+
   handleTriggerClick(event) {
-    if (this.trigger.hasAttribute("phx-click")) {
+    if (event.type == "click" && Date.now() - this.lastPointerTriggerAt < 350) {
+      return
+    }
+
+    const trigger = event.target.closest(".hover-dropdown__trigger") || this.trigger
+
+    if (!trigger) {
+      return
+    }
+
+    if (trigger.hasAttribute("phx-click")) {
       return
     }
 

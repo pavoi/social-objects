@@ -406,9 +406,11 @@ defmodule SocialObjectsWeb.AdminLive.Dashboard do
               <label class="brand-filter__label">Brand:</label>
               <.hover_dropdown
                 id="admin-brand-filter"
-                options={[{"all", "All Brands"} | Enum.map(@brands, &{&1.id, &1.name})]}
-                current_value={if @selected_brand_id, do: @selected_brand_id, else: "all"}
+                options={Enum.map(@brands, &{&1.id, &1.name})}
+                trigger_label="All Brands"
+                current_value={@selected_brand_id}
                 change_event="filter_brand"
+                clear_event="filter_brand"
               />
             </div>
           </div>

@@ -294,11 +294,11 @@ defmodule SocialObjectsWeb.VideoComponents do
         <%= if length(@creators) > 0 do %>
           <.hover_dropdown
             id="creator-filter"
-            options={
-              [{"", "All Creators"}] ++ Enum.map(@creators, &{&1.id, "@#{&1.tiktok_username}"})
-            }
+            options={Enum.map(@creators, &{&1.id, "@#{&1.tiktok_username}"})}
+            trigger_label="Creator"
             current_value={@selected_creator_id}
             change_event="filter_creator"
+            clear_event="filter_creator"
             toggle_event="toggle_creator_filter"
             open={@creator_filter_open}
             searchable={true}

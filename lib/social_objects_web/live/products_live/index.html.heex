@@ -551,12 +551,13 @@
           <.hover_dropdown
             id="products-platform-filter"
             options={[
-              {"", "All Products"},
               {"shopify", "Shopify"},
               {"tiktok", "TikTok Shop"}
             ]}
+            trigger_label="Platform"
             current_value={@platform_filter}
             change_event="browse_platform_filter_changed"
+            clear_event="browse_platform_filter_changed"
           />
 
           <.hover_dropdown
