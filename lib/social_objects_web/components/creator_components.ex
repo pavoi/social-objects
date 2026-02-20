@@ -12,17 +12,6 @@ defmodule SocialObjectsWeb.CreatorComponents do
   alias SocialObjects.Creators.Creator
   alias SocialObjects.Outreach.OutreachLog
 
-  @badge_colors %{
-    "bronze" => "creator-badge--bronze",
-    "silver" => "creator-badge--silver",
-    "gold" => "creator-badge--gold",
-    "platinum" => "creator-badge--platinum",
-    "ruby" => "creator-badge--ruby",
-    "emerald" => "creator-badge--emerald",
-    "sapphire" => "creator-badge--sapphire",
-    "diamond" => "creator-badge--diamond"
-  }
-
   @doc """
   Displays a metric with its delta and data quality indicator.
 
@@ -117,29 +106,6 @@ defmodule SocialObjectsWeb.CreatorComponents do
           <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
         </svg>
         Whitelisted
-      </span>
-    <% end %>
-    """
-  end
-
-  @doc """
-  Renders a colored badge pill for TikTok creator badge level.
-
-  ## Examples
-
-      <.badge_pill level="gold" />
-      <.badge_pill level={@creator.tiktok_badge_level} />
-  """
-  attr :level, :string, default: nil
-
-  def badge_pill(assigns) do
-    badge_class = Map.get(@badge_colors, assigns.level, "creator-badge--none")
-    assigns = assign(assigns, :badge_class, badge_class)
-
-    ~H"""
-    <%= if @level do %>
-      <span class={["creator-badge", @badge_class]}>
-        {@level}
       </span>
     <% end %>
     """

@@ -6,19 +6,9 @@ defmodule SocialObjects.Creators.Creator do
   content promoting products. This is the central entity for tracking creator
   identity, contact information, and performance metrics.
 
-  ## TikTok Badge Levels
-
-  TikTok Shop has an official Creator Badge system based on monthly GMV:
-  - bronze: Entry level
-  - silver: $1K - $5K monthly GMV
-  - gold: $5K+ monthly GMV
-  - platinum, ruby, emerald, sapphire, diamond: Higher tiers
   """
   use Ecto.Schema
   import Ecto.Changeset
-
-  @type badge_level ::
-          :bronze | :silver | :gold | :platinum | :ruby | :emerald | :sapphire | :diamond
 
   @type t :: %__MODULE__{
           id: pos_integer() | nil,
@@ -37,7 +27,6 @@ defmodule SocialObjects.Creators.Creator do
           state: String.t() | nil,
           zipcode: String.t() | nil,
           country: String.t(),
-          tiktok_badge_level: badge_level() | nil,
           is_whitelisted: boolean(),
           notes: String.t() | nil,
           follower_count: integer() | nil,
@@ -71,8 +60,6 @@ defmodule SocialObjects.Creators.Creator do
           updated_at: NaiveDateTime.t() | nil
         }
 
-  @badge_levels ~w(bronze silver gold platinum ruby emerald sapphire diamond)a
-
   schema "creators" do
     # Identity
     field :tiktok_username, :string
@@ -94,9 +81,6 @@ defmodule SocialObjects.Creators.Creator do
     field :state, :string
     field :zipcode, :string
     field :country, :string, default: "US"
-
-    # TikTok Shop Creator Badge
-    field :tiktok_badge_level, Ecto.Enum, values: @badge_levels
 
     # Internal classification
     field :is_whitelisted, :boolean, default: false
@@ -186,7 +170,6 @@ defmodule SocialObjects.Creators.Creator do
       :state,
       :zipcode,
       :country,
-      :tiktok_badge_level,
       :is_whitelisted,
       :notes,
       :follower_count,
@@ -225,11 +208,6 @@ defmodule SocialObjects.Creators.Creator do
       username -> put_change(changeset, :tiktok_username, String.downcase(String.trim(username)))
     end
   end
-
-  @doc """
-  Returns the list of valid TikTok badge levels.
-  """
-  def badge_levels, do: @badge_levels
 
   @doc """
   Returns the creator's full name if available.
